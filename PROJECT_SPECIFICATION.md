@@ -25,7 +25,14 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
   - `crm.deal.fields`
   - `crm.deal.get`
 - Current local persistence uses `localStorage`.
-- Required Bitrix24 permissions before Marketplace upload: CRM and placement/application embedding permissions.
+
+## Required Bitrix24 Permissions
+
+Before uploading each Marketplace app version, explicitly announce and verify this permissions list:
+
+- CRM (CRM)
+- User (Пользователи)
+- Placement (Встраивание приложений)
 
 ## Packaging
 

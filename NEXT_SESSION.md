@@ -26,3 +26,11 @@ Updated: 2026-08-18
 4. Run `npm test`.
 5. Commit changes.
 6. Ask for permission before `git push`.
+
+## Marketplace Upload Permissions
+
+Before uploading each app version, announce and verify:
+
+- CRM (CRM)
+- User (Пользователи)
+- Placement (Встраивание приложений)
