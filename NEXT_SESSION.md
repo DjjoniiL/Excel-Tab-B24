@@ -34,5 +34,6 @@ Before each Marketplace app upload, tell the user which Bitrix24 permissions are
 For the current version, required permissions are:
 
 - CRM (CRM)
-- User (Пользователи)
 - Placement (Встраивание приложений)
+
+Do not request `user.userfield` for the current version. Add User (Пользователи) later only if the app starts calling `user.get` or other user methods.

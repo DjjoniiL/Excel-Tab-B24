@@ -33,8 +33,9 @@ Before each Marketplace app upload, Codex must explicitly tell the user which Bi
 For the current version, required permissions are:
 
 - CRM (CRM)
-- User (Пользователи)
 - Placement (Встраивание приложений)
+
+Do not request `user.userfield` for the current version. Add User (Пользователи) later only if the app starts calling `user.get` or other user methods.
 
 ## Packaging
 
@@ -52,3 +53,4 @@ For the current version, required permissions are:
 ## History
 
 - 2026-08-18: Project initialized from an empty GitHub repository. Added first serverless Marketplace scaffold, documentation, lint/test scripts, and versioned zip builder.
+- 2026-08-18: Improved Bitrix24 deal ID detection from placement context and clarified that `user.userfield` is not required for the current app version.

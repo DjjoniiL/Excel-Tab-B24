@@ -29,6 +29,8 @@ function testExtractDealId() {
   assert.equal(app.extractDealId({ DEAL_ID: "42" }), 42);
   assert.equal(app.extractDealId({ URI: "/crm/deal/details/351/" }), 351);
   assert.equal(app.extractDealId({ url: "https://portal/crm/deal/show/19/" }), 19);
+  assert.equal(app.extractDealId({ options: { ENTITY_VALUE_ID: "77" } }), 77);
+  assert.equal(app.extractDealId({ PLACEMENT_OPTIONS: "{\"ID\":\"88\"}" }), 88);
   assert.equal(app.extractDealId({}), null);
 }
 

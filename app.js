@@ -47,14 +47,41 @@
     }
   }
 
+  function collectNestedValues(input, keys, values = []) {
+    if (!input || typeof input !== "object") return values;
+
+    Object.entries(input).forEach(([key, value]) => {
+      if (keys.includes(key)) values.push(value);
+
+      if (typeof value === "string" && /PLACEMENT_OPTIONS|options/i.test(key)) {
+        collectNestedValues(parsePlacementOptions(value), keys, values);
+        return;
+      }
+
+      if (value && typeof value === "object") collectNestedValues(value, keys, values);
+    });
+
+    return values;
+  }
+
   function extractDealId(input = {}) {
+    const idKeys = [
+      "dealId",
+      "DEAL_ID",
+      "entityId",
+      "ENTITY_ID",
+      "entityValueId",
+      "ENTITY_VALUE_ID",
+      "ownerId",
+      "OWNER_ID",
+      "VALUE_ID",
+      "valueId",
+      "ID",
+      "id",
+    ];
     const candidates = [
-      input.dealId,
-      input.DEAL_ID,
-      input.entityId,
-      input.ENTITY_ID,
-      input.ID,
-      input.id,
+      ...idKeys.map((key) => input[key]),
+      ...collectNestedValues(input, idKeys),
     ];
 
     for (const candidate of candidates) {
@@ -72,6 +99,30 @@
     }
 
     return null;
+  }
+
+  function getPlacementInfo() {
+    if (!window.BX24 || !window.BX24.placement || typeof window.BX24.placement.info !== "function") {
+      return Promise.resolve({});
+    }
+
+    return new Promise((resolve) => {
+      let resolved = false;
+      const finish = (info) => {
+        if (resolved) return;
+        resolved = true;
+        resolve(info || {});
+      };
+
+      try {
+        const syncInfo = window.BX24.placement.info((callbackInfo) => finish(callbackInfo));
+        if (syncInfo && typeof syncInfo === "object") finish(syncInfo);
+      } catch (error) {
+        finish({});
+      }
+
+      window.setTimeout(() => finish({}), 1200);
+    });
   }
 
   function normalizeFields(fields = {}, deal = {}) {
@@ -259,28 +310,30 @@
 
     async function resolveDealContext() {
       const urlParams = Object.fromEntries(new URLSearchParams(window.location.search).entries());
-      let placementOptions = parsePlacementOptions(urlParams.PLACEMENT_OPTIONS || urlParams.placement_options);
+      const queryPlacementOptions = parsePlacementOptions(
+        urlParams.PLACEMENT_OPTIONS || urlParams.placement_options || urlParams.options
+      );
+      let placementOptions = { ...queryPlacementOptions };
 
-      if (window.BX24 && window.BX24.placement && typeof window.BX24.placement.info === "function") {
-        await new Promise((resolve) => {
-          window.BX24.placement.info((info) => {
-            placementOptions = {
-              ...placementOptions,
-              ...(info || {}),
-              ...(info && info.options ? parsePlacementOptions(info.options) : {}),
-            };
-            resolve();
-          });
-        });
-      }
+      const info = await getPlacementInfo();
+      placementOptions = {
+        ...placementOptions,
+        ...info,
+        ...(info.options ? parsePlacementOptions(info.options) : {}),
+        ...(info.OPTIONS ? parsePlacementOptions(info.OPTIONS) : {}),
+        ...(info.PLACEMENT_OPTIONS ? parsePlacementOptions(info.PLACEMENT_OPTIONS) : {}),
+      };
 
       dealId = extractDealId({
         ...urlParams,
         ...placementOptions,
+        queryPlacementOptions,
         url: document.referrer || window.location.href,
       });
 
-      dealContext.textContent = dealId ? `Сделка #${dealId}` : "Сделка не определена";
+      dealContext.textContent = dealId
+        ? `Сделка #${dealId}`
+        : "Сделка не определена. Обновите вкладку после полного открытия карточки.";
     }
 
     async function loadDealFields() {
