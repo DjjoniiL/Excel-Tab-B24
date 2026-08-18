@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root "dist app B24 zip"
+$archiveBaseName = "Excel Tab B24"
 $runtimeFiles = @(
   "install.html",
   "install.js",
@@ -15,8 +16,19 @@ if (-not (Test-Path $dist)) {
   New-Item -ItemType Directory -Path $dist | Out-Null
 }
 
-$version = Get-Date -Format "yyyyMMdd-HHmmss"
-$archive = Join-Path $dist "excel-tab-b24-marketplace-$version.zip"
+$existingVersions = Get-ChildItem -LiteralPath $dist -Filter "$archiveBaseName v*.zip" |
+  ForEach-Object {
+    if ($_.BaseName -match "^$([regex]::Escape($archiveBaseName)) v\.(\d+)$") {
+      [int]$Matches[1]
+    }
+  }
+
+$nextVersion = 1
+if ($existingVersions.Count -gt 0) {
+  $nextVersion = ($existingVersions | Measure-Object -Maximum).Maximum + 1
+}
+
+$archive = Join-Path $dist "$archiveBaseName v.$nextVersion.zip"
 
 if (Test-Path $archive) {
   throw "Archive already exists: $archive"
