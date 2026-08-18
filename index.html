@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Excel Tab B24</title>
+    <link rel="stylesheet" href="style.css?v=excel-tab-20260818-1">
+    <script src="//api.bitrix24.com/api/v1/"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>Excel Tab B24</h1>
+          <p id="dealContext">Загрузка карточки сделки...</p>
+        </div>
+        <button class="ghost-button" id="reloadFieldsButton" type="button">Обновить поля</button>
+      </header>
+
+      <section class="toolbar" aria-label="Панель таблицы">
+        <div class="status-pill" id="fieldStatus">Поля сделки: ожидание</div>
+        <div class="status-pill" id="gridStatus">12 строк, 8 столбцов</div>
+      </section>
+
+      <section class="grid-frame" aria-label="Таблица сделки">
+        <div class="grid-scroll">
+          <table class="sheet" id="sheet" aria-label="Редактируемая таблица"></table>
+        </div>
+        <button class="add-column-button" id="addColumnButton" type="button" aria-label="Добавить столбец">+</button>
+        <button class="add-row-button" id="addRowButton" type="button" aria-label="Добавить строку">+</button>
+      </section>
+    </main>
+
+    <template id="cellTemplate">
+      <div class="cell-wrap">
+        <input class="cell-input" type="text" autocomplete="off" aria-label="Значение ячейки">
+        <button class="field-picker-button" type="button" aria-label="Выбрать поле сделки">▾</button>
+      </div>
+    </template>
+
+    <div class="field-popover" id="fieldPopover" hidden>
+      <input class="field-search" id="fieldSearch" type="search" placeholder="Найти поле" autocomplete="off">
+      <div class="field-list" id="fieldList"></div>
+    </div>
+
+    <script src="app.js?v=excel-tab-20260818-1"></script>
+  </body>
+</html>
