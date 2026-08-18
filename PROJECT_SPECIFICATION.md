@@ -28,7 +28,9 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 
 ## Required Bitrix24 Permissions
 
-Before uploading each Marketplace app version, explicitly announce and verify this permissions list:
+Before each Marketplace app upload, Codex must explicitly tell the user which Bitrix24 permissions are required for the current app version to work correctly. The permissions must be written as a list.
+
+For the current version, required permissions are:
 
 - CRM (CRM)
 - User (Пользователи)

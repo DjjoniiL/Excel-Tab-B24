@@ -29,7 +29,9 @@ Updated: 2026-08-18
 
 ## Marketplace Upload Permissions
 
-Before uploading each app version, announce and verify:
+Before each Marketplace app upload, tell the user which Bitrix24 permissions are required for the current app version to work correctly. Always write the permissions as a list.
+
+For the current version, required permissions are:
 
 - CRM (CRM)
 - User (Пользователи)
