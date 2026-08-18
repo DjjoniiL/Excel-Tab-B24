@@ -10,6 +10,7 @@ Updated: 2026-08-18
 - No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
 - Marketplace zip archives are created in `dist app B24 zip/`.
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
+- A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
 
 ## Next Work
 

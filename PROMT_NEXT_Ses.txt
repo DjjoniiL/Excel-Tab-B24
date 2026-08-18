@@ -1,0 +1,83 @@
+Продолжи работу над проектом Excel Tab B24.
+
+Локальный путь проекта:
+C:\AI Project B24\Excel Tab B24
+
+GitHub:
+https://github.com/DjjoniiL/Excel-Tab-B24
+Remote: origin
+Branch: main
+
+Обязательно используй локальный учебник:
+C:\AI Project B24\Bitrix24 CRM Marketplace App Logic.md
+
+Перед началом работы прочитай документацию проекта:
+- NEXT_SESSION.md
+- PROJECT_SPECIFICATION.md
+- DESIGN_GUIDE.md
+
+Суть проекта:
+Нужно разработать serverless-приложение для Bitrix24 Marketplace, которое встраивается как вкладка в карточку сделки. Приложение показывает таблицу наподобие Excel: по умолчанию 12 строк и 8 столбцов. Под таблицей есть кнопка с плюсом для добавления строк, справа от крайнего столбца есть кнопка с плюсом для добавления столбцов. В каждой ячейке при фокусе доступна кнопка выбора поля сделки. При выборе поля сделки значение этого поля автоматически подставляется в текущую ячейку.
+
+Ключевые правила проекта:
+- Marketplace-версия должна быть serverless, без backend.
+- OAuth/API ключи, portal credentials, .env и любые секреты не записывать в документацию, код, архивы и репозиторий.
+- Для Marketplace создавать только новые versioned zip-архивы, старые архивы не перезаписывать.
+- Архивы складывать в папку: dist app B24 zip
+- Название архива должно быть в формате: Excel Tab B24 v.N.zip
+- В Marketplace zip добавлять только runtime-файлы приложения, без документации, тестов, .git, node_modules и служебных файлов.
+- Текущий состав Marketplace zip: install.html, install.js, install.css, index.html, app.js, style.css.
+
+Обязательный цикл каждой итерации:
+1. Выполнить git status --short.
+2. Внести изменения.
+3. Выполнить npm run lint.
+4. Выполнить npm test.
+5. Перед сборкой или загрузкой Marketplace-версии обновить PROJECT_SPECIFICATION.md.
+6. Если собирается Marketplace-пакет, выполнить npm run package и проверить состав zip.
+7. Сделать commit.
+8. Перед push обязательно спросить разрешение пользователя.
+
+Перед каждой загрузкой приложения в Bitrix24 Marketplace обязательно напиши пользователю список прав, которые нужны текущей версии приложения.
+
+Для текущей версии нужны права:
+- CRM (CRM)
+- Placement (Встраивание приложений)
+
+Для текущей версии НЕ нужны:
+- user.userfield
+- User (Пользователи), пока в коде нет вызовов user.get или других user.* методов
+
+Что уже сделано:
+- Репозиторий был пустой, проект инициализирован с нуля.
+- Создан browser-only каркас Marketplace-приложения.
+- install.html/install.js регистрируют вкладку сделки через placement.bind.
+- index.html/style.css/app.js реализуют таблицу 12x8, добавление строк и столбцов, редактирование ячеек и выбор поля сделки.
+- app.js использует BX24.callMethod.
+- Текущие REST-методы: placement.bind, crm.deal.fields, crm.deal.get.
+- Усилено определение ID сделки из Bitrix24 placement context: ENTITY_ID, ENTITY_VALUE_ID, ID, вложенные options, JSON PLACEMENT_OPTIONS и URL карточки.
+- Добавлены простые тесты tests/app.test.js.
+- Добавлен lint через node --check.
+- Добавлен скрипт сборки tools/build-marketplace-zip.ps1.
+- Добавлены документационные файлы NEXT_SESSION.md, PROJECT_SPECIFICATION.md, DESIGN_GUIDE.md.
+- Создан локальный архив: dist app B24 zip\Excel Tab B24 v.2.zip
+
+Последние важные коммиты:
+- b4df55a Initial serverless Bitrix24 spreadsheet tab
+- cae1807 Rename marketplace zip output folder
+- c587288 Use numbered marketplace archive names
+- 396f473 Clarify upload permission checklist rule
+- 4f3ae03 Improve deal context detection
+
+Текущее важное наблюдение:
+На портале пользователь видел сообщение "Поля не найдены" и статус "Поля сделки: карточка не определена". Вероятная причина была в том, что приложение не определяло ID сделки из фактического placement context. Это исправлено в коммите 4f3ae03, но нужно проверить новую сборку Excel Tab B24 v.2.zip на реальном портале Bitrix24.
+
+Ближайшие задачи:
+- Загрузить/проверить Excel Tab B24 v.2.zip на портале.
+- Убедиться, что вкладка корректно определяет сделку #ID и загружает поля сделки.
+- Если поля все еще не грузятся, добавить временную безопасную диагностику placement info без секретов, чтобы увидеть форму PLACEMENT_OPTIONS.
+- Определить модель хранения таблицы: per-deal, per-user или shared через Bitrix24 app options. Сейчас используется localStorage.
+- Улучшить UX таблицы: выбранная ячейка, клавиатурная навигация, возможное изменение размеров строк/столбцов.
+
+Важно:
+Не трогай чужие untracked-файлы. В рабочей папке может быть посторонний файл "Новый текстовый документ.txt"; не добавляй его в git без явного указания пользователя.
