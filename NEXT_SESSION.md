@@ -8,6 +8,7 @@ Updated: 2026-08-18
 - Initial serverless Bitrix24 Marketplace app scaffold is present.
 - Runtime files are plain browser assets: `install.html`, `install.js`, `install.css`, `index.html`, `app.js`, `style.css`.
 - No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
+- Marketplace zip archives are created in `dist app B24 zip/`.
 
 ## Next Work
 

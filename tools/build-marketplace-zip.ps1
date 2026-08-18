@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$dist = Join-Path $root "dist"
+$dist = Join-Path $root "dist app B24 zip"
 $runtimeFiles = @(
   "install.html",
   "install.js",

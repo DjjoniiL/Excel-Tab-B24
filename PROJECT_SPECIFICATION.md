@@ -29,7 +29,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 
 ## Packaging
 
-- Use `npm run package` to create a new versioned zip in `dist/`.
+- Use `npm run package` to create a new versioned zip in `dist app B24 zip/`.
 - Old archives must not be overwritten.
 - Marketplace zip includes only runtime files:
   - `install.html`
