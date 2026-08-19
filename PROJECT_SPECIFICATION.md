@@ -1,6 +1,6 @@
 # PROJECT_SPECIFICATION
 
-Updated: 2026-08-18
+Updated: 2026-08-19
 
 ## Product
 
@@ -25,6 +25,8 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
   - `crm.deal.fields`
   - `crm.deal.get`
 - Current local persistence uses `localStorage`.
+- Grid data is separated per deal when the deal ID is detected. The storage key format is `excel-tab-b24-grid-deal-v1-{dealId}`.
+- If the app is opened outside a detected deal card, it falls back to the local development key `excel-tab-b24-grid-v1`.
 
 ## Required Bitrix24 Permissions
 
@@ -54,3 +56,4 @@ Do not request `user.userfield` for the current version. Add User (Пользо�
 
 - 2026-08-18: Project initialized from an empty GitHub repository. Added first serverless Marketplace scaffold, documentation, lint/test scripts, and versioned zip builder.
 - 2026-08-18: Improved Bitrix24 deal ID detection from placement context and clarified that `user.userfield` is not required for the current app version.
+- 2026-08-19: Added per-deal grid storage keys, explicit selected-cell state, and guarded field insertion into the selected cell only.

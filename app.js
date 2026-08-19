@@ -10,7 +10,8 @@
   const DEFAULT_ROWS = 12;
   const DEFAULT_COLUMNS = 8;
   const STORAGE_KEY = "excel-tab-b24-grid-v1";
-  const DISPLAY_VERSION = "Excel Tab B24 v.0.1 Marketplace B24";
+  const DEAL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-deal-v1";
+  const DISPLAY_VERSION = "Excel Tab B24 v.2 Marketplace B24";
 
   function createGrid(rows = DEFAULT_ROWS, columns = DEFAULT_COLUMNS) {
     return Array.from({ length: rows }, () => Array.from({ length: columns }, () => ""));
@@ -164,19 +165,28 @@
     });
   }
 
-  function loadGrid() {
+  function getGridStorageKey(dealId) {
+    const normalizedDealId = Number.parseInt(dealId, 10);
+    if (Number.isInteger(normalizedDealId) && normalizedDealId > 0) {
+      return `${DEAL_STORAGE_KEY_PREFIX}-${normalizedDealId}`;
+    }
+
+    return STORAGE_KEY;
+  }
+
+  function loadGrid(storageKey = STORAGE_KEY) {
     try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
+      const saved = window.localStorage.getItem(storageKey);
       const parsed = saved ? JSON.parse(saved) : null;
       if (Array.isArray(parsed) && parsed.length && Array.isArray(parsed[0])) return parsed;
     } catch (error) {
-      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(storageKey);
     }
     return createGrid();
   }
 
-  function saveGrid(grid) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(grid));
+  function saveGrid(grid, storageKey = STORAGE_KEY) {
+    window.localStorage.setItem(storageKey, JSON.stringify(grid));
   }
 
   function bootBrowserApp() {
@@ -192,10 +202,22 @@
     const addColumnButton = document.getElementById("addColumnButton");
     const reloadFieldsButton = document.getElementById("reloadFieldsButton");
 
-    let grid = loadGrid();
+    let storageKey = getGridStorageKey(null);
+    let grid = loadGrid(storageKey);
     let currentCell = null;
     let dealFields = [];
     let dealId = null;
+
+    function setCurrentCell(input, rowIndex, columnIndex) {
+      if (currentCell && currentCell.input) {
+        const previousCell = currentCell.input.closest("td");
+        if (previousCell) previousCell.classList.remove("is-selected");
+      }
+
+      currentCell = { input, rowIndex, columnIndex };
+      const selectedCell = input.closest("td");
+      if (selectedCell) selectedCell.classList.add("is-selected");
+    }
 
     function updateGridStatus() {
       const rows = grid.length;
@@ -239,12 +261,15 @@
           input.dataset.column = String(columnIndex);
           picker.dataset.row = String(rowIndex);
           picker.dataset.column = String(columnIndex);
+          input.addEventListener("focus", () => {
+            setCurrentCell(input, rowIndex, columnIndex);
+          });
           input.addEventListener("input", () => {
             grid[rowIndex][columnIndex] = input.value;
-            saveGrid(grid);
+            saveGrid(grid, storageKey);
           });
           picker.addEventListener("click", (event) => {
-            currentCell = { input, rowIndex, columnIndex };
+            setCurrentCell(input, rowIndex, columnIndex);
             openFieldPopover(event.currentTarget);
           });
           td.appendChild(fragment);
@@ -282,11 +307,11 @@
         button.querySelector("span").textContent = field.title;
         button.querySelector("small").textContent = field.id;
         button.addEventListener("click", () => {
-          if (!currentCell) return;
+          if (!currentCell || !currentCell.input) return;
           const formatted = formatDealFieldValue(field.value);
           currentCell.input.value = formatted;
           grid[currentCell.rowIndex][currentCell.columnIndex] = formatted;
-          saveGrid(grid);
+          saveGrid(grid, storageKey);
           closeFieldPopover();
           currentCell.input.focus();
         });
@@ -334,6 +359,11 @@
       dealContext.textContent = dealId
         ? `Сделка #${dealId}`
         : "Сделка не определена. Обновите вкладку после полного открытия карточки.";
+
+      storageKey = getGridStorageKey(dealId);
+      grid = loadGrid(storageKey);
+      currentCell = null;
+      renderGrid();
     }
 
     async function loadDealFields() {
@@ -355,13 +385,13 @@
 
     addRowButton.addEventListener("click", () => {
       grid = addRow(grid);
-      saveGrid(grid);
+      saveGrid(grid, storageKey);
       renderGrid();
     });
 
     addColumnButton.addEventListener("click", () => {
       grid = addColumn(grid);
-      saveGrid(grid);
+      saveGrid(grid, storageKey);
       renderGrid();
     });
 
@@ -404,6 +434,7 @@
     createGrid,
     extractDealId,
     formatDealFieldValue,
+    getGridStorageKey,
     normalizeFields,
   };
 });

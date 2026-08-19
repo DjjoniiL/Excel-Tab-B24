@@ -34,6 +34,12 @@ function testExtractDealId() {
   assert.equal(app.extractDealId({}), null);
 }
 
+function testGridStorageKey() {
+  assert.equal(app.getGridStorageKey(null), "excel-tab-b24-grid-v1");
+  assert.equal(app.getGridStorageKey("42"), "excel-tab-b24-grid-deal-v1-42");
+  assert.equal(app.getGridStorageKey(351), "excel-tab-b24-grid-deal-v1-351");
+}
+
 function testNormalizeAndFormatFields() {
   const fields = {
     TITLE: { title: "Название" },
@@ -55,6 +61,7 @@ testCreateGridDefaults();
 testAddRowAndColumn();
 testColumnName();
 testExtractDealId();
+testGridStorageKey();
 testNormalizeAndFormatFields();
 
 console.log("app tests passed");
