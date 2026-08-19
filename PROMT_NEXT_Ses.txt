@@ -1,7 +1,7 @@
 Продолжи работу над проектом Excel Tab B24.
 
 Локальный путь проекта:
-C:\AI Project B24\Excel Tab B24
+G:\AI Project B24\Excel Tab B24
 
 GitHub:
 https://github.com/DjjoniiL/Excel-Tab-B24
@@ -9,7 +9,7 @@ Remote: origin
 Branch: main
 
 Обязательно используй локальный учебник:
-C:\AI Project B24\Bitrix24 CRM Marketplace App Logic.md
+G:\AI Project B24\Bitrix24 CRM Marketplace App Logic.md
 
 Перед началом работы прочитай документацию проекта:
 - NEXT_SESSION.md
