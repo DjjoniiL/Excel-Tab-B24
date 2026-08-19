@@ -11,6 +11,7 @@ The application should feel like a compact work tool inside Bitrix24, not a mark
 - First screen is the actual spreadsheet widget.
 - Header is short and functional: app name, deal context, field reload action.
 - Toolbar includes compact table commands such as selecting filled cells and selected-range actions.
+- Toolbar includes export as a direct table action.
 - Table area is the dominant surface.
 - Row add control sits below the table.
 - Column add control sits to the right of the table.

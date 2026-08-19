@@ -255,6 +255,10 @@ body {
   z-index: 20;
 }
 
+.field-popover[hidden] {
+  display: none;
+}
+
 .field-popover-header {
   align-items: stretch;
   border-bottom: 1px solid var(--line);

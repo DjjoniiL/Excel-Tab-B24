@@ -17,6 +17,8 @@ Updated: 2026-08-18
 - Verify the exact Bitrix24 placement code on a test portal. Current installer binds `CRM_DEAL_DETAIL_TAB`.
 - Test inside a real deal card iframe to confirm `PLACEMENT_OPTIONS` shape and deal ID extraction.
 - Verify field reference display values on a real portal: users, contact, company, category, and stage.
+- Verify that field-bound cells refresh automatically when a deal field changes.
+- Verify Excel export opens correctly in desktop Excel.
 - Verify that repeated app installation leaves one deal tab after `placement.unbind` + `placement.bind`.
 - Add further UX polish after portal test: keyboard navigation and manual row/column resizing.
 

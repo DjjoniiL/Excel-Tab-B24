@@ -11,7 +11,7 @@
   const DEFAULT_COLUMNS = 8;
   const STORAGE_KEY = "excel-tab-b24-grid-v1";
   const DEAL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-deal-v1";
-  const DISPLAY_VERSION = "Excel Tab B24 v.3 Marketplace B24";
+  const DISPLAY_VERSION = "Excel Tab B24 v.5 Marketplace B24";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
@@ -92,6 +92,63 @@
       return Math.max(max, textLength);
     }, columnName(columnIndex).length);
     return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, Math.ceil(maxLength * 8.5) + 42));
+  }
+
+  function getUsedGridBounds(grid) {
+    let lastRow = -1;
+    let lastColumn = -1;
+
+    grid.forEach((row, rowIndex) => {
+      row.forEach((value, columnIndex) => {
+        if (!String(value || "").trim()) return;
+        lastRow = Math.max(lastRow, rowIndex);
+        lastColumn = Math.max(lastColumn, columnIndex);
+      });
+    });
+
+    if (lastRow < 0 || lastColumn < 0) return { lastColumn: 0, lastRow: 0 };
+    return { lastColumn, lastRow };
+  }
+
+  function getExportGrid(grid) {
+    const bounds = getUsedGridBounds(grid);
+    return grid
+      .slice(0, bounds.lastRow + 1)
+      .map((row) => row.slice(0, bounds.lastColumn + 1));
+  }
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function buildExcelHtml(grid) {
+    const rows = getExportGrid(grid);
+    const body = rows
+      .map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`)
+      .join("");
+
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    table { border-collapse: collapse; }
+    td { border: 1px solid #d7dde8; mso-number-format:"\\@"; padding: 4px 8px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <table>${body}</table>
+</body>
+</html>`;
+  }
+
+  function getExportFileName(dealId) {
+    const suffix = dealId ? ` deal ${dealId}` : "";
+    return `Excel Tab B24${suffix}.xls`;
   }
 
   function parsePlacementOptions(raw) {
@@ -249,6 +306,26 @@
     }));
   }
 
+  function applyFieldBindings(grid, fieldBindings = {}, fields = []) {
+    const valuesByFieldId = fields.reduce((values, field) => {
+      values[field.id] = formatDealFieldValue(field.value);
+      return values;
+    }, {});
+    let changed = false;
+    const nextGrid = grid.map((row, rowIndex) =>
+      row.map((value, columnIndex) => {
+        const fieldId = fieldBindings[cellKey(rowIndex, columnIndex)];
+        if (!fieldId || !Object.prototype.hasOwnProperty.call(valuesByFieldId, fieldId)) return value;
+
+        const nextValue = valuesByFieldId[fieldId];
+        if (nextValue !== value) changed = true;
+        return nextValue;
+      })
+    );
+
+    return { changed, grid: nextGrid };
+  }
+
   function formatDealFieldValue(value) {
     if (value === null || typeof value === "undefined") return "";
     if (Array.isArray(value)) return value.map(formatDealFieldValue).filter(Boolean).join(", ");
@@ -391,11 +468,12 @@
       const saved = window.localStorage.getItem(storageKey);
       const parsed = saved ? JSON.parse(saved) : null;
       if (Array.isArray(parsed) && parsed.length && Array.isArray(parsed[0])) {
-        return { columnWidths: [], grid: parsed, wrappedCells: new Set() };
+        return { columnWidths: [], fieldBindings: {}, grid: parsed, wrappedCells: new Set() };
       }
       if (parsed && Array.isArray(parsed.grid) && parsed.grid.length && Array.isArray(parsed.grid[0])) {
         return {
           columnWidths: Array.isArray(parsed.columnWidths) ? parsed.columnWidths : [],
+          fieldBindings: parsed.fieldBindings && typeof parsed.fieldBindings === "object" ? parsed.fieldBindings : {},
           grid: parsed.grid,
           wrappedCells: new Set(Array.isArray(parsed.wrappedCells) ? parsed.wrappedCells : []),
         };
@@ -404,7 +482,7 @@
       window.localStorage.removeItem(storageKey);
     }
 
-    return { columnWidths: [], grid: createGrid(), wrappedCells: new Set() };
+    return { columnWidths: [], fieldBindings: {}, grid: createGrid(), wrappedCells: new Set() };
   }
 
   function saveSheetState(state, storageKey = STORAGE_KEY) {
@@ -412,6 +490,7 @@
       storageKey,
       JSON.stringify({
         columnWidths: state.columnWidths || [],
+        fieldBindings: state.fieldBindings || {},
         grid: state.grid,
         wrappedCells: Array.from(state.wrappedCells || []),
       })
@@ -435,12 +514,14 @@
     const selectionActions = document.getElementById("selectionActions");
     const wrapTextButton = document.getElementById("wrapTextButton");
     const autoFitButton = document.getElementById("autoFitButton");
+    const exportExcelButton = document.getElementById("exportExcelButton");
 
     let storageKey = getGridStorageKey(null);
     let sheetState = loadSheetState(storageKey);
     let grid = sheetState.grid;
     let wrappedCells = sheetState.wrappedCells;
     let columnWidths = sheetState.columnWidths;
+    let fieldBindings = sheetState.fieldBindings;
     let currentCell = null;
     let dealFields = [];
     let dealId = null;
@@ -449,7 +530,7 @@
     let selectionAnchor = null;
 
     function persistSheetState() {
-      saveSheetState({ columnWidths, grid, wrappedCells }, storageKey);
+      saveSheetState({ columnWidths, fieldBindings, grid, wrappedCells }, storageKey);
     }
 
     function updateSelectionActions() {
@@ -590,12 +671,23 @@
               toggleKey: event.ctrlKey || event.metaKey,
             });
           });
+          input.addEventListener("mousedown", (event) => {
+            setCurrentCell(input, rowIndex, columnIndex);
+            selectCell(rowIndex, columnIndex, {
+              shiftKey: event.shiftKey,
+              toggleKey: event.ctrlKey || event.metaKey,
+            });
+          });
+          input.addEventListener("click", (event) => {
+            event.stopPropagation();
+          });
           input.addEventListener("focus", () => {
             setCurrentCell(input, rowIndex, columnIndex);
             if (!selectedCells.has(key)) selectCell(rowIndex, columnIndex);
           });
           input.addEventListener("input", () => {
             grid[rowIndex][columnIndex] = input.value;
+            delete fieldBindings[key];
             persistSheetState();
           });
           picker.addEventListener("click", (event) => {
@@ -647,6 +739,7 @@
           const formatted = formatDealFieldValue(field.value);
           currentCell.input.value = formatted;
           grid[currentCell.rowIndex][currentCell.columnIndex] = formatted;
+          fieldBindings[cellKey(currentCell.rowIndex, currentCell.columnIndex)] = field.id;
           persistSheetState();
           closeFieldPopover();
           currentCell.input.focus();
@@ -703,6 +796,7 @@
       grid = sheetState.grid;
       wrappedCells = sheetState.wrappedCells;
       columnWidths = sheetState.columnWidths;
+      fieldBindings = sheetState.fieldBindings;
       currentCell = null;
       selectedCells = new Set();
       selectionAnchor = null;
@@ -722,6 +816,12 @@
         const normalizedFields = normalizeFields(fields, deal);
         const displayValues = await loadDisplayValues(normalizedFields, deal);
         dealFields = applyDisplayValues(normalizedFields, displayValues);
+        const updatedBindings = applyFieldBindings(grid, fieldBindings, dealFields);
+        if (updatedBindings.changed) {
+          grid = updatedBindings.grid;
+          persistSheetState();
+          renderGrid();
+        }
         fieldStatus.textContent = `Поля сделки: ${dealFields.length}`;
       } catch (error) {
         fieldStatus.textContent = `Поля сделки: ошибка (${error.message || error})`;
@@ -782,6 +882,18 @@
       focusFirstSelectedCell();
     }
 
+    function downloadExcelFile() {
+      const html = buildExcelHtml(grid);
+      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = getExportFileName(dealId);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
     addRowButton.addEventListener("click", () => {
       grid = addRow(grid);
       persistSheetState();
@@ -798,6 +910,7 @@
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectFilledCells);
     if (wrapTextButton) wrapTextButton.addEventListener("click", toggleWrapSelectedCells);
     if (autoFitButton) autoFitButton.addEventListener("click", autoFitSelectedColumns);
+    if (exportExcelButton) exportExcelButton.addEventListener("click", downloadExcelFile);
     if (fieldPopoverClose) fieldPopoverClose.addEventListener("click", closeFieldPopover);
     fieldSearch.addEventListener("input", () => renderFieldList(fieldSearch.value));
     document.addEventListener("keydown", (event) => {
@@ -836,9 +949,12 @@
     DEFAULT_ROWS,
     addColumn,
     addRow,
+    applyFieldBindings,
+    buildExcelHtml,
     cellKey,
     columnName,
     createGrid,
+    escapeHtml,
     extractDealId,
     findCategoryName,
     findStatusName,
@@ -847,13 +963,18 @@
     formatDealFieldValue,
     formatUser,
     getDealStageEntityId,
+    getExportFileName,
+    getExportGrid,
     getFilledCellKeys,
     getGridStorageKey,
     getRangeCellKeys,
     getSelectedColumns,
+    getUsedGridBounds,
+    loadSheetState,
     measureColumnWidth,
     normalizeFields,
     normalizeIdList,
     parseCellKey,
+    saveSheetState,
   };
 });
