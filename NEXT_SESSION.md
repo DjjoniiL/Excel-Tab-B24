@@ -16,8 +16,9 @@ Updated: 2026-08-18
 
 - Verify the exact Bitrix24 placement code on a test portal. Current installer binds `CRM_DEAL_DETAIL_TAB`.
 - Test inside a real deal card iframe to confirm `PLACEMENT_OPTIONS` shape and deal ID extraction.
-- Decide whether table data should be per-deal, per-user, or shared through Bitrix24 app options. Current persistence is browser `localStorage`.
-- Add UX polish after first portal test: keyboard navigation, row/column resizing, and clearer selected-cell state.
+- Verify field reference display values on a real portal: users, contact, company, category, and stage.
+- Verify that repeated app installation leaves one deal tab after `placement.unbind` + `placement.bind`.
+- Add further UX polish after portal test: keyboard navigation and manual row/column resizing.
 
 ## Required Cycle
 
@@ -36,5 +37,6 @@ For the current version, required permissions are:
 
 - CRM (CRM)
 - Placement (Встраивание приложений)
+- User (Пользователи)
 
-Do not request `user.userfield` for the current version. Add User (Пользователи) later only if the app starts calling `user.get` or other user methods.
+Do not request `user.userfield` for the current version.

@@ -13,8 +13,12 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Lets the user add rows with the plus button below the table.
 - Lets the user add columns with the plus button to the right of the table.
 - Each cell can be edited manually.
+- Cells can be selected individually, as ranges, by row, by column, or by all filled cells.
 - When a cell is active, a field picker button is available.
 - The field picker lists CRM deal fields and inserts the selected field value into the current cell.
+- The field picker can be closed explicitly with the close button, Escape, outside click, or repeated click on the same picker button.
+- When cells are selected, the user can enable text wrapping for selected cells or auto-fit selected columns to their contents.
+- Deal reference fields are displayed as human-readable values where possible: users, contact, company, category, and stage.
 
 ## Runtime Model
 
@@ -22,10 +26,17 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Bitrix24 REST calls are made through `BX24.callMethod`.
 - Initial REST methods used:
   - `placement.bind`
+  - `placement.unbind`
   - `crm.deal.fields`
   - `crm.deal.get`
+  - `crm.contact.get`
+  - `crm.company.get`
+  - `crm.dealcategory.list`
+  - `crm.status.list`
+  - `user.get`
 - Current local persistence uses `localStorage`.
 - Grid data is separated per deal when the deal ID is detected. The storage key format is `excel-tab-b24-grid-deal-v1-{dealId}`.
+- Per-deal local state also stores wrapped cells and custom column widths.
 - If the app is opened outside a detected deal card, it falls back to the local development key `excel-tab-b24-grid-v1`.
 
 ## Required Bitrix24 Permissions
@@ -36,8 +47,9 @@ For the current version, required permissions are:
 
 - CRM (CRM)
 - Placement (Встраивание приложений)
+- User (Пользователи)
 
-Do not request `user.userfield` for the current version. Add User (Пользователи) later only if the app starts calling `user.get` or other user methods.
+Do not request `user.userfield` for the current version.
 
 ## Packaging
 
@@ -57,3 +69,5 @@ Do not request `user.userfield` for the current version. Add User (Пользо�
 - 2026-08-18: Project initialized from an empty GitHub repository. Added first serverless Marketplace scaffold, documentation, lint/test scripts, and versioned zip builder.
 - 2026-08-18: Improved Bitrix24 deal ID detection from placement context and clarified that `user.userfield` is not required for the current app version.
 - 2026-08-19: Added per-deal grid storage keys, explicit selected-cell state, and guarded field insertion into the selected cell only.
+- 2026-08-19: Added explicit field picker close controls, reference field display values, and idempotent placement rebinding during install.
+- 2026-08-19: Added multi-cell selection, select-filled-cells action, wrapped text cells, and auto-fit column width action.

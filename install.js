@@ -30,6 +30,15 @@
   async function bindPlacement() {
     const handler = new URL("index.html", window.location.href).href;
 
+    await callMethod("placement.unbind", {
+      PLACEMENT: PLACEMENT_CODE,
+    }).catch(() => null);
+
+    await callMethod("placement.unbind", {
+      PLACEMENT: PLACEMENT_CODE,
+      HANDLER: handler,
+    }).catch(() => null);
+
     try {
       await callMethod("placement.bind", {
         PLACEMENT: PLACEMENT_CODE,

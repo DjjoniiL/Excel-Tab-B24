@@ -59,10 +59,38 @@ body {
 }
 
 .toolbar {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selection-actions[hidden] {
+  display: none;
+}
+
+.toolbar-button {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.toolbar-button:hover,
+.toolbar-button:focus {
+  border-color: var(--accent);
+  outline: none;
 }
 
 .status-pill {
@@ -98,7 +126,6 @@ body {
 .sheet td {
   border: 1px solid var(--line);
   height: 34px;
-  min-width: 132px;
   padding: 0;
 }
 
@@ -138,9 +165,14 @@ body {
   border: 0;
   color: var(--text);
   font: inherit;
+  height: 100%;
   min-width: 0;
   outline: none;
+  overflow: hidden;
   padding: 0 8px;
+  resize: none;
+  white-space: nowrap;
+  width: 100%;
 }
 
 .cell-input:focus {
@@ -149,11 +181,25 @@ body {
 }
 
 .sheet td.is-selected {
+  background: var(--accent-soft);
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .sheet td.is-selected .cell-input {
   background: var(--accent-soft);
+}
+
+.sheet td.is-wrapped,
+.sheet td.is-wrapped .cell-input {
+  height: auto;
+  min-height: 56px;
+}
+
+.sheet td.is-wrapped .cell-input {
+  line-height: 1.35;
+  padding-bottom: 6px;
+  padding-top: 6px;
+  white-space: pre-wrap;
 }
 
 .field-picker-button {
@@ -209,13 +255,36 @@ body {
   z-index: 20;
 }
 
+.field-popover-header {
+  align-items: stretch;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+}
+
 .field-search {
   border: 0;
-  border-bottom: 1px solid var(--line);
   font: inherit;
   height: 38px;
   outline: none;
   padding: 0 10px;
+}
+
+.field-popover-close {
+  background: #ffffff;
+  border: 0;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+}
+
+.field-popover-close:hover,
+.field-popover-close:focus {
+  background: var(--accent-soft);
+  color: var(--text);
+  outline: none;
 }
 
 .field-list {

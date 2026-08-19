@@ -66,6 +66,8 @@ Zip hygiene:
 - Keep cache-busting versions aligned across HTML, JS, CSS, and tests.
 - Inspect the zip before upload.
 
+When an installer registers a CRM tab with `placement.bind`, make the operation idempotent. Before binding the current `PLACEMENT` and `HANDLER`, call `placement.unbind` for the same pair and ignore a missing-binding error. Repeated installs should leave one visible tab, not accumulate duplicate tabs with the same title.
+
 ## Runtime And Display Versioning
 
 Keep two version strings in Marketplace apps:

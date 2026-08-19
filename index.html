@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Excel Tab B24</title>
-    <link rel="stylesheet" href="style.css?v=excel-tab-20260819-1">
+    <link rel="stylesheet" href="style.css?v=excel-tab-20260819-3">
     <script src="//api.bitrix24.com/api/v1/"></script>
   </head>
   <body>
@@ -18,6 +18,11 @@
       </header>
 
       <section class="toolbar" aria-label="Панель таблицы">
+        <button class="toolbar-button" id="selectFilledButton" type="button">Выделить заполненные</button>
+        <div class="selection-actions" id="selectionActions" hidden>
+          <button class="toolbar-button" id="wrapTextButton" type="button">Переносить текст</button>
+          <button class="toolbar-button" id="autoFitButton" type="button">Автоширина колонок</button>
+        </div>
         <div class="status-pill" id="fieldStatus">Поля сделки: ожидание</div>
         <div class="status-pill" id="gridStatus">12 строк, 8 столбцов</div>
       </section>
@@ -33,16 +38,19 @@
 
     <template id="cellTemplate">
       <div class="cell-wrap">
-        <input class="cell-input" type="text" autocomplete="off" aria-label="Значение ячейки">
+        <textarea class="cell-input" rows="1" autocomplete="off" aria-label="Значение ячейки"></textarea>
         <button class="field-picker-button" type="button" aria-label="Выбрать поле сделки">▾</button>
       </div>
     </template>
 
     <div class="field-popover" id="fieldPopover" hidden>
-      <input class="field-search" id="fieldSearch" type="search" placeholder="Найти поле" autocomplete="off">
+      <div class="field-popover-header">
+        <input class="field-search" id="fieldSearch" type="search" placeholder="Найти поле" autocomplete="off">
+        <button class="field-popover-close" id="fieldPopoverClose" type="button" aria-label="Закрыть список полей">×</button>
+      </div>
       <div class="field-list" id="fieldList"></div>
     </div>
 
-    <script src="app.js?v=excel-tab-20260819-1"></script>
+    <script src="app.js?v=excel-tab-20260819-3"></script>
   </body>
 </html>
