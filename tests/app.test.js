@@ -123,6 +123,9 @@ function testFormulaCells() {
   ];
 
   assert.deepEqual(app.parseFormulaReference("C3"), { columnIndex: 2, rowIndex: 2 });
+  assert.equal(app.appendFormulaReference("=", "B1"), "=B1");
+  assert.equal(app.appendFormulaReference("=B1", "C1"), "=B1 + C1");
+  assert.equal(app.appendFormulaReference("=B1 * ", "C1"), "=B1 * C1");
   assert.equal(app.getCellDisplayValue(grid, 0, 2), "5");
   assert.equal(app.getCellDisplayValue(grid, 1, 2), "20");
   assert.equal(app.getCellDisplayValue(grid, 2, 2), "25");
