@@ -165,6 +165,15 @@
     });
   }
 
+  function appendFormulaReference(formula, reference) {
+    const current = String(formula || "");
+    const base = current.startsWith("=") ? current : "=";
+    const trimmed = base.trimEnd();
+    if (trimmed === "=") return `${base}${reference}`;
+    if (/[+\-*/(]\s*$/.test(trimmed)) return `${base}${reference}`;
+    return `${base} + ${reference}`;
+  }
+
   function tokenizeFormula(expression) {
     const tokens = [];
     let index = 0;
@@ -306,6 +315,7 @@
   function getCellDisplayValue(grid, rowIndex, columnIndex, visited = new Set()) {
     const value = grid[rowIndex] && grid[rowIndex][columnIndex];
     if (!isFormula(value)) return value || "";
+    if (String(value || "").trim() === "=") return value;
 
     const result = evaluateFormula(grid, rowIndex, columnIndex, visited);
     return result.error ? "#ОШИБКА" : result.value;
@@ -807,6 +817,9 @@
     let selectedCells = new Set();
     let selectionAnchor = null;
     let formulaSourceCell = null;
+    let formulaEditCell = null;
+    let formulaEditInput = null;
+    let formulaReferencePointerHandled = false;
 
     function persistSheetState() {
       saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, wrappedCells }, storageKey);
@@ -852,7 +865,56 @@
       currentCell = { input, rowIndex, columnIndex };
       if (isFormula(grid[rowIndex] && grid[rowIndex][columnIndex])) {
         formulaSourceCell = { columnIndex, rowIndex };
+        formulaEditCell = { columnIndex, rowIndex };
+        formulaEditInput = input;
       }
+    }
+
+    function isSameCell(left, right) {
+      return (
+        left &&
+        right &&
+        left.rowIndex === right.rowIndex &&
+        left.columnIndex === right.columnIndex
+      );
+    }
+
+    function stopFormulaEditingIfNeeded(rowIndex, columnIndex) {
+      if (isSameCell(formulaEditCell, { rowIndex, columnIndex })) return;
+      formulaEditCell = null;
+      formulaEditInput = null;
+    }
+
+    function insertFormulaReference(rowIndex, columnIndex) {
+      if (!formulaEditCell || !formulaEditInput) return false;
+      if (isSameCell(formulaEditCell, { rowIndex, columnIndex })) return false;
+
+      const sourceValue = grid[formulaEditCell.rowIndex] && grid[formulaEditCell.rowIndex][formulaEditCell.columnIndex];
+      if (!isFormula(sourceValue)) return false;
+
+      const reference = `${columnName(columnIndex)}${rowIndex + 1}`;
+      const formula = appendFormulaReference(sourceValue, reference);
+      grid[formulaEditCell.rowIndex][formulaEditCell.columnIndex] = formula;
+      formulaEditInput.value = formula;
+      formulaEditInput.focus();
+      persistSheetState();
+      return true;
+    }
+
+    function handleFormulaReferencePointer(event, rowIndex, columnIndex) {
+      if (event.type === "click" && formulaReferencePointerHandled) {
+        formulaReferencePointerHandled = false;
+        event.preventDefault();
+        event.stopPropagation();
+        return true;
+      }
+
+      if (!insertFormulaReference(rowIndex, columnIndex)) return false;
+
+      if (event.type === "mousedown") formulaReferencePointerHandled = true;
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
     }
 
     function applyFormulaToCells(keys) {
@@ -887,6 +949,13 @@
       const key = cellKey(rowIndex, columnIndex);
       grid[rowIndex][columnIndex] = input.value;
       delete fieldBindings[key];
+      if (isFormula(input.value)) {
+        formulaSourceCell = { columnIndex, rowIndex };
+        formulaEditCell = { columnIndex, rowIndex };
+        formulaEditInput = input;
+      } else {
+        stopFormulaEditingIfNeeded(rowIndex, columnIndex);
+      }
       persistSheetState();
     }
 
@@ -990,13 +1059,18 @@
           picker.dataset.row = String(rowIndex);
           picker.dataset.column = String(columnIndex);
           td.addEventListener("click", (event) => {
+            if (handleFormulaReferencePointer(event, rowIndex, columnIndex)) return;
             setCurrentCell(input, rowIndex, columnIndex);
             selectCell(rowIndex, columnIndex, {
               shiftKey: event.shiftKey,
               toggleKey: event.ctrlKey || event.metaKey,
             });
           });
+          td.addEventListener("mousedown", (event) => {
+            handleFormulaReferencePointer(event, rowIndex, columnIndex);
+          });
           input.addEventListener("mousedown", (event) => {
+            if (handleFormulaReferencePointer(event, rowIndex, columnIndex)) return;
             setCurrentCell(input, rowIndex, columnIndex);
             selectCell(rowIndex, columnIndex, {
               shiftKey: event.shiftKey,
@@ -1012,11 +1086,12 @@
             if (!selectedCells.has(key)) selectCell(rowIndex, columnIndex);
           });
           input.addEventListener("blur", () => {
+            formulaEditCell = null;
+            formulaEditInput = null;
             if (isFormula(grid[rowIndex][columnIndex])) renderGrid();
           });
           input.addEventListener("input", () => {
             commitCellInput(input, rowIndex, columnIndex);
-            if (isFormula(input.value)) formulaSourceCell = { columnIndex, rowIndex };
           });
           input.addEventListener("keydown", (event) => {
             if (event.key !== "Enter" || event.shiftKey) return;
@@ -1359,6 +1434,7 @@
     DEFAULT_ROWS,
     addColumn,
     addRow,
+    appendFormulaReference,
     applyFieldBindings,
     buildExcelHtml,
     calculateSelectedCells,

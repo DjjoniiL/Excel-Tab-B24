@@ -21,6 +21,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - The auto-fit action is always available. Without a selection it auto-fits all columns; with a selection it auto-fits only selected columns. It measures the actual grid value regardless of whether the value was typed manually or inserted/refreshed from a CRM deal field.
 - When cells are selected, the user can calculate addition, subtraction, multiplication, or division for numeric selected cell values and write the result into the active cell.
 - Cells can contain formulas such as `=E4+B4`; formulas support cell references, numbers, parentheses, and `+`, `-`, `*`, `/`.
+- After typing `=`, clicking another cell inserts that cell reference into the active formula. Repeated clicks append references with `+` by default, while clicks after a typed operator append the next reference after that operator.
 - Formula cells store the original formula and display the calculated value. When the cell is focused, the editable formula is shown.
 - When a formula cell is selected and the user Ctrl-selects additional cells, the formula is copied into those cells with relative row and column reference shifts, including row and column header Ctrl-selection.
 - When cells are selected, the user can apply a fill color and set font weight, including bold text.
