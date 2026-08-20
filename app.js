@@ -15,6 +15,8 @@
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
+  const FILL_COLORS = ["", "#fff2cc", "#d9ead3", "#cfe2f3", "#f4cccc", "#eadcf8"];
+  const FONT_WEIGHTS = ["", "600", "700", "800"];
 
   function createGrid(rows = DEFAULT_ROWS, columns = DEFAULT_COLUMNS) {
     return Array.from({ length: rows }, () => Array.from({ length: columns }, () => ""));
@@ -94,6 +96,65 @@
     return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, Math.ceil(maxLength * 8.5) + 42));
   }
 
+  function getSortedCellKeys(keys) {
+    return Array.from(keys).sort((left, right) => {
+      const leftCell = parseCellKey(left);
+      const rightCell = parseCellKey(right);
+      if (leftCell.rowIndex !== rightCell.rowIndex) return leftCell.rowIndex - rightCell.rowIndex;
+      return leftCell.columnIndex - rightCell.columnIndex;
+    });
+  }
+
+  function parseCellNumber(value) {
+    const normalized = String(value || "")
+      .replace(/\s+/g, "")
+      .replace(",", ".")
+      .replace(/[^\d.+-]/g, "");
+    if (!normalized || normalized === "-" || normalized === "+" || normalized === ".") return null;
+
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function formatCalculationResult(value) {
+    if (!Number.isFinite(value)) return "";
+    const rounded = Math.round((value + Number.EPSILON) * 100000000) / 100000000;
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(".", ",");
+  }
+
+  function calculateSelectedCells(grid, selectedCells, operation) {
+    const values = getSortedCellKeys(selectedCells)
+      .map((key) => {
+        const { rowIndex, columnIndex } = parseCellKey(key);
+        return parseCellNumber(grid[rowIndex] && grid[rowIndex][columnIndex]);
+      })
+      .filter((value) => value !== null);
+
+    if (!values.length) return { error: "Нет числовых значений", value: null };
+    if (operation !== "add" && values.length < 2) {
+      return { error: "Нужно минимум два числа", value: null };
+    }
+
+    let value = values[0];
+    if (operation === "add") value = values.reduce((sum, item) => sum + item, 0);
+    if (operation === "subtract") value = values.slice(1).reduce((result, item) => result - item, value);
+    if (operation === "multiply") value = values.reduce((result, item) => result * item, 1);
+    if (operation === "divide") {
+      if (values.slice(1).some((item) => item === 0)) return { error: "Деление на ноль", value: null };
+      value = values.slice(1).reduce((result, item) => result / item, value);
+    }
+
+    if (!Number.isFinite(value)) return { error: "Некорректный результат", value: null };
+    return { error: "", value: formatCalculationResult(value) };
+  }
+
+  function normalizeCellFormat(format = {}) {
+    return {
+      fillColor: FILL_COLORS.includes(format.fillColor) ? format.fillColor : "",
+      fontWeight: FONT_WEIGHTS.includes(format.fontWeight) ? format.fontWeight : "",
+    };
+  }
+
   function getUsedGridBounds(grid) {
     let lastRow = -1;
     let lastColumn = -1;
@@ -125,10 +186,18 @@
       .replace(/"/g, "&quot;");
   }
 
-  function buildExcelHtml(grid) {
+  function buildExcelHtml(grid, cellFormats = {}) {
     const rows = getExportGrid(grid);
     const body = rows
-      .map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`)
+      .map((row, rowIndex) => {
+        const cells = row
+          .map((value, columnIndex) => {
+            const style = getExportCellStyle(cellFormats[cellKey(rowIndex, columnIndex)]);
+            return `<td${style ? ` style="${style}"` : ""}>${escapeHtml(value)}</td>`;
+          })
+          .join("");
+        return `<tr>${cells}</tr>`;
+      })
       .join("");
 
     return `<!doctype html>
@@ -144,6 +213,14 @@
   <table>${body}</table>
 </body>
 </html>`;
+  }
+
+  function getExportCellStyle(format = {}) {
+    const normalizedFormat = normalizeCellFormat(format);
+    const styles = [];
+    if (normalizedFormat.fillColor) styles.push(`background-color:${normalizedFormat.fillColor}`);
+    if (normalizedFormat.fontWeight) styles.push(`font-weight:${normalizedFormat.fontWeight}`);
+    return styles.join(";");
   }
 
   function getExportFileName(dealId) {
@@ -468,10 +545,11 @@
       const saved = window.localStorage.getItem(storageKey);
       const parsed = saved ? JSON.parse(saved) : null;
       if (Array.isArray(parsed) && parsed.length && Array.isArray(parsed[0])) {
-        return { columnWidths: [], fieldBindings: {}, grid: parsed, wrappedCells: new Set() };
+        return { cellFormats: {}, columnWidths: [], fieldBindings: {}, grid: parsed, wrappedCells: new Set() };
       }
       if (parsed && Array.isArray(parsed.grid) && parsed.grid.length && Array.isArray(parsed.grid[0])) {
         return {
+          cellFormats: parsed.cellFormats && typeof parsed.cellFormats === "object" ? parsed.cellFormats : {},
           columnWidths: Array.isArray(parsed.columnWidths) ? parsed.columnWidths : [],
           fieldBindings: parsed.fieldBindings && typeof parsed.fieldBindings === "object" ? parsed.fieldBindings : {},
           grid: parsed.grid,
@@ -482,13 +560,14 @@
       window.localStorage.removeItem(storageKey);
     }
 
-    return { columnWidths: [], fieldBindings: {}, grid: createGrid(), wrappedCells: new Set() };
+    return { cellFormats: {}, columnWidths: [], fieldBindings: {}, grid: createGrid(), wrappedCells: new Set() };
   }
 
   function saveSheetState(state, storageKey = STORAGE_KEY) {
     window.localStorage.setItem(
       storageKey,
       JSON.stringify({
+        cellFormats: state.cellFormats || {},
         columnWidths: state.columnWidths || [],
         fieldBindings: state.fieldBindings || {},
         grid: state.grid,
@@ -514,11 +593,20 @@
     const selectionActions = document.getElementById("selectionActions");
     const wrapTextButton = document.getElementById("wrapTextButton");
     const autoFitButton = document.getElementById("autoFitButton");
+    const fillColorSelect = document.getElementById("fillColorSelect");
+    const fontWeightSelect = document.getElementById("fontWeightSelect");
+    const boldButton = document.getElementById("boldButton");
+    const calcAddButton = document.getElementById("calcAddButton");
+    const calcSubtractButton = document.getElementById("calcSubtractButton");
+    const calcMultiplyButton = document.getElementById("calcMultiplyButton");
+    const calcDivideButton = document.getElementById("calcDivideButton");
+    const calcStatus = document.getElementById("calcStatus");
     const exportExcelButton = document.getElementById("exportExcelButton");
 
     let storageKey = getGridStorageKey(null);
     let sheetState = loadSheetState(storageKey);
     let grid = sheetState.grid;
+    let cellFormats = sheetState.cellFormats;
     let wrappedCells = sheetState.wrappedCells;
     let columnWidths = sheetState.columnWidths;
     let fieldBindings = sheetState.fieldBindings;
@@ -530,7 +618,7 @@
     let selectionAnchor = null;
 
     function persistSheetState() {
-      saveSheetState({ columnWidths, fieldBindings, grid, wrappedCells }, storageKey);
+      saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, wrappedCells }, storageKey);
     }
 
     function updateSelectionActions() {
@@ -663,10 +751,14 @@
           td.dataset.cellKey = key;
           td.classList.toggle("is-selected", selectedCells.has(key));
           td.classList.toggle("is-wrapped", wrappedCells.has(key));
+          const format = normalizeCellFormat(cellFormats[key] || {});
+          if (format.fillColor) td.style.backgroundColor = format.fillColor;
           const fragment = cellTemplate.content.cloneNode(true);
           const input = fragment.querySelector(".cell-input");
           const picker = fragment.querySelector(".field-picker-button");
           input.value = value;
+          if (format.fillColor) input.style.backgroundColor = format.fillColor;
+          if (format.fontWeight) input.style.fontWeight = format.fontWeight;
           input.dataset.row = String(rowIndex);
           input.dataset.column = String(columnIndex);
           picker.dataset.row = String(rowIndex);
@@ -805,6 +897,7 @@
       storageKey = getGridStorageKey(dealId);
       sheetState = loadSheetState(storageKey);
       grid = sheetState.grid;
+      cellFormats = sheetState.cellFormats;
       wrappedCells = sheetState.wrappedCells;
       columnWidths = sheetState.columnWidths;
       fieldBindings = sheetState.fieldBindings;
@@ -881,10 +974,48 @@
       focusFirstSelectedCell();
     }
 
-    function autoFitSelectedColumns() {
+    function applyCellFormatToSelection(updateFormat) {
       if (!selectedCells.size) return;
 
-      getSelectedColumns(selectedCells).forEach((columnIndex) => {
+      selectedCells.forEach((key) => {
+        const nextFormat = normalizeCellFormat(updateFormat({ ...(cellFormats[key] || {}) }));
+        const hasFormat = nextFormat.fillColor || nextFormat.fontWeight;
+        if (hasFormat) cellFormats[key] = nextFormat;
+        else delete cellFormats[key];
+      });
+
+      persistSheetState();
+      renderGrid();
+      focusFirstSelectedCell();
+    }
+
+    function setSelectedFillColor(color) {
+      applyCellFormatToSelection((format) => ({
+        ...format,
+        fillColor: color || "",
+      }));
+    }
+
+    function setSelectedFontWeight(weight) {
+      applyCellFormatToSelection((format) => ({
+        ...format,
+        fontWeight: weight || "",
+      }));
+    }
+
+    function toggleSelectedBold() {
+      if (!selectedCells.size) return;
+
+      const shouldEnable = Array.from(selectedCells).some((key) => !(cellFormats[key] || {}).fontWeight);
+      setSelectedFontWeight(shouldEnable ? "700" : "");
+    }
+
+    function autoFitSelectedColumns() {
+      const columns = selectedCells.size
+        ? getSelectedColumns(selectedCells)
+        : Array.from({ length: grid[0] ? grid[0].length : DEFAULT_COLUMNS }, (item, index) => index);
+
+      columns.forEach((columnIndex) => {
         columnWidths[columnIndex] = measureColumnWidth(grid, columnIndex);
       });
 
@@ -893,8 +1024,44 @@
       focusFirstSelectedCell();
     }
 
+    function writeResultToCurrentCell(result) {
+      if (!currentCell || !currentCell.input) {
+        focusFirstSelectedCell();
+      }
+
+      const target = currentCell || (() => {
+        const firstKey = selectedCells.values().next().value;
+        if (!firstKey) return null;
+        const cell = parseCellKey(firstKey);
+        return { input: null, rowIndex: cell.rowIndex, columnIndex: cell.columnIndex };
+      })();
+
+      if (!target) return;
+
+      const key = cellKey(target.rowIndex, target.columnIndex);
+      grid[target.rowIndex][target.columnIndex] = result;
+      delete fieldBindings[key];
+      if (target.input) target.input.value = result;
+      persistSheetState();
+      renderGrid();
+      focusFirstSelectedCell();
+    }
+
+    function runCalculation(operation) {
+      if (!selectedCells.size) return;
+
+      const result = calculateSelectedCells(grid, selectedCells, operation);
+      if (result.error) {
+        if (calcStatus) calcStatus.textContent = `Расчет: ${result.error}`;
+        return;
+      }
+
+      writeResultToCurrentCell(result.value);
+      if (calcStatus) calcStatus.textContent = `Расчет: ${result.value}`;
+    }
+
     function downloadExcelFile() {
-      const html = buildExcelHtml(grid);
+      const html = buildExcelHtml(grid, cellFormats);
       const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -913,6 +1080,7 @@
 
     addColumnButton.addEventListener("click", () => {
       grid = addColumn(grid);
+      columnWidths[grid[0].length - 1] = DEFAULT_COLUMN_WIDTH;
       persistSheetState();
       renderGrid();
     });
@@ -921,6 +1089,13 @@
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectFilledCells);
     if (wrapTextButton) wrapTextButton.addEventListener("click", toggleWrapSelectedCells);
     if (autoFitButton) autoFitButton.addEventListener("click", autoFitSelectedColumns);
+    if (fillColorSelect) fillColorSelect.addEventListener("change", () => setSelectedFillColor(fillColorSelect.value));
+    if (fontWeightSelect) fontWeightSelect.addEventListener("change", () => setSelectedFontWeight(fontWeightSelect.value));
+    if (boldButton) boldButton.addEventListener("click", toggleSelectedBold);
+    if (calcAddButton) calcAddButton.addEventListener("click", () => runCalculation("add"));
+    if (calcSubtractButton) calcSubtractButton.addEventListener("click", () => runCalculation("subtract"));
+    if (calcMultiplyButton) calcMultiplyButton.addEventListener("click", () => runCalculation("multiply"));
+    if (calcDivideButton) calcDivideButton.addEventListener("click", () => runCalculation("divide"));
     if (exportExcelButton) exportExcelButton.addEventListener("click", downloadExcelFile);
     if (fieldPopoverClose) fieldPopoverClose.addEventListener("click", closeFieldPopover);
     fieldSearch.addEventListener("input", () => renderFieldList(fieldSearch.value));
@@ -962,6 +1137,7 @@
     addRow,
     applyFieldBindings,
     buildExcelHtml,
+    calculateSelectedCells,
     cellKey,
     columnName,
     createGrid,
@@ -977,12 +1153,15 @@
     getExportFileName,
     getExportGrid,
     getFilledCellKeys,
+    getSortedCellKeys,
     getGridStorageKey,
     getRangeCellKeys,
     getSelectedColumns,
     getUsedGridBounds,
+    parseCellNumber,
     loadSheetState,
     measureColumnWidth,
+    normalizeCellFormat,
     normalizeFields,
     normalizeIdList,
     parseCellKey,

@@ -76,6 +76,7 @@ body {
 }
 
 .selection-actions {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -96,8 +97,53 @@ body {
   padding: 0 10px;
 }
 
+.toolbar-group {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.icon-button {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 700;
+  height: 30px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 30px;
+}
+
+.strong-button {
+  font-family: Arial, sans-serif;
+  font-weight: 800;
+}
+
+.toolbar-select {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  height: 30px;
+  max-width: 148px;
+  min-width: 98px;
+  padding: 0 8px;
+}
+
 .toolbar-button:hover,
-.toolbar-button:focus {
+.toolbar-button:focus,
+.icon-button:hover,
+.icon-button:focus,
+.toolbar-select:hover,
+.toolbar-select:focus {
   border-color: var(--accent);
   outline: none;
 }
@@ -130,6 +176,8 @@ body {
 .sheet {
   border-collapse: collapse;
   table-layout: fixed;
+  min-width: 100%;
+  width: max-content;
 }
 
 .sheet th,

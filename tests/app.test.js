@@ -109,6 +109,7 @@ function testSheetStateStorage() {
     storage.set("legacy", JSON.stringify([["a"]]));
     const legacy = app.loadSheetState("legacy");
     assert.deepEqual(legacy.grid, [["a"]]);
+    assert.deepEqual(legacy.cellFormats, {});
     assert.deepEqual(legacy.columnWidths, []);
     assert.deepEqual(Array.from(legacy.wrappedCells), []);
     assert.deepEqual(legacy.fieldBindings, {});
@@ -116,6 +117,7 @@ function testSheetStateStorage() {
     const wrappedCells = new Set(["0:0"]);
     app.saveSheetState(
       {
+        cellFormats: { "0:0": { fillColor: "#fff2cc", fontWeight: "700" } },
         columnWidths: [180],
         fieldBindings: { "0:0": "TITLE" },
         grid: [["fresh"]],
@@ -125,6 +127,7 @@ function testSheetStateStorage() {
     );
     const saved = app.loadSheetState("state");
     assert.deepEqual(saved.grid, [["fresh"]]);
+    assert.deepEqual(saved.cellFormats, { "0:0": { fillColor: "#fff2cc", fontWeight: "700" } });
     assert.deepEqual(saved.columnWidths, [180]);
     assert.deepEqual(saved.fieldBindings, { "0:0": "TITLE" });
     assert.deepEqual(Array.from(saved.wrappedCells), ["0:0"]);
@@ -148,6 +151,34 @@ function testNormalizeAndFormatFields() {
   assert.equal(app.formatDealFieldValue(null), "");
 }
 
+function testCalculationsAndCellStyles() {
+  const grid = [["10", "2,5", "0"], [" 3 000 ", "text", ""]];
+  const selected = new Set(["0:0", "0:1", "1:0"]);
+
+  assert.equal(app.parseCellNumber("1 200,50 руб."), 1200.5);
+  assert.equal(app.parseCellNumber("text"), null);
+  assert.deepEqual(app.getSortedCellKeys(new Set(["2:1", "0:2", "0:1"])), ["0:1", "0:2", "2:1"]);
+  assert.deepEqual(app.calculateSelectedCells(grid, selected, "add"), { error: "", value: "3012,5" });
+  assert.deepEqual(app.calculateSelectedCells(grid, selected, "subtract"), { error: "", value: "-2992,5" });
+  assert.deepEqual(app.calculateSelectedCells([["2"], ["3"], ["4"]], new Set(["0:0", "1:0", "2:0"]), "multiply"), {
+    error: "",
+    value: "24",
+  });
+  assert.deepEqual(app.calculateSelectedCells([["12"], ["3"]], new Set(["0:0", "1:0"]), "divide"), {
+    error: "",
+    value: "4",
+  });
+  assert.equal(app.calculateSelectedCells([["12"], ["0"]], new Set(["0:0", "1:0"]), "divide").error, "Деление на ноль");
+  assert.deepEqual(app.normalizeCellFormat({ fillColor: "bad;color:red", fontWeight: "999" }), {
+    fillColor: "",
+    fontWeight: "",
+  });
+  assert.match(
+    app.buildExcelHtml([["styled"]], { "0:0": { fillColor: "#fff2cc", fontWeight: "700" } }),
+    /<td style="background-color:#fff2cc;font-weight:700">styled<\/td>/
+  );
+}
+
 testCreateGridDefaults();
 testAddRowAndColumn();
 testColumnName();
@@ -158,5 +189,6 @@ testSelectionHelpers();
 testFieldBindingsAndExport();
 testSheetStateStorage();
 testNormalizeAndFormatFields();
+testCalculationsAndCellStyles();
 
 console.log("app tests passed");
