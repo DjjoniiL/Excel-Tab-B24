@@ -19,12 +19,36 @@
 
       <section class="toolbar" aria-label="Панель таблицы">
         <button class="toolbar-button" id="selectFilledButton" type="button">Выделить заполненные</button>
+        <button class="toolbar-button" id="autoFitButton" type="button">Автоширина колонок</button>
         <div class="selection-actions" id="selectionActions" hidden>
           <button class="toolbar-button" id="wrapTextButton" type="button">Переносить текст</button>
-          <button class="toolbar-button" id="autoFitButton" type="button">Автоширина колонок</button>
+          <div class="toolbar-group" aria-label="Расчет">
+            <button class="icon-button" id="calcAddButton" type="button" title="Сложить выбранные числа">+</button>
+            <button class="icon-button" id="calcSubtractButton" type="button" title="Вычесть выбранные числа">−</button>
+            <button class="icon-button" id="calcMultiplyButton" type="button" title="Умножить выбранные числа">×</button>
+            <button class="icon-button" id="calcDivideButton" type="button" title="Разделить выбранные числа">÷</button>
+          </div>
+          <div class="toolbar-group" aria-label="Формат">
+            <button class="icon-button strong-button" id="boldButton" type="button" title="Жирный шрифт">B</button>
+            <select class="toolbar-select" id="fontWeightSelect" aria-label="Толщина шрифта">
+              <option value="">Обычный</option>
+              <option value="600">600</option>
+              <option value="700">700</option>
+              <option value="800">800</option>
+            </select>
+            <select class="toolbar-select" id="fillColorSelect" aria-label="Цвет заливки">
+              <option value="">Без заливки</option>
+              <option value="#fff2cc">Желтый</option>
+              <option value="#d9ead3">Зеленый</option>
+              <option value="#cfe2f3">Голубой</option>
+              <option value="#f4cccc">Красный</option>
+              <option value="#eadcf8">Фиолетовый</option>
+            </select>
+          </div>
         </div>
         <button class="toolbar-button" id="exportExcelButton" type="button">Экспорт в Excel</button>
         <div class="status-pill" id="fieldStatus">Поля сделки: ожидание</div>
+        <div class="status-pill" id="calcStatus">Расчет: ожидание</div>
         <div class="status-pill" id="gridStatus">12 строк, 8 столбцов</div>
       </section>
 
