@@ -7,8 +7,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const DEFAULT_ROWS = 12;
-  const DEFAULT_COLUMNS = 8;
+  const DEFAULT_ROWS = 9;
+  const DEFAULT_COLUMNS = 7;
   const STORAGE_KEY = "excel-tab-b24-grid-v1";
   const DEAL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-deal-v1";
   const DISPLAY_VERSION = "Excel Tab B24 v.5 Marketplace B24";
@@ -41,6 +41,13 @@
       value = Math.floor((value - 1) / 26);
     }
     return name;
+  }
+
+  function columnIndexFromName(name) {
+    return String(name || "")
+      .toUpperCase()
+      .split("")
+      .reduce((index, letter) => index * 26 + letter.charCodeAt(0) - 64, 0) - 1;
   }
 
   function cellKey(rowIndex, columnIndex) {
@@ -89,8 +96,8 @@
   }
 
   function measureColumnWidth(grid, columnIndex) {
-    const maxLength = grid.reduce((max, row) => {
-      const textLength = String(row[columnIndex] || "").length;
+    const maxLength = grid.reduce((max, row, rowIndex) => {
+      const textLength = String(getCellDisplayValue(grid, rowIndex, columnIndex)).length;
       return Math.max(max, textLength);
     }, columnName(columnIndex).length);
     return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, Math.ceil(maxLength * 8.5) + 42));
@@ -135,11 +142,180 @@
     return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(".", ",");
   }
 
+  function isFormula(value) {
+    return String(value || "").trim().startsWith("=");
+  }
+
+  function parseFormulaReference(reference) {
+    const match = String(reference || "").match(/^([A-Z]+)([1-9]\d*)$/i);
+    if (!match) return null;
+
+    return {
+      columnIndex: columnIndexFromName(match[1]),
+      rowIndex: Number.parseInt(match[2], 10) - 1,
+    };
+  }
+
+  function shiftFormulaReferences(formula, rowOffset, columnOffset) {
+    return String(formula || "").replace(/\b([A-Z]+)([1-9]\d*)\b/gi, (match, column, row) => {
+      const columnIndex = columnIndexFromName(column) + columnOffset;
+      const rowIndex = Number.parseInt(row, 10) - 1 + rowOffset;
+      if (columnIndex < 0 || rowIndex < 0) return match;
+      return `${columnName(columnIndex)}${rowIndex + 1}`;
+    });
+  }
+
+  function tokenizeFormula(expression) {
+    const tokens = [];
+    let index = 0;
+
+    while (index < expression.length) {
+      const char = expression[index];
+      if (/\s/.test(char)) {
+        index += 1;
+        continue;
+      }
+
+      const rest = expression.slice(index);
+      const reference = rest.match(/^[A-Z]+[1-9]\d*/i);
+      if (reference) {
+        tokens.push({ type: "reference", value: reference[0] });
+        index += reference[0].length;
+        continue;
+      }
+
+      const number = rest.match(/^(?:\d+(?:[.,]\d*)?|[.,]\d+)/);
+      if (number) {
+        tokens.push({ type: "number", value: parseCellNumber(number[0]) });
+        index += number[0].length;
+        continue;
+      }
+
+      if ("+-*/()".includes(char)) {
+        tokens.push({ type: "operator", value: char });
+        index += 1;
+        continue;
+      }
+
+      return null;
+    }
+
+    return tokens;
+  }
+
+  function evaluateFormula(grid, rowIndex, columnIndex, visited = new Set()) {
+    const key = cellKey(rowIndex, columnIndex);
+    if (visited.has(key)) return { error: "circular", value: null };
+    const raw = grid[rowIndex] && grid[rowIndex][columnIndex];
+    const expression = String(raw || "").trim().slice(1);
+    const tokens = tokenizeFormula(expression);
+    if (!tokens || !tokens.length) return { error: "invalid", value: null };
+
+    let position = 0;
+    const nextVisited = new Set(visited);
+    nextVisited.add(key);
+
+    function peek() {
+      return tokens[position];
+    }
+
+    function consume(value = null) {
+      const token = tokens[position];
+      if (!token || (value !== null && token.value !== value)) return null;
+      position += 1;
+      return token;
+    }
+
+    function readValue() {
+      const token = peek();
+      if (!token) return null;
+
+      if (consume("+")) return readValue();
+      if (consume("-")) {
+        const value = readValue();
+        return value === null ? null : -value;
+      }
+
+      if (consume("(")) {
+        const value = readExpression();
+        if (value === null || !consume(")")) return null;
+        return value;
+      }
+
+      if (token.type === "number") {
+        position += 1;
+        return token.value;
+      }
+
+      if (token.type === "reference") {
+        position += 1;
+        const reference = parseFormulaReference(token.value);
+        if (!reference) return null;
+        const referencedValue = grid[reference.rowIndex] && grid[reference.rowIndex][reference.columnIndex];
+        let number = null;
+        if (isFormula(referencedValue)) {
+          const result = evaluateFormula(grid, reference.rowIndex, reference.columnIndex, nextVisited);
+          if (result.error) return null;
+          number = parseCellNumber(result.value);
+        } else {
+          number = parseCellNumber(referencedValue);
+        }
+        return number === null ? 0 : number;
+      }
+
+      return null;
+    }
+
+    function readProduct() {
+      let value = readValue();
+      if (value === null) return null;
+
+      while (peek() && (peek().value === "*" || peek().value === "/")) {
+        const operator = consume().value;
+        const right = readValue();
+        if (right === null) return null;
+        if (operator === "/" && right === 0) return null;
+        value = operator === "*" ? value * right : value / right;
+      }
+
+      return value;
+    }
+
+    function readExpression() {
+      let value = readProduct();
+      if (value === null) return null;
+
+      while (peek() && (peek().value === "+" || peek().value === "-")) {
+        const operator = consume().value;
+        const right = readProduct();
+        if (right === null) return null;
+        value = operator === "+" ? value + right : value - right;
+      }
+
+      return value;
+    }
+
+    const value = readExpression();
+    if (value === null || position !== tokens.length || !Number.isFinite(value)) {
+      return { error: "invalid", value: null };
+    }
+
+    return { error: "", value: formatCalculationResult(value) };
+  }
+
+  function getCellDisplayValue(grid, rowIndex, columnIndex, visited = new Set()) {
+    const value = grid[rowIndex] && grid[rowIndex][columnIndex];
+    if (!isFormula(value)) return value || "";
+
+    const result = evaluateFormula(grid, rowIndex, columnIndex, visited);
+    return result.error ? "#ОШИБКА" : result.value;
+  }
+
   function calculateSelectedCells(grid, selectedCells, operation) {
     const values = getSortedCellKeys(selectedCells)
       .map((key) => {
         const { rowIndex, columnIndex } = parseCellKey(key);
-        return parseCellNumber(grid[rowIndex] && grid[rowIndex][columnIndex]);
+        return parseCellNumber(getCellDisplayValue(grid, rowIndex, columnIndex));
       })
       .filter((value) => value !== null);
 
@@ -206,7 +382,9 @@
         const cells = row
           .map((value, columnIndex) => {
             const style = getExportCellStyle(cellFormats[cellKey(rowIndex, columnIndex)]);
-            return `<td${style ? ` style="${style}"` : ""}>${escapeHtml(value)}</td>`;
+            return `<td${style ? ` style="${style}"` : ""}>${escapeHtml(
+              getCellDisplayValue(grid, rowIndex, columnIndex)
+            )}</td>`;
           })
           .join("");
         return `<tr>${cells}</tr>`;
@@ -613,7 +791,6 @@
     const calcSubtractButton = document.getElementById("calcSubtractButton");
     const calcMultiplyButton = document.getElementById("calcMultiplyButton");
     const calcDivideButton = document.getElementById("calcDivideButton");
-    const calcStatus = document.getElementById("calcStatus");
     const exportExcelButton = document.getElementById("exportExcelButton");
 
     let storageKey = getGridStorageKey(null);
@@ -629,6 +806,7 @@
     let popoverAnchor = null;
     let selectedCells = new Set();
     let selectionAnchor = null;
+    let formulaSourceCell = null;
 
     function persistSheetState() {
       saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, wrappedCells }, storageKey);
@@ -657,11 +835,13 @@
         setSelectedCells(getRangeCellKeys(selectionAnchor, { rowIndex, columnIndex }));
       } else if (options.toggleKey) {
         const next = new Set(selectedCells);
+        const added = !next.has(key);
         if (next.has(key)) next.delete(key);
         else next.add(key);
         selectedCells = next;
         selectionAnchor = { rowIndex, columnIndex };
         paintSelection();
+        if (added) applyFormulaToCells([key]);
       } else {
         selectionAnchor = { rowIndex, columnIndex };
         setSelectedCells([key]);
@@ -670,6 +850,37 @@
 
     function setCurrentCell(input, rowIndex, columnIndex) {
       currentCell = { input, rowIndex, columnIndex };
+      if (isFormula(grid[rowIndex] && grid[rowIndex][columnIndex])) {
+        formulaSourceCell = { columnIndex, rowIndex };
+      }
+    }
+
+    function applyFormulaToCells(keys) {
+      if (!formulaSourceCell) return;
+
+      const sourceKey = cellKey(formulaSourceCell.rowIndex, formulaSourceCell.columnIndex);
+      const sourceFormula = grid[formulaSourceCell.rowIndex] && grid[formulaSourceCell.rowIndex][formulaSourceCell.columnIndex];
+      if (!selectedCells.has(sourceKey) || !isFormula(sourceFormula)) return;
+
+      let changed = false;
+      keys.forEach((key) => {
+        if (key === sourceKey || !selectedCells.has(key)) return;
+
+        const target = parseCellKey(key);
+        const rowOffset = target.rowIndex - formulaSourceCell.rowIndex;
+        const columnOffset = target.columnIndex - formulaSourceCell.columnIndex;
+        const formula = shiftFormulaReferences(sourceFormula, rowOffset, columnOffset);
+        if (!grid[target.rowIndex] || grid[target.rowIndex][target.columnIndex] === formula) return;
+
+        grid[target.rowIndex][target.columnIndex] = formula;
+        delete fieldBindings[key];
+        changed = true;
+      });
+
+      if (!changed) return;
+
+      persistSheetState();
+      renderGrid();
     }
 
     function commitCellInput(input, rowIndex, columnIndex) {
@@ -726,6 +937,7 @@
             columnCells.forEach((key) => next.add(key));
             selectedCells = next;
             paintSelection();
+            applyFormulaToCells(columnCells);
           } else {
             selectionAnchor = { rowIndex: 0, columnIndex: column };
             setSelectedCells(columnCells);
@@ -751,6 +963,7 @@
             rowCells.forEach((key) => next.add(key));
             selectedCells = next;
             paintSelection();
+            applyFormulaToCells(rowCells);
           } else {
             selectionAnchor = { rowIndex, columnIndex: 0 };
             setSelectedCells(rowCells);
@@ -769,7 +982,7 @@
           const fragment = cellTemplate.content.cloneNode(true);
           const input = fragment.querySelector(".cell-input");
           const picker = fragment.querySelector(".field-picker-button");
-          input.value = value;
+          input.value = isFormula(value) ? getCellDisplayValue(grid, rowIndex, columnIndex) : value;
           if (format.fillColor) input.style.backgroundColor = format.fillColor;
           if (format.fontWeight) input.style.fontWeight = format.fontWeight;
           input.dataset.row = String(rowIndex);
@@ -795,10 +1008,15 @@
           });
           input.addEventListener("focus", () => {
             setCurrentCell(input, rowIndex, columnIndex);
+            if (isFormula(grid[rowIndex][columnIndex])) input.value = grid[rowIndex][columnIndex];
             if (!selectedCells.has(key)) selectCell(rowIndex, columnIndex);
+          });
+          input.addEventListener("blur", () => {
+            if (isFormula(grid[rowIndex][columnIndex])) renderGrid();
           });
           input.addEventListener("input", () => {
             commitCellInput(input, rowIndex, columnIndex);
+            if (isFormula(input.value)) formulaSourceCell = { columnIndex, rowIndex };
           });
           input.addEventListener("keydown", (event) => {
             if (event.key !== "Enter" || event.shiftKey) return;
@@ -959,15 +1177,13 @@
       }
     }
 
-    function selectFilledCells() {
-      const keys = getFilledCellKeys(grid);
-      if (!keys.length) {
-        setSelectedCells([]);
-        return;
-      }
-
-      const first = parseCellKey(keys[0]);
-      selectionAnchor = first;
+    function selectAllCells() {
+      const columnCount = grid[0] ? grid[0].length : DEFAULT_COLUMNS;
+      const keys = getRangeCellKeys(
+        { rowIndex: 0, columnIndex: 0 },
+        { rowIndex: grid.length - 1, columnIndex: columnCount - 1 }
+      );
+      selectionAnchor = { rowIndex: 0, columnIndex: 0 };
       setSelectedCells(keys);
       focusFirstSelectedCell();
     }
@@ -1062,12 +1278,10 @@
 
       const result = calculateSelectedCells(grid, selectedCells, operation);
       if (result.error) {
-        if (calcStatus) calcStatus.textContent = `Расчет: ${result.error}`;
         return;
       }
 
       writeResultToCurrentCell(result.value);
-      if (calcStatus) calcStatus.textContent = `Расчет: ${result.value}`;
     }
 
     function downloadExcelFile() {
@@ -1096,7 +1310,7 @@
     });
 
     reloadFieldsButton.addEventListener("click", loadDealFields);
-    if (selectFilledButton) selectFilledButton.addEventListener("click", selectFilledCells);
+    if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
     if (wrapTextButton) wrapTextButton.addEventListener("click", toggleWrapSelectedCells);
     if (autoFitButton) autoFitButton.addEventListener("click", autoFitSelectedColumns);
     if (fillColorSelect) fillColorSelect.addEventListener("change", () => setSelectedFillColor(fillColorSelect.value));
@@ -1150,7 +1364,9 @@
     calculateSelectedCells,
     cellKey,
     columnName,
+    columnIndexFromName,
     createGrid,
+    evaluateFormula,
     escapeHtml,
     extractDealId,
     findCategoryName,
@@ -1159,6 +1375,7 @@
     formatContact,
     formatDealFieldValue,
     formatUser,
+    getCellDisplayValue,
     getDealStageEntityId,
     getExportFileName,
     getExportGrid,
@@ -1169,13 +1386,15 @@
     getRangeCellKeys,
     getSelectedColumns,
     getUsedGridBounds,
-    parseCellNumber,
     loadSheetState,
     measureColumnWidth,
     normalizeCellFormat,
     normalizeFields,
     normalizeIdList,
     parseCellKey,
+    parseCellNumber,
+    parseFormulaReference,
     saveSheetState,
+    shiftFormulaReferences,
   };
 });

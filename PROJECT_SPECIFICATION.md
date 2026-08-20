@@ -9,17 +9,20 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 ## Core Capabilities
 
 - Shows a spreadsheet-like grid inside the deal card.
-- Starts with 12 rows and 8 columns.
+- Starts with 9 rows and 7 columns.
 - Lets the user add rows with the plus button below the table.
 - Lets the user add columns with the plus button to the right of the table.
 - Each cell can be edited manually.
-- Cells can be selected individually, as ranges, by row, by column, or by all filled cells.
+- Cells can be selected individually, as ranges, by row, by column, or by the whole table.
 - When a cell is active, a field picker button is available.
 - The field picker lists CRM deal fields and inserts the selected field value into the current cell.
 - The field picker can be closed explicitly with the close button, Escape, outside click, or repeated click on the same picker button.
 - When cells are selected, the user can enable text wrapping for selected cells or auto-fit selected columns to their contents.
 - The auto-fit action is always available. Without a selection it auto-fits all columns; with a selection it auto-fits only selected columns. It measures the actual grid value regardless of whether the value was typed manually or inserted/refreshed from a CRM deal field.
 - When cells are selected, the user can calculate addition, subtraction, multiplication, or division for numeric selected cell values and write the result into the active cell.
+- Cells can contain formulas such as `=E4+B4`; formulas support cell references, numbers, parentheses, and `+`, `-`, `*`, `/`.
+- Formula cells store the original formula and display the calculated value. When the cell is focused, the editable formula is shown.
+- When a formula cell is selected and the user Ctrl-selects additional cells, the formula is copied into those cells with relative row and column reference shifts, including row and column header Ctrl-selection.
 - When cells are selected, the user can apply a fill color and set font weight, including bold text.
 - Deal reference fields are displayed as human-readable values where possible: users, contact, company, category, and stage.
 - Cells filled from a CRM deal field keep a local field binding and refresh from the current deal each time the tab opens or fields are reloaded.
@@ -75,7 +78,7 @@ Do not request `user.userfield` for the current version.
 
 ## Test Coverage
 
-- Unit tests cover grid creation, row/column growth, column names, deal ID extraction, per-deal storage keys, reference value formatting, selection helper behavior, arithmetic helpers, field-bound cell refresh, sheet state persistence, cell formatting persistence, and Excel export trimming/escaping/styling.
+- Unit tests cover grid creation, row/column growth, column names, formula parsing/evaluation/reference shifting, deal ID extraction, per-deal storage keys, reference value formatting, selection helper behavior, arithmetic helpers, field-bound cell refresh, sheet state persistence, cell formatting persistence, and Excel export trimming/escaping/styling.
 
 ## History
 
@@ -87,3 +90,4 @@ Do not request `user.userfield` for the current version.
 - 2026-08-19: Added automatic refresh for field-bound cells and Excel-compatible export for the filled table area.
 - 2026-08-21: Locked the app shell to the Bitrix24 iframe height so only table rows/columns scroll, and made Enter commit the active cell value.
 - 2026-08-20: Added always-available column auto-fit, selected-cell arithmetic, fill colors, font weight controls, formatting persistence, and styled Excel export.
+- 2026-08-20: Changed the default grid to 9 rows by 7 columns, made the select action target the whole table, removed calculation status hints, and added Excel-like formulas with relative Ctrl-fill behavior.

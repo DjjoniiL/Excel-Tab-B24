@@ -76,10 +76,7 @@ body {
 }
 
 .selection-actions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: contents;
 }
 
 .selection-actions[hidden] {
@@ -102,6 +99,10 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+.calc-actions {
+  margin-left: auto;
 }
 
 .icon-button {

@@ -23,9 +23,9 @@ function withMockLocalStorage(callback) {
 
 function testCreateGridDefaults() {
   const grid = app.createGrid();
-  assert.equal(grid.length, 12);
-  assert.equal(grid[0].length, 8);
-  assert.equal(grid[11][7], "");
+  assert.equal(grid.length, 9);
+  assert.equal(grid[0].length, 7);
+  assert.equal(grid[8][6], "");
 }
 
 function testAddRowAndColumn() {
@@ -41,6 +41,8 @@ function testColumnName() {
   assert.equal(app.columnName(0), "A");
   assert.equal(app.columnName(25), "Z");
   assert.equal(app.columnName(26), "AA");
+  assert.equal(app.columnIndexFromName("A"), 0);
+  assert.equal(app.columnIndexFromName("AA"), 26);
 }
 
 function testExtractDealId() {
@@ -111,6 +113,24 @@ function testFieldBindingsAndExport() {
   assert.equal(app.escapeHtml("<x & \"y\">"), "&lt;x &amp; &quot;y&quot;&gt;");
   assert.match(app.buildExcelHtml([["a", "b"], ["", ""]]), /<table><tr><td>a<\/td><td>b<\/td><\/tr><\/table>/);
   assert.equal(app.getExportFileName(7), "Excel Tab B24 deal 7.xls");
+}
+
+function testFormulaCells() {
+  const grid = [
+    ["2", "3", "=A1 + B1"],
+    ["4", "5", "=A2 * B2"],
+    ["", "", "=C1 + C2"],
+  ];
+
+  assert.deepEqual(app.parseFormulaReference("C3"), { columnIndex: 2, rowIndex: 2 });
+  assert.equal(app.getCellDisplayValue(grid, 0, 2), "5");
+  assert.equal(app.getCellDisplayValue(grid, 1, 2), "20");
+  assert.equal(app.getCellDisplayValue(grid, 2, 2), "25");
+  assert.equal(app.getCellDisplayValue([["=A1"]], 0, 0), "#ОШИБКА");
+  assert.equal(app.shiftFormulaReferences("= E4 + B4", 1, 0), "= E5 + B5");
+  assert.equal(app.shiftFormulaReferences("= E4 + B4", 0, 1), "= F4 + C4");
+  assert.deepEqual(app.calculateSelectedCells(grid, new Set(["0:2", "1:2"]), "add"), { error: "", value: "25" });
+  assert.match(app.buildExcelHtml([["2", "3", "=A1+B1"]]), /<td>5<\/td>/);
 }
 
 function testSheetStateStorage() {
@@ -196,6 +216,7 @@ testGridStorageKey();
 testReferenceFormatting();
 testSelectionHelpers();
 testFieldBindingsAndExport();
+testFormulaCells();
 testSheetStateStorage();
 testNormalizeAndFormatFields();
 testCalculationsAndCellStyles();
