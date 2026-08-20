@@ -18,11 +18,11 @@
       </header>
 
       <section class="toolbar" aria-label="Панель таблицы">
-        <button class="toolbar-button" id="selectFilledButton" type="button">Выделить заполненные</button>
+        <button class="toolbar-button" id="selectFilledButton" type="button">Выделить всё</button>
         <button class="toolbar-button" id="autoFitButton" type="button">Автоширина колонок</button>
         <div class="selection-actions" id="selectionActions" hidden>
           <button class="toolbar-button" id="wrapTextButton" type="button">Переносить текст</button>
-          <div class="toolbar-group" aria-label="Расчет">
+          <div class="toolbar-group calc-actions" aria-label="Расчет">
             <button class="icon-button" id="calcAddButton" type="button" title="Сложить выбранные числа">+</button>
             <button class="icon-button" id="calcSubtractButton" type="button" title="Вычесть выбранные числа">−</button>
             <button class="icon-button" id="calcMultiplyButton" type="button" title="Умножить выбранные числа">×</button>
@@ -48,8 +48,7 @@
         </div>
         <button class="toolbar-button" id="exportExcelButton" type="button">Экспорт в Excel</button>
         <div class="status-pill" id="fieldStatus">Поля сделки: ожидание</div>
-        <div class="status-pill" id="calcStatus">Расчет: ожидание</div>
-        <div class="status-pill" id="gridStatus">12 строк, 8 столбцов</div>
+        <div class="status-pill" id="gridStatus">9 строк, 7 столбцов</div>
       </section>
 
       <section class="grid-frame" aria-label="Таблица сделки">
