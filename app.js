@@ -96,6 +96,19 @@
     return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, Math.ceil(maxLength * 8.5) + 42));
   }
 
+  function getAutoFitColumnWidths(grid, selectedCells = null) {
+    const columnCount = grid[0] ? grid[0].length : DEFAULT_COLUMNS;
+    const columns =
+      selectedCells && selectedCells.size
+        ? getSelectedColumns(selectedCells)
+        : Array.from({ length: columnCount }, (item, index) => index);
+
+    return columns.reduce((widths, columnIndex) => {
+      widths[columnIndex] = measureColumnWidth(grid, columnIndex);
+      return widths;
+    }, {});
+  }
+
   function getSortedCellKeys(keys) {
     return Array.from(keys).sort((left, right) => {
       const leftCell = parseCellKey(left);
@@ -1000,12 +1013,9 @@
     }
 
     function autoFitSelectedColumns() {
-      const columns = selectedCells.size
-        ? getSelectedColumns(selectedCells)
-        : Array.from({ length: grid[0] ? grid[0].length : DEFAULT_COLUMNS }, (item, index) => index);
-
-      columns.forEach((columnIndex) => {
-        columnWidths[columnIndex] = measureColumnWidth(grid, columnIndex);
+      const widths = getAutoFitColumnWidths(grid, selectedCells);
+      Object.entries(widths).forEach(([columnIndex, width]) => {
+        columnWidths[Number.parseInt(columnIndex, 10)] = width;
       });
 
       persistSheetState();
@@ -1141,6 +1151,7 @@
     getDealStageEntityId,
     getExportFileName,
     getExportGrid,
+    getAutoFitColumnWidths,
     getFilledCellKeys,
     getSortedCellKeys,
     getGridStorageKey,
