@@ -18,7 +18,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - The field picker lists CRM deal fields and inserts the selected field value into the current cell.
 - The field picker can be closed explicitly with the close button, Escape, outside click, or repeated click on the same picker button.
 - When cells are selected, the user can enable text wrapping for selected cells or auto-fit selected columns to their contents.
-- The auto-fit action is always available. Without a selection it auto-fits all columns; with a selection it auto-fits only selected columns.
+- The auto-fit action is always available. Without a selection it auto-fits all columns; with a selection it auto-fits only selected columns. It measures the actual grid value regardless of whether the value was typed manually or inserted/refreshed from a CRM deal field.
 - When cells are selected, the user can calculate addition, subtraction, multiplication, or division for numeric selected cell values and write the result into the active cell.
 - When cells are selected, the user can apply a fill color and set font weight, including bold text.
 - Deal reference fields are displayed as human-readable values where possible: users, contact, company, category, and stage.

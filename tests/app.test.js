@@ -86,6 +86,15 @@ function testSelectionHelpers() {
   assert.ok(app.measureColumnWidth([["short"], ["long long text value"]], 0) > 132);
   assert.equal(app.measureColumnWidth([["x"]], 0), 90);
   assert.equal(app.measureColumnWidth([[Array.from({ length: 200 }, () => "x").join("")]], 0), 420);
+
+  const autoFitGrid = [["manual value with enough length", ""], ["", ""]];
+  const boundGrid = app.applyFieldBindings(autoFitGrid, { "1:1": "TITLE" }, [
+    { id: "TITLE", value: "CRM field value with enough length" },
+  ]).grid;
+  const widths = app.getAutoFitColumnWidths(boundGrid, new Set(["0:0", "1:1"]));
+  assert.ok(widths[0] > 132);
+  assert.ok(widths[1] > 132);
+  assert.equal(typeof widths[2], "undefined");
 }
 
 function testFieldBindingsAndExport() {
