@@ -571,6 +571,13 @@
       currentCell = { input, rowIndex, columnIndex };
     }
 
+    function commitCellInput(input, rowIndex, columnIndex) {
+      const key = cellKey(rowIndex, columnIndex);
+      grid[rowIndex][columnIndex] = input.value;
+      delete fieldBindings[key];
+      persistSheetState();
+    }
+
     function updateGridStatus() {
       const rows = grid.length;
       const columns = grid[0] ? grid[0].length : 0;
@@ -686,9 +693,13 @@
             if (!selectedCells.has(key)) selectCell(rowIndex, columnIndex);
           });
           input.addEventListener("input", () => {
-            grid[rowIndex][columnIndex] = input.value;
-            delete fieldBindings[key];
-            persistSheetState();
+            commitCellInput(input, rowIndex, columnIndex);
+          });
+          input.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" || event.shiftKey) return;
+            event.preventDefault();
+            commitCellInput(input, rowIndex, columnIndex);
+            input.blur();
           });
           picker.addEventListener("click", (event) => {
             if (!popover.hidden && popoverAnchor === event.currentTarget) {

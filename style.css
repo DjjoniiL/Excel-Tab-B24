@@ -20,10 +20,19 @@ body {
   background: var(--bg);
   color: var(--text);
   margin: 0;
+  overflow: hidden;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 .app-shell {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
   padding: 16px;
 }
 
@@ -105,15 +114,16 @@ body {
 
 .grid-frame {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: minmax(0, 1fr) 38px;
   grid-template-rows: minmax(0, 1fr) 38px;
-  max-height: calc(100vh - 112px);
-  min-height: 360px;
+  min-height: 0;
 }
 
 .grid-scroll {
   background: var(--panel);
   border: 1px solid var(--line-strong);
+  min-height: 0;
   overflow: auto;
 }
 
@@ -332,6 +342,6 @@ body {
   }
 
   .grid-frame {
-    max-height: calc(100vh - 156px);
+    min-height: 0;
   }
 }

@@ -1,6 +1,6 @@
 # PROJECT_SPECIFICATION
 
-Updated: 2026-08-19
+Updated: 2026-08-21
 
 ## Product
 
@@ -21,6 +21,8 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Deal reference fields are displayed as human-readable values where possible: users, contact, company, category, and stage.
 - Cells filled from a CRM deal field keep a local field binding and refresh from the current deal each time the tab opens or fields are reloaded.
 - The user can export the filled table area to an Excel-compatible `.xls` file trimmed to the last filled row and column.
+- The deal tab iframe keeps scrolling inside the spreadsheet area only; the outer app shell does not scroll.
+- Pressing Enter in the active cell saves the current value and closes the editor focus. Shift+Enter remains available for multiline wrapped text.
 
 ## Runtime Model
 
@@ -79,3 +81,4 @@ Do not request `user.userfield` for the current version.
 - 2026-08-19: Added explicit field picker close controls, reference field display values, and idempotent placement rebinding during install.
 - 2026-08-19: Added multi-cell selection, select-filled-cells action, wrapped text cells, and auto-fit column width action.
 - 2026-08-19: Added automatic refresh for field-bound cells and Excel-compatible export for the filled table area.
+- 2026-08-21: Locked the app shell to the Bitrix24 iframe height so only table rows/columns scroll, and made Enter commit the active cell value.
