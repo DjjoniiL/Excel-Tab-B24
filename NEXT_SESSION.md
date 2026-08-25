@@ -7,6 +7,7 @@ Updated: 2026-08-25
 - Repository `DjjoniiL/Excel-Tab-B24` is connected as `origin`.
 - Serverless Bitrix24 Marketplace app scaffold is present and actively developed.
 - Runtime files are plain browser assets: `install.html`, `install.js`, `install.css`, `index.html`, `app.js`, `style.css`.
+- Repository overview is documented in `README.md`.
 - No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
 - Marketplace zip archives are created in `dist app B24 zip/`.
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
