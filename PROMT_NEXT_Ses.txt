@@ -93,13 +93,13 @@ Serverless-приложение для Bitrix24 Marketplace, которое вс
 - Уточнить по `git status`/`git log`; пользователь в текущей итерации разрешил push актуальных файлов.
 
 Последняя собранная Marketplace-версия:
-G:\AI Project B24\Excel Tab B24\dist app B24 zip\Excel Tab B24 v.12.zip
+G:\AI Project B24\Excel Tab B24\dist app B24 zip\Excel Tab B24 v.13.zip
 
 Проверки перед текущим commit/push:
 - `npm run lint` прошел.
 - `npm test` прошел.
 - `npm run package` прошел.
-- Состав `Excel Tab B24 v.12.zip` проверен: только runtime-файлы.
+- Состав `Excel Tab B24 v.13.zip` проверен: только runtime-файлы.
 
 Текущее состояние рабочей папки:
 - Отслеживаемые файлы были чистыми после push.
