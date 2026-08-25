@@ -1,6 +1,6 @@
 # PROJECT_SPECIFICATION
 
-Updated: 2026-08-21
+Updated: 2026-08-25
 
 ## Product
 
@@ -23,13 +23,14 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Cells can contain formulas such as `=E4+B4`; formulas support cell references, numbers, parentheses, and `+`, `-`, `*`, `/`.
 - After typing `=`, clicking another cell inserts that cell reference into the active formula. Repeated clicks append references with `+` by default, while clicks after a typed operator append the next reference after that operator.
 - Formula cells store the original formula and display the calculated value. When the cell is focused, the editable formula is shown.
+- Pressing Enter in a cell saves the current value or formula, exits edit mode, and shows the calculated formula result when applicable.
 - When a formula cell is selected and the user Ctrl-selects additional cells, the formula is copied into those cells with relative row and column reference shifts, including row and column header Ctrl-selection.
 - When cells are selected, the user can apply a fill color and set font weight, including bold text.
 - Deal reference fields are displayed as human-readable values where possible: users, contact, company, category, and stage.
 - Cells filled from a CRM deal field keep a local field binding and refresh from the current deal each time the tab opens or fields are reloaded.
 - The user can export the filled table area to an Excel-compatible `.xls` file trimmed to the last filled row and column, including fill color and font weight where applied.
-- The deal tab iframe keeps scrolling inside the spreadsheet area only; the outer app shell does not scroll.
-- Pressing Enter in the active cell saves the current value and closes the editor focus. Shift+Enter remains available for multiline wrapped text.
+- The app iframe itself does not show a separate page scrollbar; scrolling is kept inside the table area when rows or columns exceed the visible grid.
+- Shift+Enter remains available for multiline wrapped text.
 
 ## Runtime Model
 
@@ -92,3 +93,4 @@ Do not request `user.userfield` for the current version.
 - 2026-08-21: Locked the app shell to the Bitrix24 iframe height so only table rows/columns scroll, and made Enter commit the active cell value.
 - 2026-08-20: Added always-available column auto-fit, selected-cell arithmetic, fill colors, font weight controls, formatting persistence, and styled Excel export.
 - 2026-08-20: Changed the default grid to 9 rows by 7 columns, made the select action target the whole table, removed calculation status hints, and added Excel-like formulas with relative Ctrl-fill behavior.
+- 2026-08-25: Removed the outer app scrollbar while preserving table scrollbars and made Enter save formulas/cell edits and leave edit mode.

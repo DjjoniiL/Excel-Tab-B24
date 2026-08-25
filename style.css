@@ -12,6 +12,11 @@
   font-family: Arial, sans-serif;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -21,11 +26,6 @@ body {
   color: var(--text);
   margin: 0;
   overflow: hidden;
-}
-
-html,
-body {
-  height: 100%;
 }
 
 .app-shell {

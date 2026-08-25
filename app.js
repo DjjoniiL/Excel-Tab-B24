@@ -1080,6 +1080,17 @@
           input.addEventListener("click", (event) => {
             event.stopPropagation();
           });
+          input.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" || event.shiftKey) return;
+
+            event.preventDefault();
+            grid[rowIndex][columnIndex] = input.value;
+            persistSheetState();
+            formulaEditCell = null;
+            formulaEditInput = null;
+            input.blur();
+            renderGrid();
+          });
           input.addEventListener("focus", () => {
             setCurrentCell(input, rowIndex, columnIndex);
             if (isFormula(grid[rowIndex][columnIndex])) input.value = grid[rowIndex][columnIndex];
