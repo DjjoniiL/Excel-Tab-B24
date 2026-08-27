@@ -16,7 +16,7 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "Excel Tab B24 v.15 Marketplace B24";
+  const DISPLAY_VERSION = "Excel Tab B24 v.17 Marketplace B24";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
@@ -37,8 +37,12 @@
   }
 
   function addColumn(grid) {
-    const source = grid.length ? grid : createGrid(DEFAULT_ROWS, 0);
-    return source.map((row) => [...row, ""]);
+    const source = grid.length ? grid : createGrid(DEFAULT_ROWS, DEFAULT_COLUMNS);
+    const width = Math.max(1, ...source.map((row) => (Array.isArray(row) ? row.length : 0)));
+    return source.map((row) => [
+      ...(Array.isArray(row) ? row : []),
+      ...Array.from({ length: Math.max(0, width - (Array.isArray(row) ? row.length : 0)) + 1 }, () => ""),
+    ]);
   }
 
   function columnName(index) {
@@ -514,6 +518,42 @@
     return { lastColumn, lastRow };
   }
 
+  function isCellKeyInsideBounds(key, rowCount, columnCount) {
+    const { rowIndex, columnIndex } = parseCellKey(key);
+    return rowIndex >= 0 && rowIndex < rowCount && columnIndex >= 0 && columnIndex < columnCount;
+  }
+
+  function filterCellKeyObjectByBounds(source, rowCount, columnCount) {
+    return Object.entries(source || {}).reduce((filtered, [key, value]) => {
+      if (isCellKeyInsideBounds(key, rowCount, columnCount)) filtered[key] = value;
+      return filtered;
+    }, {});
+  }
+
+  function getTrimmedSheetState(state, minRows = DEFAULT_ROWS, minColumns = DEFAULT_COLUMNS) {
+    const sourceGrid = Array.isArray(state.grid) && state.grid.length ? state.grid : createGrid();
+    const bounds = getUsedGridBounds(sourceGrid);
+    const rowCount = Math.max(minRows, bounds.lastRow + 1);
+    const columnCount = Math.max(minColumns, bounds.lastColumn + 1);
+    const grid = Array.from({ length: rowCount }, (item, rowIndex) => {
+      const sourceRow = Array.isArray(sourceGrid[rowIndex]) ? sourceGrid[rowIndex] : [];
+      return Array.from({ length: columnCount }, (cell, columnIndex) =>
+        typeof sourceRow[columnIndex] === "undefined" ? "" : sourceRow[columnIndex]
+      );
+    });
+    const wrappedCells = new Set(
+      Array.from(state.wrappedCells || []).filter((key) => isCellKeyInsideBounds(key, rowCount, columnCount))
+    );
+
+    return {
+      cellFormats: filterCellKeyObjectByBounds(state.cellFormats, rowCount, columnCount),
+      columnWidths: Array.isArray(state.columnWidths) ? state.columnWidths.slice(0, columnCount) : [],
+      fieldBindings: filterCellKeyObjectByBounds(state.fieldBindings, rowCount, columnCount),
+      grid,
+      wrappedCells,
+    };
+  }
+
   function getExportGrid(grid) {
     const bounds = getUsedGridBounds(grid);
     return grid
@@ -529,16 +569,31 @@
       .replace(/"/g, "&quot;");
   }
 
+  function getExportCellStyle(format = {}, preserveText = false) {
+    const normalizedFormat = normalizeCellFormat(format);
+    const styles = [];
+    if (preserveText) styles.push('mso-number-format:"\\@"');
+    if (normalizedFormat.fillColor) styles.push(`background-color:${normalizedFormat.fillColor}`);
+    if (normalizedFormat.fontWeight) styles.push(`font-weight:${normalizedFormat.fontWeight}`);
+    if (normalizedFormat.fontStyle) styles.push(`font-style:${normalizedFormat.fontStyle}`);
+    if (normalizedFormat.fontSize) styles.push(`font-size:${normalizedFormat.fontSize}`);
+    return styles.join(";");
+  }
+
+  function getExportCellContent(grid, rowIndex, columnIndex) {
+    const value = grid[rowIndex] && grid[rowIndex][columnIndex];
+    return isFormula(value) ? value : getCellDisplayValue(grid, rowIndex, columnIndex);
+  }
+
   function buildExcelHtml(grid, cellFormats = {}) {
     const rows = getExportGrid(grid);
     const body = rows
       .map((row, rowIndex) => {
         const cells = row
           .map((value, columnIndex) => {
-            const style = getExportCellStyle(cellFormats[cellKey(rowIndex, columnIndex)]);
-            return `<td${style ? ` style="${style}"` : ""}>${escapeHtml(
-              getCellDisplayValue(grid, rowIndex, columnIndex)
-            )}</td>`;
+            const formulaCell = isFormula(value);
+            const style = getExportCellStyle(cellFormats[cellKey(rowIndex, columnIndex)], !formulaCell);
+            return `<td${style ? ` style='${style}'` : ""}>${escapeHtml(getExportCellContent(grid, rowIndex, columnIndex))}</td>`;
           })
           .join("");
         return `<tr>${cells}</tr>`;
@@ -549,25 +604,16 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="application/vnd.ms-excel; charset=utf-8">
   <style>
     table { border-collapse: collapse; }
-    td { border: 1px solid #d7dde8; mso-number-format:"\\@"; padding: 4px 8px; white-space: pre-wrap; }
+    td { border: 1px solid #d7dde8; padding: 4px 8px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
   <table>${body}</table>
 </body>
 </html>`;
-  }
-
-  function getExportCellStyle(format = {}) {
-    const normalizedFormat = normalizeCellFormat(format);
-    const styles = [];
-    if (normalizedFormat.fillColor) styles.push(`background-color:${normalizedFormat.fillColor}`);
-    if (normalizedFormat.fontWeight) styles.push(`font-weight:${normalizedFormat.fontWeight}`);
-    if (normalizedFormat.fontStyle) styles.push(`font-style:${normalizedFormat.fontStyle}`);
-    if (normalizedFormat.fontSize) styles.push(`font-size:${normalizedFormat.fontSize}`);
-    return styles.join(";");
   }
 
   function getExportFileName(dealId) {
@@ -1108,6 +1154,29 @@
       renderGrid();
     }
 
+    function compactGridToFilledBounds() {
+      const nextState = getTrimmedSheetState({ cellFormats, columnWidths, fieldBindings, grid, wrappedCells });
+      const changed =
+        JSON.stringify(grid) !== JSON.stringify(nextState.grid) ||
+        JSON.stringify(cellFormats) !== JSON.stringify(nextState.cellFormats) ||
+        JSON.stringify(fieldBindings) !== JSON.stringify(nextState.fieldBindings) ||
+        JSON.stringify(columnWidths) !== JSON.stringify(nextState.columnWidths) ||
+        Array.from(wrappedCells).join("\n") !== Array.from(nextState.wrappedCells).join("\n");
+
+      if (!changed) return false;
+
+      grid = nextState.grid;
+      cellFormats = nextState.cellFormats;
+      fieldBindings = nextState.fieldBindings;
+      columnWidths = nextState.columnWidths;
+      wrappedCells = nextState.wrappedCells;
+      currentCell = null;
+      selectedCells = new Set(Array.from(selectedCells).filter((key) => isCellKeyInsideBounds(key, grid.length, grid[0].length)));
+      persistSheetState();
+      renderGrid();
+      return true;
+    }
+
     function switchSheetType(sheetType) {
       if (sheetType === activeSheetType) return;
       if (sheetType === SHEET_TYPE_FUNNEL && (!dealId || dealCategoryId === null)) return;
@@ -1123,6 +1192,11 @@
     function updateSelectionActions() {
       if (!selectionActions) return;
       selectionActions.hidden = selectedCells.size === 0;
+      if (!fontSizeSelect || !selectedCells.size) return;
+
+      const selectedFormats = Array.from(selectedCells).map((key) => normalizeCellFormat(cellFormats[key] || {}).fontSize || "13pt");
+      const firstSize = selectedFormats[0] || "13pt";
+      fontSizeSelect.value = selectedFormats.every((size) => size === firstSize) ? firstSize : "";
     }
 
     function setFormulaModalStatus(message) {
@@ -1779,7 +1853,8 @@
       loadActiveSheetState();
     }
 
-    async function loadDealFields() {
+    async function loadDealFields(options = {}) {
+      const compactAfterLoad = Boolean(options.compactAfterLoad);
       if (!dealId) {
         fieldStatus.textContent = "Поля сделки: карточка не определена";
         return;
@@ -1805,6 +1880,7 @@
         }
         dealFields = applyDisplayValues(normalizedFields, displayValues);
         refreshFieldBoundCells();
+        if (compactAfterLoad) compactGridToFilledBounds();
         fieldStatus.textContent = `Поля сделки: ${dealFields.length}`;
       } catch (error) {
         fieldStatus.textContent = `Поля сделки: ошибка (${error.message || error})`;
@@ -1940,7 +2016,7 @@
 
     function downloadExcelFile() {
       const html = buildExcelHtml(grid, cellFormats);
-      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = getExportFileName(dealId);
@@ -1963,7 +2039,7 @@
       renderGrid();
     });
 
-    reloadFieldsButton.addEventListener("click", loadDealFields);
+    reloadFieldsButton.addEventListener("click", () => loadDealFields({ compactAfterLoad: true }));
     if (dealSheetButton) dealSheetButton.addEventListener("click", () => switchSheetType(SHEET_TYPE_DEAL));
     if (funnelSheetButton) funnelSheetButton.addEventListener("click", () => switchSheetType(SHEET_TYPE_FUNNEL));
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
@@ -2069,6 +2145,7 @@
     getDealStageEntityId,
     getExportFileName,
     getExportGrid,
+    getTrimmedSheetState,
     getAutoFitColumnWidths,
     getFilledCellKeys,
     getFunnelStorageKey,

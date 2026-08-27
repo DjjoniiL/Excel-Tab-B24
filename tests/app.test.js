@@ -35,6 +35,7 @@ function testAddRowAndColumn() {
 
   const withColumn = app.addColumn(withRow);
   assert.deepEqual(withColumn, [["a", "b", ""], ["", "", ""]]);
+  assert.deepEqual(app.addColumn([["a", "b", "c"], ["x"]]), [["a", "b", "c", ""], ["x", "", "", ""]]);
 }
 
 function testColumnName() {
@@ -121,7 +122,10 @@ function testFieldBindingsAndExport() {
   assert.deepEqual(exportGrid, [["a", ""], ["", "b"]]);
   assert.deepEqual(app.getUsedGridBounds([[""], [""]]), { lastColumn: 0, lastRow: 0 });
   assert.equal(app.escapeHtml("<x & \"y\">"), "&lt;x &amp; &quot;y&quot;&gt;");
-  assert.match(app.buildExcelHtml([["a", "b"], ["", ""]]), /<table><tr><td>a<\/td><td>b<\/td><\/tr><\/table>/);
+  assert.match(
+    app.buildExcelHtml([["a", "b"], ["", ""]]),
+    /<table><tr><td style='mso-number-format:"\\@"'>a<\/td><td style='mso-number-format:"\\@"'>b<\/td><\/tr><\/table>/
+  );
   assert.equal(app.getExportFileName(7), "Excel Tab B24 deal 7.xls");
 }
 
@@ -143,7 +147,7 @@ function testFormulaCells() {
   assert.equal(app.shiftFormulaReferences("= E4 + B4", 1, 0), "= E5 + B5");
   assert.equal(app.shiftFormulaReferences("= E4 + B4", 0, 1), "= F4 + C4");
   assert.deepEqual(app.calculateSelectedCells(grid, new Set(["0:2", "1:2"]), "add"), { error: "", value: "25" });
-  assert.match(app.buildExcelHtml([["2", "3", "=A1+B1"]]), /<td>5<\/td>/);
+  assert.match(app.buildExcelHtml([["2", "3", "=A1+B1"]]), /<td>=A1\+B1<\/td>/);
 }
 
 function testSavedFormulas() {
@@ -216,6 +220,23 @@ function testClearCellSelectionState() {
   assert.deepEqual(cleared.cellFormats, {});
   assert.deepEqual(cleared.fieldBindings, {});
   assert.deepEqual(Array.from(cleared.wrappedCells), []);
+}
+
+function testTrimmedSheetState() {
+  const trimmed = app.getTrimmedSheetState({
+    cellFormats: { "0:0": { fontSize: "15pt" }, "9:8": { fillColor: "#fff2cc" } },
+    columnWidths: [100, 120, 140, 160, 180, 200, 220, 240, 260],
+    fieldBindings: { "0:0": "TITLE", "9:8": "OPPORTUNITY" },
+    grid: [["keep", "", "", "", "", "", "", "", ""], ...Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => ""))],
+    wrappedCells: new Set(["0:0", "9:8"]),
+  });
+
+  assert.equal(trimmed.grid.length, 9);
+  assert.equal(trimmed.grid[0].length, 7);
+  assert.deepEqual(trimmed.cellFormats, { "0:0": { fontSize: "15pt" } });
+  assert.deepEqual(trimmed.fieldBindings, { "0:0": "TITLE" });
+  assert.deepEqual(Array.from(trimmed.wrappedCells), ["0:0"]);
+  assert.deepEqual(trimmed.columnWidths, [100, 120, 140, 160, 180, 200, 220]);
 }
 
 function testSheetStateStorage() {
@@ -297,7 +318,7 @@ function testCalculationsAndCellStyles() {
   });
   assert.match(
     app.buildExcelHtml([["styled"]], { "0:0": { fillColor: "#fff2cc", fontWeight: "700", fontStyle: "italic", fontSize: "15pt" } }),
-    /<td style="background-color:#fff2cc;font-weight:700;font-style:italic;font-size:15pt">styled<\/td>/
+    /<td style='mso-number-format:"\\@";background-color:#fff2cc;font-weight:700;font-style:italic;font-size:15pt'>styled<\/td>/
   );
 }
 
@@ -313,6 +334,7 @@ testFormulaCells();
 testSavedFormulas();
 testRecentFormulas();
 testClearCellSelectionState();
+testTrimmedSheetState();
 testSheetStateStorage();
 testNormalizeAndFormatFields();
 testCalculationsAndCellStyles();
