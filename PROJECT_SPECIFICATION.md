@@ -34,7 +34,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - The user can export the filled table area to an Excel-compatible `.xls` file trimmed to the last filled row and column, including fill color, font weight, italic style, and font size where applied. Formula cells are exported as Excel formulas instead of calculated text values.
 - When the user clicks `Обновить поля`, refreshed field-bound values are loaded and the current table is compacted to the last filled row and column, while keeping at least the default 9 rows and 7 columns.
 - The app iframe itself does not show a separate page scrollbar; scrolling is kept inside the table area when rows or columns exceed the visible grid.
-- The initial visible table area fits the header row plus all 9 default rows.
+- The initial visible table area fits the header row plus all 9 default rows above the horizontal scrollbar.
 - Shift+Enter remains available for multiline wrapped text.
 
 ## Runtime Model
@@ -106,3 +106,4 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-27: Clarified active sheet status text and renamed bottom sheet switch buttons.
 - 2026-08-27: Added recent formula suggestions under the active cell when formula input starts with `=`.
 - 2026-08-27: Prepared Marketplace v.17 with safer column growth, explicit 13 pt multi-cell font sizing, manual compacting on field reload, and formula-preserving `.xls` export.
+- 2026-08-27: Prepared Marketplace v.18 with a taller default table viewport so the 9th default row is not hidden by the horizontal scrollbar.
