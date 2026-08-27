@@ -23,14 +23,15 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - The auto-fit action is always available. Without a selection it auto-fits all columns; with a selection it auto-fits only selected columns. It measures the actual grid value regardless of whether the value was typed manually or inserted/refreshed from a CRM deal field.
 - Cells can contain formulas such as `=E4+B4`; formulas support cell references, numbers, parentheses, and `+`, `-`, `*`, `/`.
 - After typing `=`, clicking another cell inserts that cell reference into the active formula. Repeated clicks append references with `+` by default, while clicks after a typed operator append the next reference after that operator.
+- When a cell enters formula mode by starting with `=`, a suggestion popover opens under the cell with up to 5 recently used formulas. Selecting a suggestion writes it into the active cell.
 - Formula cells store the original formula and display the calculated value. When the cell is focused, the editable formula is shown.
 - Pressing Enter in a cell saves the current value or formula, exits edit mode, and shows the calculated formula result when applicable.
 - When a cell is selected, the toolbar shows `Добавить формулу`. It opens a modal where the user can choose or delete a saved formula, save a new formula in the right-side formula entry panel, apply the selected formula to the active selected cell, or cancel. Formula entry blocks non-English characters, automatically uppercases English letters, and explains that formulas must use English letters, numbers, and formula symbols.
 - When a formula cell is selected and the user Ctrl-selects additional cells, the formula is copied into those cells with relative row and column reference shifts, including row and column header Ctrl-selection.
-- When cells are selected, the user can apply a fill color and set font weight, including bold text.
+- When cells are selected, the user can apply fill color, bold text, italic text, and font size presets: 11 pt, 13 pt, 15 pt, and 18 pt. The default table font size is 13 pt.
 - Deal reference fields are displayed as human-readable values where possible: users, contact, company, category, and stage.
 - Cells filled from a CRM deal field keep a local field binding and refresh from the current deal each time the tab opens or fields are reloaded.
-- The user can export the filled table area to an Excel-compatible `.xls` file trimmed to the last filled row and column, including fill color and font weight where applied.
+- The user can export the filled table area to an Excel-compatible `.xls` file trimmed to the last filled row and column, including fill color, font weight, italic style, and font size where applied.
 - The app iframe itself does not show a separate page scrollbar; scrolling is kept inside the table area when rows or columns exceed the visible grid.
 - The initial visible table area fits the header row plus all 9 default rows.
 - Shift+Enter remains available for multiline wrapped text.
@@ -52,9 +53,10 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Current local persistence uses `localStorage`.
 - Grid data is separated per deal when the deal ID is detected. The storage key format is `excel-tab-b24-grid-deal-v1-{dealId}`.
 - Per-deal local state also stores wrapped cells and custom column widths.
-- Per-deal local state also stores cell fill color and font weight formatting.
+- Per-deal local state also stores cell fill color, font weight, italic style, and font size formatting.
 - Per-deal local state stores field bindings for cells filled from CRM deal fields.
 - Saved reusable formulas are stored in browser `localStorage` under `excel-tab-b24-saved-formulas-v1`.
+- Recently used formulas are stored in browser `localStorage` under `excel-tab-b24-recent-formulas-v1`, deduplicated with the newest formula first and limited to 5 items.
 - If the app is opened outside a detected deal card, it falls back to the local development key `excel-tab-b24-grid-v1`.
 
 ## Required Bitrix24 Permissions
@@ -84,7 +86,7 @@ Do not request full `user` or `user.userfield` for the current version.
 
 ## Test Coverage
 
-- Unit tests cover grid creation, row/column growth, column names, formula parsing/evaluation/reference shifting, saved formula helpers, cell clearing helpers, deal ID extraction, per-deal storage keys, reference value formatting, selection helper behavior, arithmetic helpers, field-bound cell refresh, sheet state persistence, cell formatting persistence, and Excel export trimming/escaping/styling.
+- Unit tests cover grid creation, row/column growth, column names, formula parsing/evaluation/reference shifting, saved and recent formula helpers, cell clearing helpers, deal ID extraction, per-deal storage keys, reference value formatting, selection helper behavior, arithmetic helpers, field-bound cell refresh, sheet state persistence, cell formatting persistence, and Excel export trimming/escaping/styling.
 
 ## History
 
@@ -101,3 +103,4 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-27: Added saved formulas modal and restored the default grid to 9 rows by 7 columns.
 - 2026-08-27: Added saved formula deletion, English-only formula input guidance, formula list scrolling, and selected-cell clearing with confirmation for large selections.
 - 2026-08-27: Clarified active sheet status text and renamed bottom sheet switch buttons.
+- 2026-08-27: Added recent formula suggestions under the active cell when formula input starts with `=`.

@@ -11,6 +11,7 @@
   const DEFAULT_COLUMNS = 7;
   const STORAGE_KEY = "excel-tab-b24-grid-v1";
   const FORMULA_STORAGE_KEY = "excel-tab-b24-saved-formulas-v1";
+  const RECENT_FORMULA_STORAGE_KEY = "excel-tab-b24-recent-formulas-v1";
   const DEAL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-deal-v1";
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
@@ -20,8 +21,11 @@
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
   const DELETE_CONFIRM_CELL_THRESHOLD = 18;
+  const MAX_RECENT_FORMULAS = 5;
   const FILL_COLORS = ["", "#fff2cc", "#d9ead3", "#cfe2f3", "#f4cccc", "#eadcf8"];
   const FONT_WEIGHTS = ["", "600", "700", "800"];
+  const FONT_STYLES = ["", "italic"];
+  const FONT_SIZES = ["", "11pt", "13pt", "15pt", "18pt"];
 
   function createGrid(rows = DEFAULT_ROWS, columns = DEFAULT_COLUMNS) {
     return Array.from({ length: rows }, () => Array.from({ length: columns }, () => ""));
@@ -223,6 +227,20 @@
     return normalizeSavedFormulas(formulas).filter((savedFormula) => savedFormula !== normalized);
   }
 
+  function normalizeRecentFormulas(formulas) {
+    return normalizeSavedFormulas(formulas).slice(0, MAX_RECENT_FORMULAS);
+  }
+
+  function addRecentFormula(formulas, formula) {
+    const normalized = normalizeSavedFormula(formula);
+    if (!normalized || normalized === "=") return normalizeRecentFormulas(formulas);
+
+    return [normalized, ...normalizeRecentFormulas(formulas).filter((savedFormula) => savedFormula !== normalized)].slice(
+      0,
+      MAX_RECENT_FORMULAS
+    );
+  }
+
   function loadSavedFormulas(storageKey = FORMULA_STORAGE_KEY) {
     try {
       const saved = window.localStorage.getItem(storageKey);
@@ -235,6 +253,20 @@
 
   function saveSavedFormulas(formulas, storageKey = FORMULA_STORAGE_KEY) {
     window.localStorage.setItem(storageKey, JSON.stringify(normalizeSavedFormulas(formulas)));
+  }
+
+  function loadRecentFormulas(storageKey = RECENT_FORMULA_STORAGE_KEY) {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      return normalizeRecentFormulas(saved ? JSON.parse(saved) : []);
+    } catch (error) {
+      window.localStorage.removeItem(storageKey);
+      return [];
+    }
+  }
+
+  function saveRecentFormulas(formulas, storageKey = RECENT_FORMULA_STORAGE_KEY) {
+    window.localStorage.setItem(storageKey, JSON.stringify(normalizeRecentFormulas(formulas)));
   }
 
   function applyFormulaToGridCell(grid, rowIndex, columnIndex, formula) {
@@ -461,6 +493,8 @@
     return {
       fillColor: FILL_COLORS.includes(format.fillColor) ? format.fillColor : "",
       fontWeight: FONT_WEIGHTS.includes(format.fontWeight) ? format.fontWeight : "",
+      fontStyle: FONT_STYLES.includes(format.fontStyle) ? format.fontStyle : "",
+      fontSize: FONT_SIZES.includes(format.fontSize) ? format.fontSize : "",
     };
   }
 
@@ -531,6 +565,8 @@
     const styles = [];
     if (normalizedFormat.fillColor) styles.push(`background-color:${normalizedFormat.fillColor}`);
     if (normalizedFormat.fontWeight) styles.push(`font-weight:${normalizedFormat.fontWeight}`);
+    if (normalizedFormat.fontStyle) styles.push(`font-style:${normalizedFormat.fontStyle}`);
+    if (normalizedFormat.fontSize) styles.push(`font-size:${normalizedFormat.fontSize}`);
     return styles.join(";");
   }
 
@@ -928,6 +964,7 @@
     const fieldPopoverClose = document.getElementById("fieldPopoverClose");
     const fieldList = document.getElementById("fieldList");
     const fieldSearch = document.getElementById("fieldSearch");
+    const formulaSuggestions = document.getElementById("formulaSuggestions");
     const fieldStatus = document.getElementById("fieldStatus");
     const gridStatus = document.getElementById("gridStatus");
     const dealContext = document.getElementById("dealContext");
@@ -942,8 +979,9 @@
     const clearSelectionButton = document.getElementById("clearSelectionButton");
     const autoFitButton = document.getElementById("autoFitButton");
     const fillColorSelect = document.getElementById("fillColorSelect");
-    const fontWeightSelect = document.getElementById("fontWeightSelect");
+    const fontSizeSelect = document.getElementById("fontSizeSelect");
     const boldButton = document.getElementById("boldButton");
+    const italicButton = document.getElementById("italicButton");
     const exportExcelButton = document.getElementById("exportExcelButton");
     const formulaLibraryButton = document.getElementById("formulaLibraryButton");
     const formulaModal = document.getElementById("formulaModal");
@@ -994,6 +1032,8 @@
     let formulaReferencePointerHandled = false;
     let savedFormulas = loadSavedFormulas();
     let selectedSavedFormula = savedFormulas[0] || "";
+    let recentFormulas = loadRecentFormulas();
+    let formulaSuggestionInput = null;
 
     function persistSheetState() {
       saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, wrappedCells }, storageKey);
@@ -1075,6 +1115,7 @@
       persistSheetState();
       activeSheetType = sheetType;
       closeFieldPopover();
+      closeFormulaSuggestions();
       loadActiveSheetState();
       refreshFieldBoundCells();
     }
@@ -1165,6 +1206,7 @@
       if (!formulaModal || !selectedCells.size) return;
 
       closeFieldPopover();
+      closeFormulaSuggestions();
       selectedSavedFormula = selectedSavedFormula || savedFormulas[0] || "";
       if (formulaInput) formulaInput.value = selectedSavedFormula;
       setFormulaModalStatus("");
@@ -1205,6 +1247,7 @@
       savedFormulas = result.formulas;
       selectedSavedFormula = result.formula || selectedSavedFormula;
       saveSavedFormulas(savedFormulas);
+      if (result.formula) rememberRecentFormula(result.formula);
       renderFormulaList();
       setFormulaModalStatus(result.error || "Формула сохранена");
     }
@@ -1239,6 +1282,7 @@
 
       grid = result.grid;
       delete fieldBindings[cellKey(target.rowIndex, target.columnIndex)];
+      rememberRecentFormula(result.formula);
       formulaSourceCell = { columnIndex: target.columnIndex, rowIndex: target.rowIndex };
       formulaEditCell = null;
       formulaEditInput = null;
@@ -1410,8 +1454,24 @@
         formulaEditInput = input;
       } else {
         stopFormulaEditingIfNeeded(rowIndex, columnIndex);
+        closeFormulaSuggestions();
       }
       persistSheetState();
+    }
+
+    function updateCellFormulaSuggestions(input, rowIndex, columnIndex) {
+      if (isFormula(input.value)) {
+        renderFormulaSuggestions(input, rowIndex, columnIndex);
+      } else {
+        closeFormulaSuggestions();
+      }
+    }
+
+    function finalizeCellInput(input, rowIndex, columnIndex) {
+      commitCellInput(input, rowIndex, columnIndex);
+      if (isFormula(grid[rowIndex] && grid[rowIndex][columnIndex])) {
+        rememberRecentFormula(grid[rowIndex][columnIndex]);
+      }
     }
 
     function updateGridStatus() {
@@ -1513,6 +1573,8 @@
           input.value = isFormula(value) ? getCellDisplayValue(grid, rowIndex, columnIndex) : value;
           if (format.fillColor) input.style.backgroundColor = format.fillColor;
           if (format.fontWeight) input.style.fontWeight = format.fontWeight;
+          if (format.fontStyle) input.style.fontStyle = format.fontStyle;
+          if (format.fontSize) input.style.fontSize = format.fontSize;
           input.dataset.row = String(rowIndex);
           input.dataset.column = String(columnIndex);
           picker.dataset.row = String(rowIndex);
@@ -1539,34 +1601,28 @@
           input.addEventListener("click", (event) => {
             event.stopPropagation();
           });
-          input.addEventListener("keydown", (event) => {
-            if (event.key !== "Enter" || event.shiftKey) return;
-
-            event.preventDefault();
-            grid[rowIndex][columnIndex] = input.value;
-            persistSheetState();
-            formulaEditCell = null;
-            formulaEditInput = null;
-            input.blur();
-            renderGrid();
-          });
           input.addEventListener("focus", () => {
             setCurrentCell(input, rowIndex, columnIndex);
             if (isFormula(grid[rowIndex][columnIndex])) input.value = grid[rowIndex][columnIndex];
             if (!selectedCells.has(key)) selectCell(rowIndex, columnIndex);
+            updateCellFormulaSuggestions(input, rowIndex, columnIndex);
           });
           input.addEventListener("blur", () => {
+            finalizeCellInput(input, rowIndex, columnIndex);
             formulaEditCell = null;
             formulaEditInput = null;
+            closeFormulaSuggestions();
             if (isFormula(grid[rowIndex][columnIndex])) renderGrid();
           });
           input.addEventListener("input", () => {
             commitCellInput(input, rowIndex, columnIndex);
+            updateCellFormulaSuggestions(input, rowIndex, columnIndex);
           });
           input.addEventListener("keydown", (event) => {
             if (event.key !== "Enter" || event.shiftKey) return;
             event.preventDefault();
-            commitCellInput(input, rowIndex, columnIndex);
+            finalizeCellInput(input, rowIndex, columnIndex);
+            closeFormulaSuggestions();
             input.blur();
           });
           picker.addEventListener("click", (event) => {
@@ -1641,6 +1697,54 @@
       popover.hidden = true;
       popoverAnchor = null;
       fieldSearch.value = "";
+    }
+
+    function closeFormulaSuggestions() {
+      if (!formulaSuggestions) return;
+      formulaSuggestions.hidden = true;
+      formulaSuggestions.innerHTML = "";
+      formulaSuggestionInput = null;
+    }
+
+    function rememberRecentFormula(formula) {
+      const nextRecentFormulas = addRecentFormula(recentFormulas, formula);
+      if (nextRecentFormulas.join("\n") === recentFormulas.join("\n")) return;
+
+      recentFormulas = nextRecentFormulas;
+      saveRecentFormulas(recentFormulas);
+    }
+
+    function renderFormulaSuggestions(input, rowIndex, columnIndex) {
+      if (!formulaSuggestions || !input || !isFormula(input.value) || !recentFormulas.length) {
+        closeFormulaSuggestions();
+        return;
+      }
+
+      formulaSuggestionInput = input;
+      formulaSuggestions.innerHTML = "";
+      recentFormulas.slice(0, MAX_RECENT_FORMULAS).forEach((formula) => {
+        const button = document.createElement("button");
+        button.className = "formula-suggestion-option";
+        button.type = "button";
+        button.textContent = formula;
+        button.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+        });
+        button.addEventListener("click", () => {
+          input.value = formula;
+          commitCellInput(input, rowIndex, columnIndex);
+          rememberRecentFormula(formula);
+          closeFormulaSuggestions();
+          input.focus();
+        });
+        formulaSuggestions.appendChild(button);
+      });
+
+      const rect = input.getBoundingClientRect();
+      formulaSuggestions.style.left = `${Math.min(rect.left, window.innerWidth - 320)}px`;
+      formulaSuggestions.style.top = `${Math.min(rect.bottom + 4, window.innerHeight - 220)}px`;
+      formulaSuggestions.style.width = `${Math.max(rect.width, 240)}px`;
+      formulaSuggestions.hidden = false;
     }
 
     async function resolveDealContext() {
@@ -1752,7 +1856,7 @@
 
       selectedCells.forEach((key) => {
         const nextFormat = normalizeCellFormat(updateFormat({ ...(cellFormats[key] || {}) }));
-        const hasFormat = nextFormat.fillColor || nextFormat.fontWeight;
+        const hasFormat = nextFormat.fillColor || nextFormat.fontWeight || nextFormat.fontStyle || nextFormat.fontSize;
         if (hasFormat) cellFormats[key] = nextFormat;
         else delete cellFormats[key];
       });
@@ -1776,11 +1880,28 @@
       }));
     }
 
+    function setSelectedFontSize(size) {
+      applyCellFormatToSelection((format) => ({
+        ...format,
+        fontSize: size || "",
+      }));
+    }
+
     function toggleSelectedBold() {
       if (!selectedCells.size) return;
 
       const shouldEnable = Array.from(selectedCells).some((key) => !(cellFormats[key] || {}).fontWeight);
       setSelectedFontWeight(shouldEnable ? "700" : "");
+    }
+
+    function toggleSelectedItalic() {
+      if (!selectedCells.size) return;
+
+      const shouldEnable = Array.from(selectedCells).some((key) => (cellFormats[key] || {}).fontStyle !== "italic");
+      applyCellFormatToSelection((format) => ({
+        ...format,
+        fontStyle: shouldEnable ? "italic" : "",
+      }));
     }
 
     function autoFitSelectedColumns() {
@@ -1850,8 +1971,9 @@
     if (wrapTextButton) wrapTextButton.addEventListener("click", toggleWrapSelectedCells);
     if (autoFitButton) autoFitButton.addEventListener("click", autoFitSelectedColumns);
     if (fillColorSelect) fillColorSelect.addEventListener("change", () => setSelectedFillColor(fillColorSelect.value));
-    if (fontWeightSelect) fontWeightSelect.addEventListener("change", () => setSelectedFontWeight(fontWeightSelect.value));
+    if (fontSizeSelect) fontSizeSelect.addEventListener("change", () => setSelectedFontSize(fontSizeSelect.value));
     if (boldButton) boldButton.addEventListener("click", toggleSelectedBold);
+    if (italicButton) italicButton.addEventListener("click", toggleSelectedItalic);
     if (exportExcelButton) exportExcelButton.addEventListener("click", downloadExcelFile);
     if (formulaLibraryButton) formulaLibraryButton.addEventListener("click", openFormulaModal);
     if (formulaModalClose) formulaModalClose.addEventListener("click", closeFormulaModal);
@@ -1879,12 +2001,18 @@
         closeFieldPopover();
         closeFormulaModal();
         closeDeleteConfirmModal();
+        closeFormulaSuggestions();
       }
     });
     document.addEventListener("click", (event) => {
       if (popover.hidden) return;
       if (popover.contains(event.target) || event.target.classList.contains("field-picker-button")) return;
       closeFieldPopover();
+    });
+    document.addEventListener("click", (event) => {
+      if (!formulaSuggestions || formulaSuggestions.hidden) return;
+      if (formulaSuggestions.contains(event.target) || event.target === formulaSuggestionInput) return;
+      closeFormulaSuggestions();
     });
 
     renderGrid();
@@ -1915,6 +2043,7 @@
     DEFAULT_ROWS,
     addColumn,
     addRow,
+    addRecentFormula,
     addSavedFormula,
     appendFormulaReference,
     applyFormulaToGridCell,
@@ -1949,6 +2078,7 @@
     getSelectedColumns,
     getSheetStorageKey,
     getUsedGridBounds,
+    loadRecentFormulas,
     loadSavedFormulas,
     loadSheetState,
     measureColumnWidth,
@@ -1956,12 +2086,14 @@
     normalizeCellFormat,
     normalizeFields,
     normalizeIdList,
+    normalizeRecentFormulas,
     parseCellKey,
     parseCellNumber,
     parseFormulaReference,
     normalizeSavedFormula,
     normalizeSavedFormulas,
     removeSavedFormula,
+    saveRecentFormulas,
     saveSavedFormulas,
     saveSheetState,
     sanitizeFormulaInput,

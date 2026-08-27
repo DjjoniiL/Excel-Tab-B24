@@ -171,6 +171,29 @@ function testSavedFormulas() {
   });
 }
 
+function testRecentFormulas() {
+  assert.deepEqual(app.normalizeRecentFormulas(["=a1+b1", "=C1*2", "=D1/2", "=E1+1", "=F1+1", "=G1+1"]), [
+    "=A1+B1",
+    "=C1*2",
+    "=D1/2",
+    "=E1+1",
+    "=F1+1",
+  ]);
+  assert.deepEqual(app.addRecentFormula(["=A1+B1", "=C1*2"], "c1*2"), ["=C1*2", "=A1+B1"]);
+  assert.deepEqual(app.addRecentFormula(["=A1+B1", "=C1*2", "=D1+1", "=E1+1", "=F1+1"], "G1+1"), [
+    "=G1+1",
+    "=A1+B1",
+    "=C1*2",
+    "=D1+1",
+    "=E1+1",
+  ]);
+
+  withMockLocalStorage(() => {
+    app.saveRecentFormulas(["a1+b1", "c1*2"], "recent");
+    assert.deepEqual(app.loadRecentFormulas("recent"), ["=A1+B1", "=C1*2"]);
+  });
+}
+
 function testClearCellSelectionState() {
   const cleared = app.clearCellSelectionState(
     {
@@ -263,10 +286,18 @@ function testCalculationsAndCellStyles() {
   assert.deepEqual(app.normalizeCellFormat({ fillColor: "bad;color:red", fontWeight: "999" }), {
     fillColor: "",
     fontWeight: "",
+    fontStyle: "",
+    fontSize: "",
+  });
+  assert.deepEqual(app.normalizeCellFormat({ fontStyle: "italic", fontSize: "15pt" }), {
+    fillColor: "",
+    fontWeight: "",
+    fontStyle: "italic",
+    fontSize: "15pt",
   });
   assert.match(
-    app.buildExcelHtml([["styled"]], { "0:0": { fillColor: "#fff2cc", fontWeight: "700" } }),
-    /<td style="background-color:#fff2cc;font-weight:700">styled<\/td>/
+    app.buildExcelHtml([["styled"]], { "0:0": { fillColor: "#fff2cc", fontWeight: "700", fontStyle: "italic", fontSize: "15pt" } }),
+    /<td style="background-color:#fff2cc;font-weight:700;font-style:italic;font-size:15pt">styled<\/td>/
   );
 }
 
@@ -280,6 +311,7 @@ testSelectionHelpers();
 testFieldBindingsAndExport();
 testFormulaCells();
 testSavedFormulas();
+testRecentFormulas();
 testClearCellSelectionState();
 testSheetStateStorage();
 testNormalizeAndFormatFields();

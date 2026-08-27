@@ -26,11 +26,12 @@
           <button class="toolbar-button" id="wrapTextButton" type="button">Переносить текст</button>
           <div class="toolbar-group" aria-label="Формат">
             <button class="icon-button strong-button" id="boldButton" type="button" title="Жирный шрифт">B</button>
-            <select class="toolbar-select" id="fontWeightSelect" aria-label="Толщина шрифта">
-              <option value="">Обычный</option>
-              <option value="600">600</option>
-              <option value="700">700</option>
-              <option value="800">800</option>
+            <button class="icon-button italic-button" id="italicButton" type="button" title="Курсив">I</button>
+            <select class="toolbar-select" id="fontSizeSelect" aria-label="Кегль шрифта">
+              <option value="">13 пт</option>
+              <option value="11pt">11 пт</option>
+              <option value="15pt">15 пт</option>
+              <option value="18pt">18 пт</option>
             </select>
             <select class="toolbar-select" id="fillColorSelect" aria-label="Цвет заливки">
               <option value="">Без заливки</option>
@@ -74,6 +75,8 @@
       </div>
       <div class="field-list" id="fieldList"></div>
     </div>
+
+    <div class="formula-suggestions" id="formulaSuggestions" hidden></div>
 
     <div class="modal-backdrop" id="formulaModal" hidden role="dialog" aria-modal="true" aria-labelledby="formulaModalTitle">
       <section class="formula-modal">

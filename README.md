@@ -16,10 +16,11 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 - Refreshes field-bound cells from the current deal when fields are reloaded.
 - Resolves common reference fields to readable names where possible: users, contact, company, category, and stage.
 - Supports cell selection: single cell, Shift range, Ctrl multi-select, whole row, whole column, and whole table.
-- Supports text wrapping, column auto-fit, fill color, font weight, and bold text for selected cells.
+- Supports text wrapping, column auto-fit, fill color, bold text, italic text, and font size presets for selected cells. The default table font size is 13 pt.
 - Lets users clear selected cells together with their field bindings and formatting.
 - Supports formulas such as `=E4+B4`, including references, numbers, parentheses, and `+`, `-`, `*`, `/`.
 - Lets users build formulas by typing `=` and clicking cells to insert references.
+- Shows up to 5 recently used formulas under the active cell when formula input starts with `=`.
 - Saves formulas with Enter and displays calculated results outside edit mode.
 - Lets users save reusable formulas, remove saved formulas, and apply a selected saved formula to the active selected cell. Formula entry accepts English letters, numbers, and formula symbols, and automatically uppercases formula letters.
 - Copies formulas with relative reference shifts when Ctrl-selecting target cells.
