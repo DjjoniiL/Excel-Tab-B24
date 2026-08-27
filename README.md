@@ -7,7 +7,7 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 ## What The App Does
 
 - Adds a custom `Excel Tab B24` tab to a Bitrix24 deal card.
-- Shows a spreadsheet-like grid with 9 rows and 7 columns by default.
+- Shows a spreadsheet-like grid with 8 rows and 7 columns by default.
 - Lets users add rows and columns without shrinking existing data.
 - Keeps scrolling inside the table area for large grids.
 - Lets users edit cells manually.
@@ -54,9 +54,9 @@ The current version requires:
 
 - CRM (CRM)
 - Placement (Встраивание приложений)
-- User (Пользователи)
+- User basic / `user_basic` (Пользователи, базовый)
 
-The current version does not require `user.userfield`.
+The current version does not require full `user` or `user.userfield`.
 
 ## REST Methods Used
 

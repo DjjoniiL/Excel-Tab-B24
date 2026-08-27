@@ -23,9 +23,9 @@ function withMockLocalStorage(callback) {
 
 function testCreateGridDefaults() {
   const grid = app.createGrid();
-  assert.equal(grid.length, 9);
+  assert.equal(grid.length, 8);
   assert.equal(grid[0].length, 7);
-  assert.equal(grid[8][6], "");
+  assert.equal(grid[7][6], "");
 }
 
 function testAddRowAndColumn() {
@@ -58,6 +58,14 @@ function testGridStorageKey() {
   assert.equal(app.getGridStorageKey(null), "excel-tab-b24-grid-v1");
   assert.equal(app.getGridStorageKey("42"), "excel-tab-b24-grid-deal-v1-42");
   assert.equal(app.getGridStorageKey(351), "excel-tab-b24-grid-deal-v1-351");
+  assert.equal(app.normalizeCategoryId("0"), 0);
+  assert.equal(app.normalizeCategoryId("7"), 7);
+  assert.equal(app.normalizeCategoryId("bad"), null);
+  assert.equal(app.getFunnelStorageKey("0"), "excel-tab-b24-grid-funnel-v1-0");
+  assert.equal(app.getFunnelStorageKey(7), "excel-tab-b24-grid-funnel-v1-7");
+  assert.equal(app.getFunnelStorageKey(null), "excel-tab-b24-grid-funnel-v1-local");
+  assert.equal(app.getSheetStorageKey("deal", 42, 7), "excel-tab-b24-grid-deal-v1-42");
+  assert.equal(app.getSheetStorageKey("funnel", 42, 7), "excel-tab-b24-grid-funnel-v1-7");
 }
 
 function testReferenceFormatting() {
@@ -70,6 +78,8 @@ function testReferenceFormatting() {
   assert.equal(app.formatCompany({ ID: 9 }), "9");
   assert.equal(app.getDealStageEntityId(0), "DEAL_STAGE");
   assert.equal(app.getDealStageEntityId(3), "DEAL_STAGE_3");
+  assert.equal(app.findCategoryName([], 0), "Общая воронка");
+  assert.equal(app.findCategoryName([{ id: "3", name: "Service" }], 3), "Service");
   assert.equal(app.findStatusName([{ STATUS_ID: "NEW", NAME: "Новая" }], "NEW"), "Новая");
   assert.equal(app.findCategoryName([{ ID: "2", NAME: "Продажи" }], 2), "Продажи");
 }

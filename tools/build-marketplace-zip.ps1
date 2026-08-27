@@ -16,17 +16,7 @@ if (-not (Test-Path $dist)) {
   New-Item -ItemType Directory -Path $dist | Out-Null
 }
 
-$existingVersions = Get-ChildItem -LiteralPath $dist -Filter "$archiveBaseName v*.zip" |
-  ForEach-Object {
-    if ($_.BaseName -match "^$([regex]::Escape($archiveBaseName)) v\.(\d+)$") {
-      [int]$Matches[1]
-    }
-  }
-
-$nextVersion = 1
-if ($existingVersions.Count -gt 0) {
-  $nextVersion = ($existingVersions | Measure-Object -Maximum).Maximum + 1
-}
+$nextVersion = 14
 
 $archive = Join-Path $dist "$archiveBaseName v.$nextVersion.zip"
 

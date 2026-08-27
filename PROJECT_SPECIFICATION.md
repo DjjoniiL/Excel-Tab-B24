@@ -9,7 +9,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 ## Core Capabilities
 
 - Shows a spreadsheet-like grid inside the deal card.
-- Starts with 9 rows and 7 columns.
+- Starts with 8 rows and 7 columns.
 - Lets the user add rows with the plus button below the table.
 - Lets the user add columns with the plus button to the right of the table.
 - Each cell can be edited manually.
@@ -61,9 +61,9 @@ For the current version, required permissions are:
 
 - CRM (CRM)
 - Placement (Встраивание приложений)
-- User (Пользователи)
+- User basic / `user_basic` (Пользователи, базовый)
 
-Do not request `user.userfield` for the current version.
+Do not request full `user` or `user.userfield` for the current version.
 
 ## Packaging
 

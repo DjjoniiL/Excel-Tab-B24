@@ -9,6 +9,8 @@
   --accent: #206bff;
   --accent-soft: #e8f0ff;
   --green: #21865d;
+  --sheet-row-height: 34px;
+  --sheet-window-height: 308px;
   font-family: Arial, sans-serif;
 }
 
@@ -33,26 +35,32 @@ body {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  padding: 16px;
+  padding: 6px 12px 10px;
+  position: relative;
 }
 
 .topbar {
   align-items: center;
   display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 8px;
+  justify-content: flex-start;
+  margin-bottom: 4px;
+}
+
+.topbar > div {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .topbar h1 {
-  font-size: 22px;
-  line-height: 1.2;
-  margin: 0 0 4px;
+  font-size: 18px;
+  line-height: 1.1;
+  margin: 0 0 2px;
 }
 
 .topbar p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   margin: 0;
 }
 
@@ -63,8 +71,8 @@ body {
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 30px;
+  padding: 0 10px;
 }
 
 .toolbar {
@@ -72,7 +80,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .selection-actions {
@@ -81,6 +89,43 @@ body {
 
 .selection-actions[hidden] {
   display: none;
+}
+
+.sheet-switcher {
+  align-items: center;
+  background: #e9edf4;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: inline-flex;
+  gap: 2px;
+  min-height: 30px;
+  padding: 2px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.sheet-switch-button {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  min-height: 24px;
+  padding: 0 9px;
+  white-space: nowrap;
+}
+
+.sheet-switch-button.is-active {
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgba(23, 32, 51, 0.12);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.sheet-switch-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
 }
 
 .toolbar-button {
@@ -159,17 +204,40 @@ body {
   padding: 7px 10px;
 }
 
+#fieldStatus,
+#gridStatus {
+  flex: 0 0 auto;
+}
+
+#gridStatus {
+  margin-left: 0;
+}
+
+#fieldStatus {
+  margin-left: auto;
+}
+
+.bottom-panel {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  margin-top: 4px;
+  min-height: 30px;
+}
+
 .grid-frame {
-  display: grid;
-  flex: 1 1 auto;
-  grid-template-columns: minmax(0, 1fr) 38px;
-  grid-template-rows: minmax(0, 1fr) 38px;
+  display: block;
+  flex: 0 0 auto;
+  max-height: min(var(--sheet-window-height), calc(100vh - 150px));
   min-height: 0;
+  position: relative;
 }
 
 .grid-scroll {
   background: var(--panel);
   border: 1px solid var(--line-strong);
+  height: min(var(--sheet-window-height), calc(100vh - 150px));
   min-height: 0;
   overflow: auto;
 }
@@ -184,7 +252,7 @@ body {
 .sheet th,
 .sheet td {
   border: 1px solid var(--line);
-  height: 34px;
+  height: var(--sheet-row-height);
   padding: 0;
 }
 
@@ -282,22 +350,29 @@ body {
   align-items: center;
   background: #ffffff;
   border: 1px solid var(--line-strong);
+  border-radius: 4px;
   color: var(--accent);
   cursor: pointer;
   display: flex;
-  font-size: 24px;
+  font-size: 16px;
   font-weight: 700;
+  height: 22px;
   justify-content: center;
+  line-height: 1;
+  padding: 0;
+  position: absolute;
+  width: 22px;
+  z-index: 4;
 }
 
 .add-column-button {
-  grid-column: 2;
-  grid-row: 1;
+  right: 10px;
+  top: 44px;
 }
 
 .add-row-button {
-  grid-column: 1;
-  grid-row: 2;
+  bottom: 8px;
+  left: 14px;
 }
 
 .field-popover {
@@ -382,7 +457,7 @@ body {
 
 @media (max-width: 720px) {
   .app-shell {
-    padding: 10px;
+    padding: 6px 8px 10px;
   }
 
   .topbar {
@@ -392,5 +467,24 @@ body {
 
   .grid-frame {
     min-height: 0;
+  }
+
+  .sheet-switcher {
+    max-width: calc(100% - 16px);
+  }
+
+  #fieldStatus,
+  #gridStatus {
+    font-size: 12px;
+  }
+
+  #fieldStatus {
+    margin-left: 0;
+  }
+
+  .bottom-panel {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 }

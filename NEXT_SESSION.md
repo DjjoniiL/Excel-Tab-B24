@@ -13,7 +13,7 @@ Updated: 2026-08-25
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
 - Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.13.zip`.
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
-- The deal tab shows a 9x7 spreadsheet-like grid by default.
+- The deal tab shows an 8x7 spreadsheet-like grid by default.
 - Users can add rows and columns while keeping scrolling inside the table area.
 - The app iframe itself should not show a separate right-side page scrollbar.
 - Users can select the whole table, individual cells, ranges, rows, and columns.

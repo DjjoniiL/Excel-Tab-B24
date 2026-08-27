@@ -7,11 +7,14 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const DEFAULT_ROWS = 9;
+  const DEFAULT_ROWS = 8;
   const DEFAULT_COLUMNS = 7;
   const STORAGE_KEY = "excel-tab-b24-grid-v1";
   const DEAL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-deal-v1";
-  const DISPLAY_VERSION = "Excel Tab B24 v.5 Marketplace B24";
+  const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
+  const SHEET_TYPE_DEAL = "deal";
+  const SHEET_TYPE_FUNNEL = "funnel";
+  const DISPLAY_VERSION = "Excel Tab B24 v.14 Marketplace B24";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
@@ -572,9 +575,23 @@
   }
 
   function findCategoryName(categories, categoryId) {
+    const normalizedCategoryId = normalizeCategoryId(categoryId);
+    if (normalizedCategoryId === null) return "";
+    if (normalizedCategoryId === 0) return "\u041e\u0431\u0449\u0430\u044f \u0432\u043e\u0440\u043e\u043d\u043a\u0430";
     if (!Array.isArray(categories)) return "";
-    const category = categories.find((item) => String(item.ID) === String(categoryId));
-    return category ? category.NAME || category.TITLE || String(category.ID || "") : "";
+
+    const category = categories.find((item) => {
+      const id = item.ID ?? item.id;
+      return String(id) === String(normalizedCategoryId);
+    });
+    if (!category) return "";
+
+    return category.NAME || category.name || category.TITLE || category.title || String(category.ID || category.id || "");
+  }
+
+  function normalizeCategoryId(categoryId) {
+    const id = Number.parseInt(categoryId, 10);
+    return Number.isInteger(id) && id >= 0 ? id : null;
   }
 
   function applyDisplayValues(fields, displayValues = {}) {
@@ -664,7 +681,11 @@
 
     await Promise.all(
       Array.from(userIds).map(async (id) => {
-        const users = await callOptionalMethod("user.get", { FILTER: { ID: id } }, []);
+        const users = await callOptionalMethod(
+          "user.get",
+          { FILTER: { ID: id }, select: ["ID", "NAME", "LAST_NAME", "SECOND_NAME"] },
+          []
+        );
         const user = Array.isArray(users) ? users[0] : users;
         const name = formatUser(user);
         if (!name) return;
@@ -723,6 +744,19 @@
     return STORAGE_KEY;
   }
 
+  function getFunnelStorageKey(categoryId) {
+    const normalizedCategoryId = normalizeCategoryId(categoryId);
+    if (normalizedCategoryId !== null) {
+      return `${FUNNEL_STORAGE_KEY_PREFIX}-${normalizedCategoryId}`;
+    }
+
+    return `${FUNNEL_STORAGE_KEY_PREFIX}-local`;
+  }
+
+  function getSheetStorageKey(sheetType, dealId, categoryId) {
+    return sheetType === SHEET_TYPE_FUNNEL ? getFunnelStorageKey(categoryId) : getGridStorageKey(dealId);
+  }
+
   function loadGrid(storageKey = STORAGE_KEY) {
     try {
       const saved = window.localStorage.getItem(storageKey);
@@ -779,6 +813,9 @@
 
   function bootBrowserApp() {
     const table = document.getElementById("sheet");
+    const topbar = document.querySelector(".topbar");
+    const gridFrame = document.querySelector(".grid-frame");
+    const sheetSwitcher = document.querySelector(".sheet-switcher");
     const cellTemplate = document.getElementById("cellTemplate");
     const popover = document.getElementById("fieldPopover");
     const fieldPopoverClose = document.getElementById("fieldPopoverClose");
@@ -787,6 +824,8 @@
     const fieldStatus = document.getElementById("fieldStatus");
     const gridStatus = document.getElementById("gridStatus");
     const dealContext = document.getElementById("dealContext");
+    const dealSheetButton = document.getElementById("dealSheetButton");
+    const funnelSheetButton = document.getElementById("funnelSheetButton");
     const addRowButton = document.getElementById("addRowButton");
     const addColumnButton = document.getElementById("addColumnButton");
     const reloadFieldsButton = document.getElementById("reloadFieldsButton");
@@ -803,7 +842,22 @@
     const calcDivideButton = document.getElementById("calcDivideButton");
     const exportExcelButton = document.getElementById("exportExcelButton");
 
-    let storageKey = getGridStorageKey(null);
+    if (topbar && reloadFieldsButton && exportExcelButton) {
+      topbar.insertBefore(exportExcelButton, reloadFieldsButton);
+    }
+    if (gridFrame && sheetSwitcher && fieldStatus && gridStatus) {
+      const bottomPanel = document.createElement("div");
+      bottomPanel.className = "bottom-panel";
+      bottomPanel.appendChild(sheetSwitcher);
+      bottomPanel.appendChild(fieldStatus);
+      bottomPanel.appendChild(gridStatus);
+      gridFrame.insertAdjacentElement("afterend", bottomPanel);
+    }
+
+    let activeSheetType = SHEET_TYPE_DEAL;
+    let dealCategoryId = null;
+    let dealCategoryName = "";
+    let storageKey = getSheetStorageKey(activeSheetType, null, null);
     let sheetState = loadSheetState(storageKey);
     let grid = sheetState.grid;
     let cellFormats = sheetState.cellFormats;
@@ -823,6 +877,82 @@
 
     function persistSheetState() {
       saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, wrappedCells }, storageKey);
+    }
+
+    function updateDealContext() {
+      if (!dealContext) return;
+
+      const dealText = dealId
+        ? `\u0421\u0434\u0435\u043b\u043a\u0430 ID ${dealId}`
+        : "\u0421\u0434\u0435\u043b\u043a\u0430 \u043d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0430. \u041e\u0431\u043d\u043e\u0432\u0438\u0442\u0435 \u0432\u043a\u043b\u0430\u0434\u043a\u0443 \u043f\u043e\u0441\u043b\u0435 \u043f\u043e\u043b\u043d\u043e\u0433\u043e \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044f \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0438.";
+      const categoryText =
+        dealCategoryId !== null
+          ? `\u0412\u043e\u0440\u043e\u043d\u043a\u0430: ${dealCategoryName || `#${dealCategoryId}`}`
+          : "\u0412\u043e\u0440\u043e\u043d\u043a\u0430 \u043d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0430";
+      const sheetText =
+        activeSheetType === SHEET_TYPE_FUNNEL
+          ? "\u041b\u0418\u0421\u0422 \u0432\u0441\u0435\u0445 \u0441\u0434\u0435\u043b\u043e\u043a \u0432\u043e\u0440\u043e\u043d\u043a\u0438"
+          : "\u041b\u0438\u0441\u0442 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0441\u0434\u0435\u043b\u043a\u0438";
+
+      dealContext.textContent = `${dealText}. ${sheetText}. ${categoryText}.`;
+    }
+
+    function updateSheetModeControls() {
+      if (dealSheetButton) {
+        dealSheetButton.textContent = "\u041b\u0438\u0441\u0442 \u044d\u0442\u043e\u0439 \u0441\u0434\u0435\u043b\u043a\u0438";
+        dealSheetButton.classList.toggle("is-active", activeSheetType === SHEET_TYPE_DEAL);
+        dealSheetButton.setAttribute("aria-pressed", String(activeSheetType === SHEET_TYPE_DEAL));
+      }
+      if (funnelSheetButton) {
+        const funnelName = dealCategoryName || (dealCategoryId !== null ? `#${dealCategoryId}` : "");
+        funnelSheetButton.textContent = funnelName
+          ? `\u041b\u0438\u0441\u0442 \u0412\u043e\u0440\u043e\u043d\u043a\u0438 ${funnelName}`
+          : "\u041b\u0438\u0441\u0442 \u0412\u043e\u0440\u043e\u043d\u043a\u0438";
+        funnelSheetButton.classList.toggle("is-active", activeSheetType === SHEET_TYPE_FUNNEL);
+        funnelSheetButton.setAttribute("aria-pressed", String(activeSheetType === SHEET_TYPE_FUNNEL));
+        funnelSheetButton.disabled = !dealId || dealCategoryId === null;
+      }
+      updateDealContext();
+    }
+
+    function loadActiveSheetState() {
+      storageKey = getSheetStorageKey(activeSheetType, dealId, dealCategoryId);
+      sheetState = loadSheetState(storageKey);
+      grid = sheetState.grid;
+      cellFormats = sheetState.cellFormats;
+      wrappedCells = sheetState.wrappedCells;
+      columnWidths = sheetState.columnWidths;
+      fieldBindings = sheetState.fieldBindings;
+      currentCell = null;
+      selectedCells = new Set();
+      selectionAnchor = null;
+      formulaSourceCell = null;
+      formulaEditCell = null;
+      formulaEditInput = null;
+      renderGrid();
+      updateSheetModeControls();
+    }
+
+    function refreshFieldBoundCells() {
+      if (!dealFields.length) return;
+
+      const updatedBindings = applyFieldBindings(grid, fieldBindings, dealFields);
+      if (!updatedBindings.changed) return;
+
+      grid = updatedBindings.grid;
+      persistSheetState();
+      renderGrid();
+    }
+
+    function switchSheetType(sheetType) {
+      if (sheetType === activeSheetType) return;
+      if (sheetType === SHEET_TYPE_FUNNEL && (!dealId || dealCategoryId === null)) return;
+
+      persistSheetState();
+      activeSheetType = sheetType;
+      closeFieldPopover();
+      loadActiveSheetState();
+      refreshFieldBoundCells();
     }
 
     function updateSelectionActions() {
@@ -962,7 +1092,11 @@
     function updateGridStatus() {
       const rows = grid.length;
       const columns = grid[0] ? grid[0].length : 0;
-      gridStatus.textContent = `${rows} строк, ${columns} столбцов`;
+      const sheetLabel =
+        activeSheetType === SHEET_TYPE_FUNNEL
+          ? "\u041b\u0418\u0421\u0422 \u0432\u043e\u0440\u043e\u043d\u043a\u0438"
+          : "\u0421\u0434\u0435\u043b\u043a\u0430";
+      gridStatus.textContent = `${sheetLabel}: ${rows} \u0441\u0442\u0440\u043e\u043a, ${columns} \u0441\u0442\u043e\u043b\u0431\u0446\u043e\u0432`;
     }
 
     function renderGrid() {
@@ -1211,17 +1345,8 @@
         ? `Сделка #${dealId}`
         : "Сделка не определена. Обновите вкладку после полного открытия карточки.";
 
-      storageKey = getGridStorageKey(dealId);
-      sheetState = loadSheetState(storageKey);
-      grid = sheetState.grid;
-      cellFormats = sheetState.cellFormats;
-      wrappedCells = sheetState.wrappedCells;
-      columnWidths = sheetState.columnWidths;
-      fieldBindings = sheetState.fieldBindings;
-      currentCell = null;
-      selectedCells = new Set();
-      selectionAnchor = null;
-      renderGrid();
+      if (!dealId) activeSheetType = SHEET_TYPE_DEAL;
+      loadActiveSheetState();
     }
 
     async function loadDealFields() {
@@ -1234,15 +1359,21 @@
       try {
         const fields = await callMethod("crm.deal.fields");
         const deal = await callMethod("crm.deal.get", { id: dealId });
+        const nextCategoryId = normalizeCategoryId(deal.CATEGORY_ID);
         const normalizedFields = normalizeFields(fields, deal);
         const displayValues = await loadDisplayValues(normalizedFields, deal);
-        dealFields = applyDisplayValues(normalizedFields, displayValues);
-        const updatedBindings = applyFieldBindings(grid, fieldBindings, dealFields);
-        if (updatedBindings.changed) {
-          grid = updatedBindings.grid;
-          persistSheetState();
-          renderGrid();
+        dealCategoryId = nextCategoryId;
+        dealCategoryName = displayValues.CATEGORY_ID || "";
+        if (
+          activeSheetType === SHEET_TYPE_FUNNEL &&
+          storageKey !== getSheetStorageKey(activeSheetType, dealId, dealCategoryId)
+        ) {
+          loadActiveSheetState();
+        } else {
+          updateSheetModeControls();
         }
+        dealFields = applyDisplayValues(normalizedFields, displayValues);
+        refreshFieldBoundCells();
         fieldStatus.textContent = `Поля сделки: ${dealFields.length}`;
       } catch (error) {
         fieldStatus.textContent = `Поля сделки: ошибка (${error.message || error})`;
@@ -1396,6 +1527,8 @@
     });
 
     reloadFieldsButton.addEventListener("click", loadDealFields);
+    if (dealSheetButton) dealSheetButton.addEventListener("click", () => switchSheetType(SHEET_TYPE_DEAL));
+    if (funnelSheetButton) funnelSheetButton.addEventListener("click", () => switchSheetType(SHEET_TYPE_FUNNEL));
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
     if (wrapTextButton) wrapTextButton.addEventListener("click", toggleWrapSelectedCells);
     if (autoFitButton) autoFitButton.addEventListener("click", autoFitSelectedColumns);
@@ -1419,6 +1552,7 @@
     });
 
     renderGrid();
+    updateSheetModeControls();
 
     if (!window.BX24 || typeof window.BX24.init !== "function") {
       dealContext.textContent = `${DISPLAY_VERSION}. Локальный режим без Bitrix24 SDK.`;
@@ -1468,13 +1602,16 @@
     getExportGrid,
     getAutoFitColumnWidths,
     getFilledCellKeys,
+    getFunnelStorageKey,
     getSortedCellKeys,
     getGridStorageKey,
     getRangeCellKeys,
     getSelectedColumns,
+    getSheetStorageKey,
     getUsedGridBounds,
     loadSheetState,
     measureColumnWidth,
+    normalizeCategoryId,
     normalizeCellFormat,
     normalizeFields,
     normalizeIdList,
