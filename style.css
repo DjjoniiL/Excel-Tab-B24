@@ -146,10 +146,6 @@ body {
   gap: 4px;
 }
 
-.calc-actions {
-  margin-left: auto;
-}
-
 .icon-button {
   align-items: center;
   background: var(--panel);

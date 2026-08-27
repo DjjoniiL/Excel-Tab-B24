@@ -17,7 +17,6 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 - Supports cell selection: single cell, Shift range, Ctrl multi-select, whole row, whole column, and whole table.
 - Supports text wrapping, column auto-fit, fill color, font weight, and bold text for selected cells.
 - Lets users clear selected cells together with their field bindings and formatting.
-- Supports quick arithmetic actions for selected numeric cells: add, subtract, multiply, divide.
 - Supports formulas such as `=E4+B4`, including references, numbers, parentheses, and `+`, `-`, `*`, `/`.
 - Lets users build formulas by typing `=` and clicking cells to insert references.
 - Saves formulas with Enter and displays calculated results outside edit mode.

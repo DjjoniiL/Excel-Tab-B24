@@ -944,10 +944,6 @@
     const fillColorSelect = document.getElementById("fillColorSelect");
     const fontWeightSelect = document.getElementById("fontWeightSelect");
     const boldButton = document.getElementById("boldButton");
-    const calcAddButton = document.getElementById("calcAddButton");
-    const calcSubtractButton = document.getElementById("calcSubtractButton");
-    const calcMultiplyButton = document.getElementById("calcMultiplyButton");
-    const calcDivideButton = document.getElementById("calcDivideButton");
     const exportExcelButton = document.getElementById("exportExcelButton");
     const formulaLibraryButton = document.getElementById("formulaLibraryButton");
     const formulaModal = document.getElementById("formulaModal");
@@ -1814,17 +1810,6 @@
       focusFirstSelectedCell();
     }
 
-    function runCalculation(operation) {
-      if (!selectedCells.size) return;
-
-      const result = calculateSelectedCells(grid, selectedCells, operation);
-      if (result.error) {
-        return;
-      }
-
-      writeResultToCurrentCell(result.value);
-    }
-
     function downloadExcelFile() {
       const html = buildExcelHtml(grid, cellFormats);
       const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
@@ -1860,10 +1845,6 @@
     if (fillColorSelect) fillColorSelect.addEventListener("change", () => setSelectedFillColor(fillColorSelect.value));
     if (fontWeightSelect) fontWeightSelect.addEventListener("change", () => setSelectedFontWeight(fontWeightSelect.value));
     if (boldButton) boldButton.addEventListener("click", toggleSelectedBold);
-    if (calcAddButton) calcAddButton.addEventListener("click", () => runCalculation("add"));
-    if (calcSubtractButton) calcSubtractButton.addEventListener("click", () => runCalculation("subtract"));
-    if (calcMultiplyButton) calcMultiplyButton.addEventListener("click", () => runCalculation("multiply"));
-    if (calcDivideButton) calcDivideButton.addEventListener("click", () => runCalculation("divide"));
     if (exportExcelButton) exportExcelButton.addEventListener("click", downloadExcelFile);
     if (formulaLibraryButton) formulaLibraryButton.addEventListener("click", openFormulaModal);
     if (formulaModalClose) formulaModalClose.addEventListener("click", closeFormulaModal);
