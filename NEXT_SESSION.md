@@ -21,7 +21,7 @@ Updated: 2026-08-27
 - Users can enable wrapping, auto-fit columns, export to Excel-compatible `.xls`, apply fill colors, and set font weight.
 - Users can clear selected cells together with data, field bindings, fill color, font weight, and wrapping; selections larger than 18 cells ask for confirmation.
 - Formula cells support references such as `=E4+B4`, clicked cell references after typing `=`, relative Ctrl-fill behavior, and Enter-to-save edit mode.
-- Users can save reusable formulas in a modal, delete formulas from the saved list, and apply a selected saved formula to the active selected cell. The formula input removes non-English characters and shows a user-facing explanation.
+- Users can save reusable formulas in a modal, delete formulas from the saved list, and apply a selected saved formula to the active selected cell. Formula input in the modal and in cells removes non-English characters, uppercases English letters, and shows a user-facing explanation in the modal.
 
 ## Next Work
 

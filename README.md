@@ -21,7 +21,7 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 - Supports formulas such as `=E4+B4`, including references, numbers, parentheses, and `+`, `-`, `*`, `/`.
 - Lets users build formulas by typing `=` and clicking cells to insert references.
 - Saves formulas with Enter and displays calculated results outside edit mode.
-- Lets users save reusable formulas, remove saved formulas, and apply a selected saved formula to the active selected cell. Formula entry accepts English letters, numbers, and formula symbols.
+- Lets users save reusable formulas, remove saved formulas, and apply a selected saved formula to the active selected cell. Formula entry accepts English letters, numbers, and formula symbols, and automatically uppercases formula letters.
 - Copies formulas with relative reference shifts when Ctrl-selecting target cells.
 - Exports the filled table area to an Excel-compatible `.xls` file with calculated values and supported formatting.
 

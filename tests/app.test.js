@@ -148,7 +148,9 @@ function testFormulaCells() {
 
 function testSavedFormulas() {
   assert.equal(app.sanitizeFormulaInput("=A1+С3+тест"), "=A1+3+");
+  assert.equal(app.formatFormulaInput("=a1+c3+С5"), "=A1+C3+5");
   assert.equal(app.normalizeSavedFormula(" A1+B1 "), "=A1+B1");
+  assert.equal(app.normalizeSavedFormula(" a1+b1 "), "=A1+B1");
   assert.equal(app.normalizeSavedFormula("=A1+B1"), "=A1+B1");
   assert.deepEqual(app.normalizeSavedFormulas([" A1+B1 ", "=A1+B1", "", " C1*2 "]), ["=A1+B1", "=C1*2"]);
 

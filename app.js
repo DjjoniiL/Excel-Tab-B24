@@ -180,13 +180,17 @@
   }
 
   function normalizeSavedFormula(formula) {
-    const value = sanitizeFormulaInput(formula).trim();
+    const value = formatFormulaInput(formula).trim();
     if (!value) return "";
     return value.startsWith("=") ? value : `=${value}`;
   }
 
   function sanitizeFormulaInput(value) {
     return String(value || "").replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
+  }
+
+  function formatFormulaInput(value) {
+    return sanitizeFormulaInput(value).replace(/[a-z]/g, (letter) => letter.toUpperCase());
   }
 
   function normalizeSavedFormulas(formulas) {
@@ -1208,7 +1212,7 @@
       if (!formulaInput) return;
 
       const currentValue = formulaInput.value;
-      const sanitizedValue = sanitizeFormulaInput(currentValue);
+      const sanitizedValue = formatFormulaInput(currentValue);
       if (currentValue === sanitizedValue) return;
 
       const selectionStart = formulaInput.selectionStart || sanitizedValue.length;
@@ -1216,7 +1220,7 @@
       formulaInput.value = sanitizedValue;
       const nextPosition = Math.max(0, selectionStart - removedBeforeCursor);
       formulaInput.setSelectionRange(nextPosition, nextPosition);
-      setFormulaModalStatus("Формулы вводятся только английскими буквами, цифрами и символами формул.");
+      setFormulaModalStatus("Формулы вводятся английскими буквами, цифрами и символами формул. Буквы автоматически переводятся в верхний регистр.");
     }
 
     function applySelectedFormulaToCell() {
@@ -1388,9 +1392,18 @@
 
     function commitCellInput(input, rowIndex, columnIndex) {
       const key = cellKey(rowIndex, columnIndex);
-      grid[rowIndex][columnIndex] = input.value;
+      const nextValue = isFormula(input.value) ? formatFormulaInput(input.value) : input.value;
+      if (input.value !== nextValue) {
+        const selectionStart = input.selectionStart || nextValue.length;
+        const removedBeforeCursor = input.value.slice(0, selectionStart).length - sanitizeFormulaInput(input.value.slice(0, selectionStart)).length;
+        input.value = nextValue;
+        const nextPosition = Math.max(0, selectionStart - removedBeforeCursor);
+        input.setSelectionRange(nextPosition, nextPosition);
+      }
+
+      grid[rowIndex][columnIndex] = nextValue;
       delete fieldBindings[key];
-      if (isFormula(input.value)) {
+      if (isFormula(nextValue)) {
         formulaSourceCell = { columnIndex, rowIndex };
         formulaEditCell = { columnIndex, rowIndex };
         formulaEditInput = input;
@@ -1933,6 +1946,7 @@
     formatCompany,
     formatContact,
     formatDealFieldValue,
+    formatFormulaInput,
     formatUser,
     getCellDisplayValue,
     getDealStageEntityId,
