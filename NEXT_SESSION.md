@@ -15,7 +15,7 @@ Updated: 2026-08-27
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
 - The deal tab shows a 9x7 spreadsheet-like grid by default.
 - The default visible table window fits the column header plus all 9 default rows before added rows require table scrolling.
-- Active sheet status text is user-facing: deal mode says `Таблица сделки "..." из воронки ...`; funnel mode says `Общая таблица сделок. Воронка: ...`.
+- Active sheet status text is user-facing: deal mode says `Таблица сделки "..." из воронки ...`; funnel mode says `Общая таблица сделок из воронки ...`.
 - Users can add rows and columns while keeping scrolling inside the table area.
 - The app iframe itself should not show a separate right-side page scrollbar.
 - Users can select the whole table, individual cells, ranges, rows, and columns.

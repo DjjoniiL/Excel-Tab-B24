@@ -1005,7 +1005,7 @@
       const funnelName = dealCategoryName || (dealCategoryId !== null ? `#${dealCategoryId}` : "");
       if (activeSheetType === SHEET_TYPE_FUNNEL) {
         dealContext.textContent = funnelName
-          ? `Общая таблица сделок. Воронка: ${funnelName}`
+          ? `Общая таблица сделок из воронки ${funnelName}`
           : "Общая таблица сделок. Воронка не определена.";
         return;
       }

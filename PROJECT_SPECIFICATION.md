@@ -10,7 +10,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 
 - Shows a spreadsheet-like grid inside the deal card.
 - Starts with 9 rows and 7 columns.
-- The status under the title names the active sheet clearly: the deal sheet shows `Таблица сделки "..." из воронки ...`, and the funnel sheet shows `Общая таблица сделок. Воронка: ...`.
+- The status under the title names the active sheet clearly: the deal sheet shows `Таблица сделки "..." из воронки ...`, and the funnel sheet shows `Общая таблица сделок из воронки ...`.
 - Lets the user add rows with the plus button below the table.
 - Lets the user add columns with the plus button to the right of the table.
 - Each cell can be edited manually.
