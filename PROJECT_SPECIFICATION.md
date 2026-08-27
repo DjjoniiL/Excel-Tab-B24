@@ -16,6 +16,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Each cell can be edited manually.
 - Cells can be selected individually, as ranges, by row, by column, or by the whole table.
 - When a cell is active, a field picker button is available.
+- The hidden field picker control does not reserve permanent cell width; normal cell text uses the full column width and the picker appears as an overlay only when needed.
 - The field picker lists CRM deal fields and inserts the selected field value into the current cell.
 - The field picker can be closed explicitly with the close button, Escape, outside click, or repeated click on the same picker button.
 - When cells are selected, the user can enable text wrapping for selected cells or auto-fit selected columns to their contents.
@@ -107,3 +108,4 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-27: Added recent formula suggestions under the active cell when formula input starts with `=`.
 - 2026-08-27: Prepared Marketplace v.17 with safer column growth, explicit 13 pt multi-cell font sizing, manual compacting on field reload, and formula-preserving `.xls` export.
 - 2026-08-27: Prepared Marketplace v.18 with a taller default table viewport so the 9th default row is not hidden by the horizontal scrollbar.
+- 2026-08-27: Prepared Marketplace v.19 so the hidden field picker no longer clips visible cell text after columns are added.
