@@ -22,6 +22,7 @@
         <button class="toolbar-button" id="autoFitButton" type="button">Автоширина колонок</button>
         <div class="selection-actions" id="selectionActions" hidden>
           <button class="toolbar-button" id="formulaLibraryButton" type="button">Добавить формулу</button>
+          <button class="toolbar-button" id="clearSelectionButton" type="button">Удалить</button>
           <button class="toolbar-button" id="wrapTextButton" type="button">Переносить текст</button>
           <div class="toolbar-group calc-actions" aria-label="Расчет">
             <button class="icon-button" id="calcAddButton" type="button" title="Сложить выбранные числа">+</button>
@@ -100,6 +101,22 @@
         <footer class="formula-modal-footer">
           <button class="toolbar-button" id="applyFormulaButton" type="button">Применить к ячейке</button>
           <button class="toolbar-button" id="cancelFormulaButton" type="button">Отмена</button>
+        </footer>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="deleteConfirmModal" hidden role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle">
+      <section class="confirm-modal">
+        <header class="formula-modal-header">
+          <h2 id="deleteConfirmTitle">Вы действительно хотите удалить?</h2>
+          <button class="modal-close-button" id="deleteConfirmClose" type="button" aria-label="Закрыть окно">×</button>
+        </header>
+        <div class="confirm-modal-body">
+          Выделенные ячейки будут очищены вместе с данными, заливкой и форматированием.
+        </div>
+        <footer class="formula-modal-footer">
+          <button class="toolbar-button" id="confirmDeleteButton" type="button">Да, удалить</button>
+          <button class="toolbar-button" id="cancelDeleteButton" type="button">Отменить удаление</button>
         </footer>
       </section>
     </div>

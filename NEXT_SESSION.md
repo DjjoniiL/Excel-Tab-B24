@@ -19,8 +19,9 @@ Updated: 2026-08-27
 - The app iframe itself should not show a separate right-side page scrollbar.
 - Users can select the whole table, individual cells, ranges, rows, and columns.
 - Users can enable wrapping, auto-fit columns, export to Excel-compatible `.xls`, apply fill colors, and set font weight.
+- Users can clear selected cells together with data, field bindings, fill color, font weight, and wrapping; selections larger than 18 cells ask for confirmation.
 - Formula cells support references such as `=E4+B4`, clicked cell references after typing `=`, relative Ctrl-fill behavior, and Enter-to-save edit mode.
-- Users can save reusable formulas in a modal and apply a selected saved formula to the active selected cell.
+- Users can save reusable formulas in a modal, delete formulas from the saved list, and apply a selected saved formula to the active selected cell. The formula input removes non-English characters and shows a user-facing explanation.
 
 ## Next Work
 
@@ -29,6 +30,8 @@ Updated: 2026-08-27
 - Verify formula reference picking after typing `=` works inside the Bitrix24 iframe.
 - Verify relative Ctrl-fill for formulas across rows and columns.
 - Verify saved formulas can be saved, selected, cancelled, and applied to the intended selected cell in the Bitrix24 iframe.
+- Verify saved formula deletion, formula-list scrolling, and English-only formula input guidance in the Bitrix24 iframe.
+- Verify `Удалить` clears selected cells and that deleting more than 18 selected cells requires confirmation.
 - Verify field-bound cells refresh automatically when a deal field changes.
 - Verify Excel export opens correctly in desktop Excel and includes calculated formula values.
 - Add further UX polish after portal test: keyboard navigation and manual row/column resizing.

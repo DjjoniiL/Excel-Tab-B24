@@ -18,13 +18,14 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - The field picker lists CRM deal fields and inserts the selected field value into the current cell.
 - The field picker can be closed explicitly with the close button, Escape, outside click, or repeated click on the same picker button.
 - When cells are selected, the user can enable text wrapping for selected cells or auto-fit selected columns to their contents.
+- When cells are selected, the user can clear them with `Удалить`. Clearing removes cell values, CRM field bindings, fill color, font weight, and wrapping. Selections larger than 18 cells require confirmation.
 - The auto-fit action is always available. Without a selection it auto-fits all columns; with a selection it auto-fits only selected columns. It measures the actual grid value regardless of whether the value was typed manually or inserted/refreshed from a CRM deal field.
 - When cells are selected, the user can calculate addition, subtraction, multiplication, or division for numeric selected cell values and write the result into the active cell.
 - Cells can contain formulas such as `=E4+B4`; formulas support cell references, numbers, parentheses, and `+`, `-`, `*`, `/`.
 - After typing `=`, clicking another cell inserts that cell reference into the active formula. Repeated clicks append references with `+` by default, while clicks after a typed operator append the next reference after that operator.
 - Formula cells store the original formula and display the calculated value. When the cell is focused, the editable formula is shown.
 - Pressing Enter in a cell saves the current value or formula, exits edit mode, and shows the calculated formula result when applicable.
-- When a cell is selected, the toolbar shows `Добавить формулу`. It opens a modal where the user can choose a saved formula, save a new formula in the right-side formula entry panel, apply the selected formula to the active selected cell, or cancel.
+- When a cell is selected, the toolbar shows `Добавить формулу`. It opens a modal where the user can choose or delete a saved formula, save a new formula in the right-side formula entry panel, apply the selected formula to the active selected cell, or cancel. Formula entry blocks non-English characters and explains that formulas must use English letters, numbers, and formula symbols.
 - When a formula cell is selected and the user Ctrl-selects additional cells, the formula is copied into those cells with relative row and column reference shifts, including row and column header Ctrl-selection.
 - When cells are selected, the user can apply a fill color and set font weight, including bold text.
 - Deal reference fields are displayed as human-readable values where possible: users, contact, company, category, and stage.
@@ -83,7 +84,7 @@ Do not request full `user` or `user.userfield` for the current version.
 
 ## Test Coverage
 
-- Unit tests cover grid creation, row/column growth, column names, formula parsing/evaluation/reference shifting, saved formula helpers, deal ID extraction, per-deal storage keys, reference value formatting, selection helper behavior, arithmetic helpers, field-bound cell refresh, sheet state persistence, cell formatting persistence, and Excel export trimming/escaping/styling.
+- Unit tests cover grid creation, row/column growth, column names, formula parsing/evaluation/reference shifting, saved formula helpers, cell clearing helpers, deal ID extraction, per-deal storage keys, reference value formatting, selection helper behavior, arithmetic helpers, field-bound cell refresh, sheet state persistence, cell formatting persistence, and Excel export trimming/escaping/styling.
 
 ## History
 
@@ -98,3 +99,4 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-20: Changed the default grid to 9 rows by 7 columns, made the select action target the whole table, removed calculation status hints, and added Excel-like formulas with relative Ctrl-fill behavior.
 - 2026-08-25: Removed the outer app scrollbar while preserving table scrollbars and made Enter save formulas/cell edits and leave edit mode.
 - 2026-08-27: Added saved formulas modal and restored the default grid to 9 rows by 7 columns.
+- 2026-08-27: Added saved formula deletion, English-only formula input guidance, formula list scrolling, and selected-cell clearing with confirmation for large selections.

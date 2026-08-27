@@ -147,12 +147,14 @@ function testFormulaCells() {
 }
 
 function testSavedFormulas() {
+  assert.equal(app.sanitizeFormulaInput("=A1+С3+тест"), "=A1+3+");
   assert.equal(app.normalizeSavedFormula(" A1+B1 "), "=A1+B1");
   assert.equal(app.normalizeSavedFormula("=A1+B1"), "=A1+B1");
   assert.deepEqual(app.normalizeSavedFormulas([" A1+B1 ", "=A1+B1", "", " C1*2 "]), ["=A1+B1", "=C1*2"]);
 
   const added = app.addSavedFormula(["=A1+B1"], "C1*2");
   assert.deepEqual(added, { error: "", formula: "=C1*2", formulas: ["=A1+B1", "=C1*2"] });
+  assert.deepEqual(app.removeSavedFormula(["=A1+B1", "=C1*2"], "A1+B1"), ["=C1*2"]);
   assert.equal(app.addSavedFormula([], " ").error, "Введите формулу");
 
   const applied = app.applyFormulaToGridCell([["", "2"]], 0, 0, "B1*2");
@@ -165,6 +167,30 @@ function testSavedFormulas() {
     app.saveSavedFormulas(["A1+B1", "=A1+B1", "C1*2"], "formulas");
     assert.deepEqual(app.loadSavedFormulas("formulas"), ["=A1+B1", "=C1*2"]);
   });
+}
+
+function testClearCellSelectionState() {
+  const cleared = app.clearCellSelectionState(
+    {
+      cellFormats: {
+        "0:0": { fillColor: "#fff2cc", fontWeight: "700" },
+        "1:1": { fillColor: "#d9ead3" },
+      },
+      fieldBindings: { "0:0": "TITLE", "1:1": "OPPORTUNITY" },
+      grid: [
+        ["=B1*2", "2"],
+        ["keep", "remove"],
+      ],
+      wrappedCells: new Set(["0:0", "1:1"]),
+    },
+    new Set(["0:0", "1:1"])
+  );
+
+  assert.equal(cleared.changed, true);
+  assert.deepEqual(cleared.grid, [["", "2"], ["keep", ""]]);
+  assert.deepEqual(cleared.cellFormats, {});
+  assert.deepEqual(cleared.fieldBindings, {});
+  assert.deepEqual(Array.from(cleared.wrappedCells), []);
 }
 
 function testSheetStateStorage() {
@@ -252,6 +278,7 @@ testSelectionHelpers();
 testFieldBindingsAndExport();
 testFormulaCells();
 testSavedFormulas();
+testClearCellSelectionState();
 testSheetStateStorage();
 testNormalizeAndFormatFields();
 testCalculationsAndCellStyles();

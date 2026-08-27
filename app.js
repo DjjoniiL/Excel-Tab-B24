@@ -19,6 +19,7 @@
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
+  const DELETE_CONFIRM_CELL_THRESHOLD = 18;
   const FILL_COLORS = ["", "#fff2cc", "#d9ead3", "#cfe2f3", "#f4cccc", "#eadcf8"];
   const FONT_WEIGHTS = ["", "600", "700", "800"];
 
@@ -179,9 +180,13 @@
   }
 
   function normalizeSavedFormula(formula) {
-    const value = String(formula || "").trim();
+    const value = sanitizeFormulaInput(formula).trim();
     if (!value) return "";
     return value.startsWith("=") ? value : `=${value}`;
+  }
+
+  function sanitizeFormulaInput(value) {
+    return String(value || "").replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
   }
 
   function normalizeSavedFormulas(formulas) {
@@ -209,6 +214,11 @@
     return { error: "", formulas: savedFormulas, formula: normalized };
   }
 
+  function removeSavedFormula(formulas, formula) {
+    const normalized = normalizeSavedFormula(formula);
+    return normalizeSavedFormulas(formulas).filter((savedFormula) => savedFormula !== normalized);
+  }
+
   function loadSavedFormulas(storageKey = FORMULA_STORAGE_KEY) {
     try {
       const saved = window.localStorage.getItem(storageKey);
@@ -234,6 +244,40 @@
     const changed = nextGrid[rowIndex][columnIndex] !== normalized;
     nextGrid[rowIndex][columnIndex] = normalized;
     return { changed, error: "", grid: nextGrid, formula: normalized };
+  }
+
+  function clearCellSelectionState(state, selectedCells) {
+    const keys = selectedCells instanceof Set ? Array.from(selectedCells) : Array.from(selectedCells || []);
+    const nextGrid = (state.grid || []).map((row) => [...row]);
+    const nextCellFormats = { ...(state.cellFormats || {}) };
+    const nextFieldBindings = { ...(state.fieldBindings || {}) };
+    const nextWrappedCells = new Set(state.wrappedCells || []);
+    let changed = false;
+
+    keys.forEach((key) => {
+      const { rowIndex, columnIndex } = parseCellKey(key);
+      if (!nextGrid[rowIndex] || typeof nextGrid[rowIndex][columnIndex] === "undefined") return;
+
+      if (nextGrid[rowIndex][columnIndex]) changed = true;
+      nextGrid[rowIndex][columnIndex] = "";
+
+      if (nextCellFormats[key]) changed = true;
+      delete nextCellFormats[key];
+
+      if (nextFieldBindings[key]) changed = true;
+      delete nextFieldBindings[key];
+
+      if (nextWrappedCells.has(key)) changed = true;
+      nextWrappedCells.delete(key);
+    });
+
+    return {
+      cellFormats: nextCellFormats,
+      changed,
+      fieldBindings: nextFieldBindings,
+      grid: nextGrid,
+      wrappedCells: nextWrappedCells,
+    };
   }
 
   function tokenizeFormula(expression) {
@@ -891,6 +935,7 @@
     const selectFilledButton = document.getElementById("selectFilledButton");
     const selectionActions = document.getElementById("selectionActions");
     const wrapTextButton = document.getElementById("wrapTextButton");
+    const clearSelectionButton = document.getElementById("clearSelectionButton");
     const autoFitButton = document.getElementById("autoFitButton");
     const fillColorSelect = document.getElementById("fillColorSelect");
     const fontWeightSelect = document.getElementById("fontWeightSelect");
@@ -909,6 +954,10 @@
     const applyFormulaButton = document.getElementById("applyFormulaButton");
     const cancelFormulaButton = document.getElementById("cancelFormulaButton");
     const formulaModalStatus = document.getElementById("formulaModalStatus");
+    const deleteConfirmModal = document.getElementById("deleteConfirmModal");
+    const deleteConfirmClose = document.getElementById("deleteConfirmClose");
+    const confirmDeleteButton = document.getElementById("confirmDeleteButton");
+    const cancelDeleteButton = document.getElementById("cancelDeleteButton");
 
     if (topbar && reloadFieldsButton && exportExcelButton) {
       topbar.insertBefore(exportExcelButton, reloadFieldsButton);
@@ -1047,18 +1096,44 @@
       }
 
       savedFormulas.forEach((formula) => {
+        const row = document.createElement("div");
+        row.className = "formula-row";
+        row.classList.toggle("is-selected", formula === selectedSavedFormula);
+
         const button = document.createElement("button");
         button.className = "formula-option";
         button.type = "button";
         button.textContent = formula;
-        button.classList.toggle("is-selected", formula === selectedSavedFormula);
         button.addEventListener("click", () => {
           selectedSavedFormula = formula;
           if (formulaInput) formulaInput.value = formula;
           setFormulaModalStatus("");
           renderFormulaList();
         });
-        formulaList.appendChild(button);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "formula-delete-button";
+        deleteButton.type = "button";
+        deleteButton.setAttribute("aria-label", `Удалить формулу ${formula}`);
+        deleteButton.innerHTML = [
+          '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">',
+          '<path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z"></path>',
+          "</svg>",
+        ].join("");
+        deleteButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          savedFormulas = removeSavedFormula(savedFormulas, formula);
+          if (selectedSavedFormula === formula) selectedSavedFormula = savedFormulas[0] || "";
+          saveSavedFormulas(savedFormulas);
+          if (formulaInput) formulaInput.value = selectedSavedFormula;
+          setFormulaModalStatus("Формула удалена");
+          renderFormulaList();
+        });
+
+        row.appendChild(button);
+        row.appendChild(deleteButton);
+        formulaList.appendChild(row);
       });
     }
 
@@ -1103,6 +1178,21 @@
       setFormulaModalStatus("");
     }
 
+    function openDeleteConfirmModal() {
+      if (!deleteConfirmModal) return;
+      closeFieldPopover();
+      closeFormulaModal();
+      deleteConfirmModal.hidden = false;
+      window.setTimeout(() => {
+        if (confirmDeleteButton) confirmDeleteButton.focus();
+      }, 0);
+    }
+
+    function closeDeleteConfirmModal() {
+      if (!deleteConfirmModal) return;
+      deleteConfirmModal.hidden = true;
+    }
+
     function saveFormulaFromModal() {
       if (!formulaInput) return;
 
@@ -1112,6 +1202,21 @@
       saveSavedFormulas(savedFormulas);
       renderFormulaList();
       setFormulaModalStatus(result.error || "Формула сохранена");
+    }
+
+    function handleFormulaInput() {
+      if (!formulaInput) return;
+
+      const currentValue = formulaInput.value;
+      const sanitizedValue = sanitizeFormulaInput(currentValue);
+      if (currentValue === sanitizedValue) return;
+
+      const selectionStart = formulaInput.selectionStart || sanitizedValue.length;
+      const removedBeforeCursor = currentValue.slice(0, selectionStart).length - sanitizeFormulaInput(currentValue.slice(0, selectionStart)).length;
+      formulaInput.value = sanitizedValue;
+      const nextPosition = Math.max(0, selectionStart - removedBeforeCursor);
+      formulaInput.setSelectionRange(nextPosition, nextPosition);
+      setFormulaModalStatus("Формулы вводятся только английскими буквами, цифрами и символами формул.");
     }
 
     function applySelectedFormulaToCell() {
@@ -1136,6 +1241,34 @@
       closeFormulaModal();
       renderGrid();
       focusCell(target.rowIndex, target.columnIndex);
+    }
+
+    function clearSelectedCells() {
+      if (!selectedCells.size) return;
+
+      const result = clearCellSelectionState({ cellFormats, fieldBindings, grid, wrappedCells }, selectedCells);
+      grid = result.grid;
+      cellFormats = result.cellFormats;
+      fieldBindings = result.fieldBindings;
+      wrappedCells = result.wrappedCells;
+      formulaSourceCell = null;
+      formulaEditCell = null;
+      formulaEditInput = null;
+
+      if (result.changed) persistSheetState();
+      closeDeleteConfirmModal();
+      renderGrid();
+      focusFirstSelectedCell();
+    }
+
+    function requestClearSelectedCells() {
+      if (!selectedCells.size) return;
+      if (selectedCells.size > DELETE_CONFIRM_CELL_THRESHOLD) {
+        openDeleteConfirmModal();
+        return;
+      }
+
+      clearSelectedCells();
     }
 
     function paintSelection() {
@@ -1708,6 +1841,7 @@
     if (dealSheetButton) dealSheetButton.addEventListener("click", () => switchSheetType(SHEET_TYPE_DEAL));
     if (funnelSheetButton) funnelSheetButton.addEventListener("click", () => switchSheetType(SHEET_TYPE_FUNNEL));
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
+    if (clearSelectionButton) clearSelectionButton.addEventListener("click", requestClearSelectedCells);
     if (wrapTextButton) wrapTextButton.addEventListener("click", toggleWrapSelectedCells);
     if (autoFitButton) autoFitButton.addEventListener("click", autoFitSelectedColumns);
     if (fillColorSelect) fillColorSelect.addEventListener("change", () => setSelectedFillColor(fillColorSelect.value));
@@ -1723,9 +1857,18 @@
     if (cancelFormulaButton) cancelFormulaButton.addEventListener("click", closeFormulaModal);
     if (saveFormulaButton) saveFormulaButton.addEventListener("click", saveFormulaFromModal);
     if (applyFormulaButton) applyFormulaButton.addEventListener("click", applySelectedFormulaToCell);
+    if (formulaInput) formulaInput.addEventListener("input", handleFormulaInput);
     if (formulaModal) {
       formulaModal.addEventListener("click", (event) => {
         if (event.target === formulaModal) closeFormulaModal();
+      });
+    }
+    if (deleteConfirmClose) deleteConfirmClose.addEventListener("click", closeDeleteConfirmModal);
+    if (cancelDeleteButton) cancelDeleteButton.addEventListener("click", closeDeleteConfirmModal);
+    if (confirmDeleteButton) confirmDeleteButton.addEventListener("click", clearSelectedCells);
+    if (deleteConfirmModal) {
+      deleteConfirmModal.addEventListener("click", (event) => {
+        if (event.target === deleteConfirmModal) closeDeleteConfirmModal();
       });
     }
     if (fieldPopoverClose) fieldPopoverClose.addEventListener("click", closeFieldPopover);
@@ -1734,6 +1877,7 @@
       if (event.key === "Escape") {
         closeFieldPopover();
         closeFormulaModal();
+        closeDeleteConfirmModal();
       }
     });
     document.addEventListener("click", (event) => {
@@ -1777,6 +1921,7 @@
     buildExcelHtml,
     calculateSelectedCells,
     cellKey,
+    clearCellSelectionState,
     columnName,
     columnIndexFromName,
     createGrid,
@@ -1814,8 +1959,10 @@
     parseFormulaReference,
     normalizeSavedFormula,
     normalizeSavedFormulas,
+    removeSavedFormula,
     saveSavedFormulas,
     saveSheetState,
+    sanitizeFormulaInput,
     shiftFormulaReferences,
   };
 });
