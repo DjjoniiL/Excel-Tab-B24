@@ -43,7 +43,7 @@ Serverless-приложение для Bitrix24 Marketplace, которое вс
 Права для текущей версии:
 - CRM (CRM)
 - Placement (Встраивание приложений)
-- User basic / `user_basic` (Пользователи, базовый)
+- `user_basic`
 
 Для текущей версии НЕ нужно:
 - полный `user`

@@ -65,7 +65,7 @@ For the current version, required permissions are:
 
 - CRM (CRM)
 - Placement (Встраивание приложений)
-- User basic / `user_basic` (Пользователи, базовый)
+- `user_basic`
 
 Do not request full `user` or `user.userfield` for the current version.
 

@@ -56,7 +56,7 @@ The current version requires:
 
 - CRM (CRM)
 - Placement (Встраивание приложений)
-- User basic / `user_basic` (Пользователи, базовый)
+- `user_basic`
 
 The current version does not require full `user` or `user.userfield`.
 
