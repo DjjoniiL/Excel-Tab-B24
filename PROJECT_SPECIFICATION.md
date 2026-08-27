@@ -31,6 +31,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Cells filled from a CRM deal field keep a local field binding and refresh from the current deal each time the tab opens or fields are reloaded.
 - The user can export the filled table area to an Excel-compatible `.xls` file trimmed to the last filled row and column, including fill color and font weight where applied.
 - The app iframe itself does not show a separate page scrollbar; scrolling is kept inside the table area when rows or columns exceed the visible grid.
+- The initial visible table area fits the header row plus all 9 default rows.
 - Shift+Enter remains available for multiline wrapped text.
 
 ## Runtime Model
