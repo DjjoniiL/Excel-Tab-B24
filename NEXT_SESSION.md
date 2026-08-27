@@ -1,6 +1,6 @@
 # NEXT_SESSION
 
-Updated: 2026-08-25
+Updated: 2026-08-27
 
 ## Current State
 
@@ -11,14 +11,15 @@ Updated: 2026-08-25
 - No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
 - Marketplace zip archives are created in `dist app B24 zip/`.
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
-- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.13.zip`.
+- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.14.zip`.
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
-- The deal tab shows an 8x7 spreadsheet-like grid by default.
+- The deal tab shows a 9x7 spreadsheet-like grid by default.
 - Users can add rows and columns while keeping scrolling inside the table area.
 - The app iframe itself should not show a separate right-side page scrollbar.
 - Users can select the whole table, individual cells, ranges, rows, and columns.
 - Users can enable wrapping, auto-fit columns, export to Excel-compatible `.xls`, apply fill colors, and set font weight.
 - Formula cells support references such as `=E4+B4`, clicked cell references after typing `=`, relative Ctrl-fill behavior, and Enter-to-save edit mode.
+- Users can save reusable formulas in a modal and apply a selected saved formula to the active selected cell.
 
 ## Next Work
 
@@ -26,6 +27,7 @@ Updated: 2026-08-25
 - Verify Enter saves a typed formula and exits formula edit mode.
 - Verify formula reference picking after typing `=` works inside the Bitrix24 iframe.
 - Verify relative Ctrl-fill for formulas across rows and columns.
+- Verify saved formulas can be saved, selected, cancelled, and applied to the intended selected cell in the Bitrix24 iframe.
 - Verify field-bound cells refresh automatically when a deal field changes.
 - Verify Excel export opens correctly in desktop Excel and includes calculated formula values.
 - Add further UX polish after portal test: keyboard navigation and manual row/column resizing.
@@ -47,6 +49,6 @@ For the current version, required permissions are:
 
 - CRM (CRM)
 - Placement (Встраивание приложений)
-- User (Пользователи)
+- User basic / `user_basic` (Пользователи, базовый)
 
-Do not request `user.userfield` for the current version.
+Do not request full `user` or `user.userfield` for the current version.

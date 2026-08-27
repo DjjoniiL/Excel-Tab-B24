@@ -7,7 +7,7 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 ## What The App Does
 
 - Adds a custom `Excel Tab B24` tab to a Bitrix24 deal card.
-- Shows a spreadsheet-like grid with 8 rows and 7 columns by default.
+- Shows a spreadsheet-like grid with 9 rows and 7 columns by default.
 - Lets users add rows and columns without shrinking existing data.
 - Keeps scrolling inside the table area for large grids.
 - Lets users edit cells manually.
@@ -20,6 +20,7 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 - Supports formulas such as `=E4+B4`, including references, numbers, parentheses, and `+`, `-`, `*`, `/`.
 - Lets users build formulas by typing `=` and clicking cells to insert references.
 - Saves formulas with Enter and displays calculated results outside edit mode.
+- Lets users save reusable formulas and apply a selected saved formula to the active selected cell.
 - Copies formulas with relative reference shifts when Ctrl-selecting target cells.
 - Exports the filled table area to an Excel-compatible `.xls` file with calculated values and supported formatting.
 

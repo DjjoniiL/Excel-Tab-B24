@@ -23,9 +23,9 @@ function withMockLocalStorage(callback) {
 
 function testCreateGridDefaults() {
   const grid = app.createGrid();
-  assert.equal(grid.length, 8);
+  assert.equal(grid.length, 9);
   assert.equal(grid[0].length, 7);
-  assert.equal(grid[7][6], "");
+  assert.equal(grid[8][6], "");
 }
 
 function testAddRowAndColumn() {
@@ -146,6 +146,27 @@ function testFormulaCells() {
   assert.match(app.buildExcelHtml([["2", "3", "=A1+B1"]]), /<td>5<\/td>/);
 }
 
+function testSavedFormulas() {
+  assert.equal(app.normalizeSavedFormula(" A1+B1 "), "=A1+B1");
+  assert.equal(app.normalizeSavedFormula("=A1+B1"), "=A1+B1");
+  assert.deepEqual(app.normalizeSavedFormulas([" A1+B1 ", "=A1+B1", "", " C1*2 "]), ["=A1+B1", "=C1*2"]);
+
+  const added = app.addSavedFormula(["=A1+B1"], "C1*2");
+  assert.deepEqual(added, { error: "", formula: "=C1*2", formulas: ["=A1+B1", "=C1*2"] });
+  assert.equal(app.addSavedFormula([], " ").error, "Введите формулу");
+
+  const applied = app.applyFormulaToGridCell([["", "2"]], 0, 0, "B1*2");
+  assert.equal(applied.error, "");
+  assert.equal(applied.changed, true);
+  assert.deepEqual(applied.grid, [["=B1*2", "2"]]);
+  assert.equal(app.applyFormulaToGridCell([[""]], 5, 0, "=A1").error, "Ячейка не найдена");
+
+  withMockLocalStorage(() => {
+    app.saveSavedFormulas(["A1+B1", "=A1+B1", "C1*2"], "formulas");
+    assert.deepEqual(app.loadSavedFormulas("formulas"), ["=A1+B1", "=C1*2"]);
+  });
+}
+
 function testSheetStateStorage() {
   withMockLocalStorage((storage) => {
     storage.set("legacy", JSON.stringify([["a"]]));
@@ -230,6 +251,7 @@ testReferenceFormatting();
 testSelectionHelpers();
 testFieldBindingsAndExport();
 testFormulaCells();
+testSavedFormulas();
 testSheetStateStorage();
 testNormalizeAndFormatFields();
 testCalculationsAndCellStyles();

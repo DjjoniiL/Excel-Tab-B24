@@ -7,9 +7,10 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const DEFAULT_ROWS = 8;
+  const DEFAULT_ROWS = 9;
   const DEFAULT_COLUMNS = 7;
   const STORAGE_KEY = "excel-tab-b24-grid-v1";
+  const FORMULA_STORAGE_KEY = "excel-tab-b24-saved-formulas-v1";
   const DEAL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-deal-v1";
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
@@ -175,6 +176,64 @@
     if (trimmed === "=") return `${base}${reference}`;
     if (/[+\-*/(]\s*$/.test(trimmed)) return `${base}${reference}`;
     return `${base} + ${reference}`;
+  }
+
+  function normalizeSavedFormula(formula) {
+    const value = String(formula || "").trim();
+    if (!value) return "";
+    return value.startsWith("=") ? value : `=${value}`;
+  }
+
+  function normalizeSavedFormulas(formulas) {
+    if (!Array.isArray(formulas)) return [];
+
+    const seen = new Set();
+    return formulas.reduce((normalizedFormulas, formula) => {
+      const normalized = normalizeSavedFormula(formula);
+      if (!normalized || seen.has(normalized)) return normalizedFormulas;
+
+      seen.add(normalized);
+      normalizedFormulas.push(normalized);
+      return normalizedFormulas;
+    }, []);
+  }
+
+  function addSavedFormula(formulas, formula) {
+    const normalized = normalizeSavedFormula(formula);
+    if (!normalized) {
+      return { error: "Введите формулу", formulas: normalizeSavedFormulas(formulas), formula: "" };
+    }
+
+    const savedFormulas = normalizeSavedFormulas(formulas);
+    if (!savedFormulas.includes(normalized)) savedFormulas.push(normalized);
+    return { error: "", formulas: savedFormulas, formula: normalized };
+  }
+
+  function loadSavedFormulas(storageKey = FORMULA_STORAGE_KEY) {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      return normalizeSavedFormulas(saved ? JSON.parse(saved) : []);
+    } catch (error) {
+      window.localStorage.removeItem(storageKey);
+      return [];
+    }
+  }
+
+  function saveSavedFormulas(formulas, storageKey = FORMULA_STORAGE_KEY) {
+    window.localStorage.setItem(storageKey, JSON.stringify(normalizeSavedFormulas(formulas)));
+  }
+
+  function applyFormulaToGridCell(grid, rowIndex, columnIndex, formula) {
+    const normalized = normalizeSavedFormula(formula);
+    if (!normalized) return { changed: false, error: "Выберите формулу", grid, formula: "" };
+    if (!grid[rowIndex] || typeof grid[rowIndex][columnIndex] === "undefined") {
+      return { changed: false, error: "Ячейка не найдена", grid, formula: normalized };
+    }
+
+    const nextGrid = grid.map((row) => [...row]);
+    const changed = nextGrid[rowIndex][columnIndex] !== normalized;
+    nextGrid[rowIndex][columnIndex] = normalized;
+    return { changed, error: "", grid: nextGrid, formula: normalized };
   }
 
   function tokenizeFormula(expression) {
@@ -841,6 +900,15 @@
     const calcMultiplyButton = document.getElementById("calcMultiplyButton");
     const calcDivideButton = document.getElementById("calcDivideButton");
     const exportExcelButton = document.getElementById("exportExcelButton");
+    const formulaLibraryButton = document.getElementById("formulaLibraryButton");
+    const formulaModal = document.getElementById("formulaModal");
+    const formulaModalClose = document.getElementById("formulaModalClose");
+    const formulaList = document.getElementById("formulaList");
+    const formulaInput = document.getElementById("formulaInput");
+    const saveFormulaButton = document.getElementById("saveFormulaButton");
+    const applyFormulaButton = document.getElementById("applyFormulaButton");
+    const cancelFormulaButton = document.getElementById("cancelFormulaButton");
+    const formulaModalStatus = document.getElementById("formulaModalStatus");
 
     if (topbar && reloadFieldsButton && exportExcelButton) {
       topbar.insertBefore(exportExcelButton, reloadFieldsButton);
@@ -874,6 +942,8 @@
     let formulaEditCell = null;
     let formulaEditInput = null;
     let formulaReferencePointerHandled = false;
+    let savedFormulas = loadSavedFormulas();
+    let selectedSavedFormula = savedFormulas[0] || "";
 
     function persistSheetState() {
       saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, wrappedCells }, storageKey);
@@ -958,6 +1028,114 @@
     function updateSelectionActions() {
       if (!selectionActions) return;
       selectionActions.hidden = selectedCells.size === 0;
+    }
+
+    function setFormulaModalStatus(message) {
+      if (formulaModalStatus) formulaModalStatus.textContent = message || "";
+    }
+
+    function renderFormulaList() {
+      if (!formulaList) return;
+
+      formulaList.innerHTML = "";
+      if (!savedFormulas.length) {
+        const empty = document.createElement("div");
+        empty.className = "formula-empty";
+        empty.textContent = "Нет сохранённых формул";
+        formulaList.appendChild(empty);
+        return;
+      }
+
+      savedFormulas.forEach((formula) => {
+        const button = document.createElement("button");
+        button.className = "formula-option";
+        button.type = "button";
+        button.textContent = formula;
+        button.classList.toggle("is-selected", formula === selectedSavedFormula);
+        button.addEventListener("click", () => {
+          selectedSavedFormula = formula;
+          if (formulaInput) formulaInput.value = formula;
+          setFormulaModalStatus("");
+          renderFormulaList();
+        });
+        formulaList.appendChild(button);
+      });
+    }
+
+    function getFormulaTargetCell() {
+      if (currentCell && selectedCells.has(cellKey(currentCell.rowIndex, currentCell.columnIndex))) {
+        return { rowIndex: currentCell.rowIndex, columnIndex: currentCell.columnIndex };
+      }
+
+      const firstKey = selectedCells.values().next().value;
+      return firstKey ? parseCellKey(firstKey) : null;
+    }
+
+    function focusCell(rowIndex, columnIndex) {
+      const input = table.querySelector(
+        `.cell-input[data-row="${rowIndex}"][data-column="${columnIndex}"]`
+      );
+      if (!input) return;
+
+      setCurrentCell(input, rowIndex, columnIndex);
+      input.focus();
+    }
+
+    function openFormulaModal() {
+      if (!formulaModal || !selectedCells.size) return;
+
+      closeFieldPopover();
+      selectedSavedFormula = selectedSavedFormula || savedFormulas[0] || "";
+      if (formulaInput) formulaInput.value = selectedSavedFormula;
+      setFormulaModalStatus("");
+      renderFormulaList();
+      formulaModal.hidden = false;
+      window.setTimeout(() => {
+        const selectedOption = formulaList && formulaList.querySelector(".formula-option.is-selected");
+        if (selectedOption) selectedOption.focus();
+        else if (formulaInput) formulaInput.focus();
+      }, 0);
+    }
+
+    function closeFormulaModal() {
+      if (!formulaModal) return;
+      formulaModal.hidden = true;
+      setFormulaModalStatus("");
+    }
+
+    function saveFormulaFromModal() {
+      if (!formulaInput) return;
+
+      const result = addSavedFormula(savedFormulas, formulaInput.value);
+      savedFormulas = result.formulas;
+      selectedSavedFormula = result.formula || selectedSavedFormula;
+      saveSavedFormulas(savedFormulas);
+      renderFormulaList();
+      setFormulaModalStatus(result.error || "Формула сохранена");
+    }
+
+    function applySelectedFormulaToCell() {
+      const target = getFormulaTargetCell();
+      if (!target) {
+        setFormulaModalStatus("Выберите ячейку");
+        return;
+      }
+
+      const result = applyFormulaToGridCell(grid, target.rowIndex, target.columnIndex, selectedSavedFormula);
+      if (result.error) {
+        setFormulaModalStatus(result.error);
+        return;
+      }
+
+      grid = result.grid;
+      delete fieldBindings[cellKey(target.rowIndex, target.columnIndex)];
+      formulaSourceCell = { columnIndex: target.columnIndex, rowIndex: target.rowIndex };
+      formulaEditCell = null;
+      formulaEditInput = null;
+      persistSheetState();
+      closeFormulaModal();
+      renderGrid();
+      focusCell(target.rowIndex, target.columnIndex);
     }
 
     function paintSelection() {
@@ -1540,10 +1718,23 @@
     if (calcMultiplyButton) calcMultiplyButton.addEventListener("click", () => runCalculation("multiply"));
     if (calcDivideButton) calcDivideButton.addEventListener("click", () => runCalculation("divide"));
     if (exportExcelButton) exportExcelButton.addEventListener("click", downloadExcelFile);
+    if (formulaLibraryButton) formulaLibraryButton.addEventListener("click", openFormulaModal);
+    if (formulaModalClose) formulaModalClose.addEventListener("click", closeFormulaModal);
+    if (cancelFormulaButton) cancelFormulaButton.addEventListener("click", closeFormulaModal);
+    if (saveFormulaButton) saveFormulaButton.addEventListener("click", saveFormulaFromModal);
+    if (applyFormulaButton) applyFormulaButton.addEventListener("click", applySelectedFormulaToCell);
+    if (formulaModal) {
+      formulaModal.addEventListener("click", (event) => {
+        if (event.target === formulaModal) closeFormulaModal();
+      });
+    }
     if (fieldPopoverClose) fieldPopoverClose.addEventListener("click", closeFieldPopover);
     fieldSearch.addEventListener("input", () => renderFieldList(fieldSearch.value));
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeFieldPopover();
+      if (event.key === "Escape") {
+        closeFieldPopover();
+        closeFormulaModal();
+      }
     });
     document.addEventListener("click", (event) => {
       if (popover.hidden) return;
@@ -1579,7 +1770,9 @@
     DEFAULT_ROWS,
     addColumn,
     addRow,
+    addSavedFormula,
     appendFormulaReference,
+    applyFormulaToGridCell,
     applyFieldBindings,
     buildExcelHtml,
     calculateSelectedCells,
@@ -1609,6 +1802,7 @@
     getSelectedColumns,
     getSheetStorageKey,
     getUsedGridBounds,
+    loadSavedFormulas,
     loadSheetState,
     measureColumnWidth,
     normalizeCategoryId,
@@ -1618,6 +1812,9 @@
     parseCellKey,
     parseCellNumber,
     parseFormulaReference,
+    normalizeSavedFormula,
+    normalizeSavedFormulas,
+    saveSavedFormulas,
     saveSheetState,
     shiftFormulaReferences,
   };
