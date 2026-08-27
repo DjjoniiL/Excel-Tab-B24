@@ -974,6 +974,7 @@
     let activeSheetType = SHEET_TYPE_DEAL;
     let dealCategoryId = null;
     let dealCategoryName = "";
+    let dealTitle = "";
     let storageKey = getSheetStorageKey(activeSheetType, null, null);
     let sheetState = loadSheetState(storageKey);
     let grid = sheetState.grid;
@@ -1001,32 +1002,36 @@
     function updateDealContext() {
       if (!dealContext) return;
 
-      const dealText = dealId
-        ? `\u0421\u0434\u0435\u043b\u043a\u0430 ID ${dealId}`
-        : "\u0421\u0434\u0435\u043b\u043a\u0430 \u043d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0430. \u041e\u0431\u043d\u043e\u0432\u0438\u0442\u0435 \u0432\u043a\u043b\u0430\u0434\u043a\u0443 \u043f\u043e\u0441\u043b\u0435 \u043f\u043e\u043b\u043d\u043e\u0433\u043e \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044f \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0438.";
-      const categoryText =
-        dealCategoryId !== null
-          ? `\u0412\u043e\u0440\u043e\u043d\u043a\u0430: ${dealCategoryName || `#${dealCategoryId}`}`
-          : "\u0412\u043e\u0440\u043e\u043d\u043a\u0430 \u043d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0430";
-      const sheetText =
-        activeSheetType === SHEET_TYPE_FUNNEL
-          ? "\u041b\u0418\u0421\u0422 \u0432\u0441\u0435\u0445 \u0441\u0434\u0435\u043b\u043e\u043a \u0432\u043e\u0440\u043e\u043d\u043a\u0438"
-          : "\u041b\u0438\u0441\u0442 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0441\u0434\u0435\u043b\u043a\u0438";
+      const funnelName = dealCategoryName || (dealCategoryId !== null ? `#${dealCategoryId}` : "");
+      if (activeSheetType === SHEET_TYPE_FUNNEL) {
+        dealContext.textContent = funnelName
+          ? `Общая таблица сделок. Воронка: ${funnelName}`
+          : "Общая таблица сделок. Воронка не определена.";
+        return;
+      }
 
-      dealContext.textContent = `${dealText}. ${sheetText}. ${categoryText}.`;
+      if (!dealId) {
+        dealContext.textContent = "Таблица сделки не определена. Обновите вкладку после полного открытия карточки.";
+        return;
+      }
+
+      const title = dealTitle || `ID ${dealId}`;
+      dealContext.textContent = funnelName
+        ? `Таблица сделки "${title}" из воронки ${funnelName}`
+        : `Таблица сделки "${title}"`;
     }
 
     function updateSheetModeControls() {
       if (dealSheetButton) {
-        dealSheetButton.textContent = "\u041b\u0438\u0441\u0442 \u044d\u0442\u043e\u0439 \u0441\u0434\u0435\u043b\u043a\u0438";
+        dealSheetButton.textContent = dealId ? `Эта сделка ID ${dealId}` : "Эта сделка";
         dealSheetButton.classList.toggle("is-active", activeSheetType === SHEET_TYPE_DEAL);
         dealSheetButton.setAttribute("aria-pressed", String(activeSheetType === SHEET_TYPE_DEAL));
       }
       if (funnelSheetButton) {
         const funnelName = dealCategoryName || (dealCategoryId !== null ? `#${dealCategoryId}` : "");
         funnelSheetButton.textContent = funnelName
-          ? `\u041b\u0438\u0441\u0442 \u0412\u043e\u0440\u043e\u043d\u043a\u0438 ${funnelName}`
-          : "\u041b\u0438\u0441\u0442 \u0412\u043e\u0440\u043e\u043d\u043a\u0438";
+          ? `Таблица всех сделок воронки ${funnelName}`
+          : "Таблица всех сделок воронки";
         funnelSheetButton.classList.toggle("is-active", activeSheetType === SHEET_TYPE_FUNNEL);
         funnelSheetButton.setAttribute("aria-pressed", String(activeSheetType === SHEET_TYPE_FUNNEL));
         funnelSheetButton.disabled = !dealId || dealCategoryId === null;
@@ -1660,10 +1665,11 @@
         queryPlacementOptions,
         url: document.referrer || window.location.href,
       });
+      dealTitle = "";
 
       dealContext.textContent = dealId
-        ? `Сделка #${dealId}`
-        : "Сделка не определена. Обновите вкладку после полного открытия карточки.";
+        ? `Таблица сделки "ID ${dealId}"`
+        : "Таблица сделки не определена. Обновите вкладку после полного открытия карточки.";
 
       if (!dealId) activeSheetType = SHEET_TYPE_DEAL;
       loadActiveSheetState();
@@ -1684,6 +1690,7 @@
         const displayValues = await loadDisplayValues(normalizedFields, deal);
         dealCategoryId = nextCategoryId;
         dealCategoryName = displayValues.CATEGORY_ID || "";
+        dealTitle = formatDealFieldValue(deal.TITLE) || `ID ${dealId}`;
         if (
           activeSheetType === SHEET_TYPE_FUNNEL &&
           storageKey !== getSheetStorageKey(activeSheetType, dealId, dealCategoryId)

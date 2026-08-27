@@ -15,6 +15,7 @@ Updated: 2026-08-27
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
 - The deal tab shows a 9x7 spreadsheet-like grid by default.
 - The default visible table window fits the column header plus all 9 default rows before added rows require table scrolling.
+- Active sheet status text is user-facing: deal mode says `Таблица сделки "..." из воронки ...`; funnel mode says `Общая таблица сделок. Воронка: ...`.
 - Users can add rows and columns while keeping scrolling inside the table area.
 - The app iframe itself should not show a separate right-side page scrollbar.
 - Users can select the whole table, individual cells, ranges, rows, and columns.
@@ -32,6 +33,7 @@ Updated: 2026-08-27
 - Verify saved formulas can be saved, selected, cancelled, and applied to the intended selected cell in the Bitrix24 iframe.
 - Verify saved formula deletion, formula-list scrolling, and English-only formula input guidance in the Bitrix24 iframe.
 - Verify `Удалить` clears selected cells and that deleting more than 18 selected cells requires confirmation.
+- Verify active sheet status text and bottom switcher labels in both deal and funnel modes.
 - Verify field-bound cells refresh automatically when a deal field changes.
 - Verify Excel export opens correctly in desktop Excel and includes calculated formula values.
 - Add further UX polish after portal test: keyboard navigation and manual row/column resizing.

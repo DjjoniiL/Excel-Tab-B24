@@ -10,6 +10,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 
 - Shows a spreadsheet-like grid inside the deal card.
 - Starts with 9 rows and 7 columns.
+- The status under the title names the active sheet clearly: the deal sheet shows `Таблица сделки "..." из воронки ...`, and the funnel sheet shows `Общая таблица сделок. Воронка: ...`.
 - Lets the user add rows with the plus button below the table.
 - Lets the user add columns with the plus button to the right of the table.
 - Each cell can be edited manually.
@@ -99,3 +100,4 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-25: Removed the outer app scrollbar while preserving table scrollbars and made Enter save formulas/cell edits and leave edit mode.
 - 2026-08-27: Added saved formulas modal and restored the default grid to 9 rows by 7 columns.
 - 2026-08-27: Added saved formula deletion, English-only formula input guidance, formula list scrolling, and selected-cell clearing with confirmation for large selections.
+- 2026-08-27: Clarified active sheet status text and renamed bottom sheet switch buttons.

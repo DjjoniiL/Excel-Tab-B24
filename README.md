@@ -8,6 +8,7 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 
 - Adds a custom `Excel Tab B24` tab to a Bitrix24 deal card.
 - Shows a spreadsheet-like grid with 9 rows and 7 columns by default.
+- Shows clear active-sheet status text for the current deal table or the shared funnel table.
 - Lets users add rows and columns without shrinking existing data.
 - Keeps scrolling inside the table area for large grids.
 - Lets users edit cells manually.
