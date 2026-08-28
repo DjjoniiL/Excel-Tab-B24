@@ -16,8 +16,8 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "Excel Tab B24 v.26 Marketplace B24";
-  const DISPLAY_TITLE = "Excel Tab B24 v.26";
+  const DISPLAY_VERSION = "Excel Tab B24 v.27 Marketplace B24";
+  const DISPLAY_TITLE = "Excel Tab B24 v.27";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
@@ -114,6 +114,14 @@
       .sort((left, right) => left - right);
   }
 
+  function getSelectedRows(selectedCells) {
+    return Array.from(selectedCells)
+      .map((key) => parseCellKey(key).rowIndex)
+      .filter((rowIndex) => Number.isInteger(rowIndex) && rowIndex >= 0)
+      .filter((rowIndex, index, rows) => rows.indexOf(rowIndex) === index)
+      .sort((left, right) => left - right);
+  }
+
   function measureColumnWidth(grid, columnIndex) {
     const maxLength = grid.reduce((max, row, rowIndex) => {
       const textLength = String(getCellDisplayValue(grid, rowIndex, columnIndex))
@@ -134,6 +142,39 @@
     return columns.reduce((widths, columnIndex) => {
       widths[columnIndex] = measureColumnWidth(grid, columnIndex);
       return widths;
+    }, {});
+  }
+
+  function measureRowHeight(grid, rowIndex, columnWidths = [], selectedCells = null, wrappedCells = new Set()) {
+    const row = grid[rowIndex] || [];
+    const selectedColumns =
+      selectedCells && selectedCells.size
+        ? getSelectedColumns(new Set(Array.from(selectedCells).filter((key) => parseCellKey(key).rowIndex === rowIndex)))
+        : row.map((cell, columnIndex) => columnIndex);
+    const columns = selectedColumns.length ? selectedColumns : row.map((cell, columnIndex) => columnIndex);
+    const maxLines = columns.reduce((lineCount, columnIndex) => {
+      const value = String(getCellDisplayValue(grid, rowIndex, columnIndex) || "");
+      const availableWidth = Math.max(24, (columnWidths[columnIndex] || DEFAULT_COLUMN_WIDTH) - 16);
+      const wrappedLines = value.split(/\r?\n/).reduce((count, line) => {
+        const estimatedLines = wrappedCells.has(cellKey(rowIndex, columnIndex))
+          ? Math.max(1, Math.ceil(line.length * 8.5 / availableWidth))
+          : 1;
+        return count + estimatedLines;
+      }, 0);
+      return Math.max(lineCount, wrappedLines || 1);
+    }, 1);
+    return clampRowHeight(Math.ceil(maxLines * 20 + 14));
+  }
+
+  function getAutoFitRowHeights(grid, columnWidths = [], selectedCells = null, wrappedCells = new Set()) {
+    const rows =
+      selectedCells && selectedCells.size
+        ? getSelectedRows(selectedCells)
+        : Array.from({ length: grid.length }, (item, index) => index);
+
+    return rows.reduce((heights, rowIndex) => {
+      heights[rowIndex] = measureRowHeight(grid, rowIndex, columnWidths, selectedCells, wrappedCells);
+      return heights;
     }, {});
   }
 
@@ -1552,6 +1593,17 @@
       return true;
     }
 
+    function autoFitSheetSize(targetCells = null) {
+      const widths = getAutoFitColumnWidths(grid, targetCells);
+      Object.entries(widths).forEach(([columnIndex, width]) => {
+        columnWidths[Number.parseInt(columnIndex, 10)] = width;
+      });
+      const heights = getAutoFitRowHeights(grid, columnWidths, targetCells, wrappedCells);
+      Object.entries(heights).forEach(([rowIndex, height]) => {
+        rowHeights[Number.parseInt(rowIndex, 10)] = height;
+      });
+    }
+
     function updateDragSelection(rowIndex, columnIndex) {
       if (!dragSelection) return;
       const target = { rowIndex, columnIndex };
@@ -2108,7 +2160,12 @@
         }
         dealFields = applyDisplayValues(normalizedFields, displayValues);
         refreshFieldBoundCells();
-        if (compactAfterLoad) compactGridToFilledBounds();
+        if (compactAfterLoad) {
+          compactGridToFilledBounds();
+          autoFitSheetSize();
+          persistSheetState();
+          renderGrid();
+        }
         fieldStatus.textContent = `Поля сделки: ${dealFields.length}`;
       } catch (error) {
         fieldStatus.textContent = `Поля сделки: ошибка (${error.message || error})`;
@@ -2227,12 +2284,8 @@
       }));
     }
 
-    function autoFitSelectedColumns() {
-      const widths = getAutoFitColumnWidths(grid, selectedCells);
-      Object.entries(widths).forEach(([columnIndex, width]) => {
-        columnWidths[Number.parseInt(columnIndex, 10)] = width;
-      });
-
+    function autoFitSelectedCells() {
+      autoFitSheetSize(selectedCells);
       persistSheetState();
       renderGrid();
       focusFirstSelectedCell();
@@ -2292,7 +2345,7 @@
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
     if (clearSelectionButton) clearSelectionButton.addEventListener("click", requestClearSelectedCells);
     if (wrapTextButton) wrapTextButton.addEventListener("click", toggleWrapSelectedCells);
-    if (autoFitButton) autoFitButton.addEventListener("click", autoFitSelectedColumns);
+    if (autoFitButton) autoFitButton.addEventListener("click", autoFitSelectedCells);
     if (fillColorSelect) fillColorSelect.addEventListener("change", () => setSelectedFillColor(fillColorSelect.value));
     if (fontSizeSelect) fontSizeSelect.addEventListener("change", () => setSelectedFontSize(fontSizeSelect.value));
     if (boldButton) boldButton.addEventListener("click", toggleSelectedBold);
@@ -2421,12 +2474,15 @@
     getGridStorageKey,
     getRangeCellKeys,
     getSelectedColumns,
+    getSelectedRows,
     getSheetStorageKey,
     getUsedGridBounds,
     loadRecentFormulas,
     loadSavedFormulas,
     loadSheetState,
+    measureRowHeight,
     measureColumnWidth,
+    getAutoFitRowHeights,
     normalizeCategoryId,
     normalizeCellFormat,
     normalizeFields,

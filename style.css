@@ -77,11 +77,11 @@ body {
 }
 
 .toolbar {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 5px;
+  margin-bottom: 5px;
 }
 
 .selection-actions {
@@ -132,36 +132,76 @@ body {
 .toolbar-button {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  min-height: 30px;
-  padding: 0 10px;
+  font-size: 12px;
+  height: 26px;
+  line-height: 1;
+  min-height: 0;
+  padding: 0 8px;
+  white-space: nowrap;
 }
 
-.toolbar-group {
+.toolbar-cluster {
   align-items: center;
+  align-self: stretch;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: space-between;
+  margin: 0;
+  min-height: 62px;
+  padding: 3px 5px 2px;
+}
+
+.toolbar-control-grid {
+  display: grid;
+  gap: 3px;
+}
+
+.toolbar-control-grid-2 {
+  grid-template-columns: max-content;
+}
+
+.toolbar-control-grid-3 {
+  grid-template-columns: repeat(2, max-content);
+}
+
+.toolbar-control-grid-format {
+  grid-template-columns: 26px 26px 82px;
+}
+
+#fillColorSelect {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.toolbar-caption {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1;
+  margin: 0 auto;
 }
 
 .icon-button {
   align-items: center;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--text);
   cursor: pointer;
   display: inline-flex;
   font: inherit;
   font-weight: 700;
-  height: 30px;
+  height: 26px;
   justify-content: center;
   line-height: 1;
   padding: 0;
-  width: 30px;
+  width: 26px;
 }
 
 .strong-button {
@@ -176,21 +216,7 @@ body {
 }
 
 .alignment-group {
-  align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 4px 5px 3px;
-}
-
-.alignment-caption {
-  color: var(--muted);
-  font-size: 9px;
-  line-height: 1;
-  margin: 0 auto;
+  min-height: 62px;
 }
 
 .alignment-buttons {
@@ -275,13 +301,14 @@ body {
 .toolbar-select {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--text);
   font: inherit;
-  height: 30px;
-  max-width: 148px;
-  min-width: 98px;
-  padding: 0 8px;
+  font-size: 12px;
+  height: 26px;
+  max-width: none;
+  min-width: 0;
+  padding: 0 6px;
 }
 
 .toolbar-button:hover,

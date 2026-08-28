@@ -4,27 +4,37 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Excel Tab B24</title>
-    <link rel="stylesheet" href="style.css?v=excel-tab-v26">
+    <link rel="stylesheet" href="style.css?v=excel-tab-v27">
     <script src="//api.bitrix24.com/api/v1/"></script>
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <h1>Excel Tab B24 v.26</h1>
+          <h1>Excel Tab B24 v.27</h1>
           <p id="dealContext">Загрузка карточки сделки...</p>
         </div>
         <button class="ghost-button" id="reloadFieldsButton" type="button">Обновить поля</button>
       </header>
 
       <section class="toolbar" aria-label="Панель таблицы">
-        <button class="toolbar-button" id="selectFilledButton" type="button">Выделить всё</button>
-        <button class="toolbar-button" id="autoFitButton" type="button">⇔ Подогнать</button>
+        <div class="toolbar-cluster" role="group" aria-label="Таблица">
+          <div class="toolbar-control-grid toolbar-control-grid-2">
+            <button class="toolbar-button" id="selectFilledButton" type="button">Выделить всё</button>
+            <button class="toolbar-button" id="autoFitButton" type="button">⇔ Подогнать</button>
+          </div>
+          <div class="toolbar-caption">Таблица</div>
+        </div>
         <div class="selection-actions" id="selectionActions" hidden>
-          <button class="toolbar-button" id="formulaLibraryButton" type="button">Добавить формулу</button>
-          <button class="toolbar-button" id="clearSelectionButton" type="button">Удалить</button>
-          <button class="toolbar-button" id="wrapTextButton" type="button">Переносить текст</button>
-          <div class="alignment-group" role="group" aria-label="Выравнивание">
+          <div class="toolbar-cluster" role="group" aria-label="Ячейки">
+            <div class="toolbar-control-grid toolbar-control-grid-3">
+              <button class="toolbar-button" id="formulaLibraryButton" type="button">Формула</button>
+              <button class="toolbar-button" id="clearSelectionButton" type="button">Удалить</button>
+              <button class="toolbar-button" id="wrapTextButton" type="button">Перенос</button>
+            </div>
+            <div class="toolbar-caption">Ячейки</div>
+          </div>
+          <div class="toolbar-cluster alignment-group" role="group" aria-label="Выравнивание">
             <div class="alignment-buttons">
               <button class="icon-button align-button align-top" id="alignTopButton" type="button" aria-label="По верхнему краю" data-tooltip="По верхнему"></button>
               <button class="icon-button align-button align-middle" id="alignMiddleButton" type="button" aria-label="По середине" data-tooltip="По середине"></button>
@@ -33,28 +43,31 @@
               <button class="icon-button align-button align-center" id="alignCenterButton" type="button" aria-label="По центру" data-tooltip="По центру"></button>
               <button class="icon-button align-button align-right" id="alignRightButton" type="button" aria-label="По правому краю" data-tooltip="По правому"></button>
             </div>
-            <div class="alignment-caption">Выравнивание</div>
+            <div class="toolbar-caption">Выравнивание</div>
           </div>
-          <div class="toolbar-group" aria-label="Формат">
-            <button class="icon-button strong-button" id="boldButton" type="button" title="Жирный шрифт">B</button>
-            <button class="icon-button italic-button" id="italicButton" type="button" title="Курсив">I</button>
-            <select class="toolbar-select" id="fontSizeSelect" aria-label="Кегль шрифта">
-              <option value="13pt">13 пт</option>
-              <option value="11pt">11 пт</option>
-              <option value="15pt">15 пт</option>
-              <option value="18pt">18 пт</option>
-            </select>
-            <select class="toolbar-select" id="fillColorSelect" aria-label="Цвет заливки">
-              <option value="">Без заливки</option>
-              <option value="#fff2cc">Желтый</option>
-              <option value="#d9ead3">Зеленый</option>
-              <option value="#cfe2f3">Голубой</option>
-              <option value="#f4cccc">Красный</option>
-              <option value="#eadcf8">Фиолетовый</option>
-            </select>
+          <div class="toolbar-cluster" role="group" aria-label="Формат">
+            <div class="toolbar-control-grid toolbar-control-grid-format">
+              <button class="icon-button strong-button" id="boldButton" type="button" title="Жирный шрифт">B</button>
+              <button class="icon-button italic-button" id="italicButton" type="button" title="Курсив">I</button>
+              <select class="toolbar-select" id="fontSizeSelect" aria-label="Кегль шрифта">
+                <option value="13pt">13 пт</option>
+                <option value="11pt">11 пт</option>
+                <option value="15pt">15 пт</option>
+                <option value="18pt">18 пт</option>
+              </select>
+              <select class="toolbar-select" id="fillColorSelect" aria-label="Цвет заливки">
+                <option value="">Без заливки</option>
+                <option value="#fff2cc">Жёлтый</option>
+                <option value="#d9ead3">Зелёный</option>
+                <option value="#cfe2f3">Голубой</option>
+                <option value="#f4cccc">Красный</option>
+                <option value="#eadcf8">Фиолетовый</option>
+              </select>
+            </div>
+            <div class="toolbar-caption">Формат</div>
           </div>
         </div>
-        <button class="toolbar-button" id="exportExcelButton" type="button">Экспорт в Excel</button>
+        <button class="toolbar-button toolbar-export" id="exportExcelButton" type="button">Экспорт в Excel</button>
         <div class="status-pill" id="fieldStatus">Поля сделки: ожидание</div>
         <div class="status-pill" id="gridStatus">9 строк, 7 столбцов</div>
       </section>
@@ -129,6 +142,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=excel-tab-v26"></script>
+    <script src="app.js?v=excel-tab-v27"></script>
   </body>
 </html>

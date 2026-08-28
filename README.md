@@ -18,6 +18,7 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 - Supports cell selection: single cell, Shift range, Ctrl multi-select, whole row, whole column, and whole table.
 - Supports mouse drag selection across cells while holding the left mouse button.
 - Supports manual column width and row height resizing from table headers; custom row heights are saved with the sheet.
+- The compact two-row toolbar groups table, cell, alignment, and formatting actions.
 - Supports text wrapping, column auto-fit, fill color, bold text, italic text, and font size presets for selected cells. The default table font size is 13 pt.
 - Supports horizontal and vertical alignment controls for one or many selected cells.
 - Lets users clear selected cells together with their field bindings and formatting.
@@ -28,7 +29,7 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 - Lets users save reusable formulas, remove saved formulas, and apply a selected saved formula to the active selected cell. Formula entry accepts English letters, numbers, and formula symbols, and automatically uppercases formula letters.
 - Copies formulas with relative reference shifts when Ctrl-selecting target cells.
 - Exports the filled table area to an Excel-compatible `.xls` file with formulas, numeric values, exported column widths, 1.5 pt borders, supported formatting, and no forced white fill when cells have no fill color.
-- Current Marketplace package: `dist app B24 zip/Excel Tab B24 v.26.zip`.
+- Current Marketplace package: `dist app B24 zip/Excel Tab B24 v.27.zip`.
 
 ## How It Works
 

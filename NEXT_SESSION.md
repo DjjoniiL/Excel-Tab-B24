@@ -11,14 +11,15 @@ Updated: 2026-08-28
 - No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
 - Marketplace zip archives are created in `dist app B24 zip/`.
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
-- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.26.zip`.
-- Latest v26 commit should be checked with `git log -1 --oneline` after pulling the repository.
+- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.27.zip`.
+- Latest v27 commit should be checked with `git log -1 --oneline` after pulling the repository.
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
 - The deal tab shows a 9x7 spreadsheet-like grid by default.
 - The default visible table window fits the column header plus all 9 default rows above the horizontal scrollbar before added rows require table scrolling.
 - Active sheet status text is user-facing: deal mode says `Таблица сделки "..." из воронки ...`; funnel mode says `Общая таблица сделок из воронки ...`.
 - Users can add rows and columns while keeping scrolling inside the table area.
 - Users can resize columns by dragging column header borders and resize rows by dragging row header borders; custom row heights persist in sheet state.
+- The toolbar is compact, grouped in labeled blocks, and uses `⇔ Подогнать` for auto-fitting selected columns and rows.
 - Adding columns preserves existing CRM field-bound cells, values, and formatting even if a saved table has uneven row widths.
 - The app iframe itself must not show or require any outer application scroll; only the table grid area may scroll.
 - Users can select the whole table, individual cells, ranges, rows, columns, and mouse-dragged ranges.
@@ -29,7 +30,7 @@ Updated: 2026-08-28
 - Users can save reusable formulas in a modal, delete formulas from the saved list, and apply a selected saved formula to the active selected cell. Formula input in the modal and in cells removes non-English characters, uppercases English letters, and shows a user-facing explanation in the modal.
 - Entering `=` in a cell shows up to 5 recently used formulas under that cell; selecting a suggestion writes it into the active cell.
 - Formula cells export to `.xls` as Excel formulas, plain numeric cells export as numbers, exported columns keep app widths, exported table borders are 1.5 pt, alignment is exported, and unfilled cells do not receive forced white fill.
-- Clicking `Обновить поля` refreshes field-bound cells and compacts the current sheet to the last filled row and column, keeping at least the 9x7 default.
+- Clicking `Обновить поля` refreshes field-bound cells, compacts the current sheet to the last filled row and column, and auto-fits columns/rows, keeping at least the 9x7 default.
 
 ## Next Work
 
@@ -43,6 +44,8 @@ Updated: 2026-08-28
 - Stage 2 portal check: verify manual column width resizing by dragging column borders.
 - Stage 2 portal check: verify manual row height resizing by dragging row borders and persisted custom row heights after reload.
 - Stage 2 portal check: verify drag selection and resizing inside the Bitrix24 iframe without breaking cell editing, formula reference picking, or the CRM field picker.
+- Stage 2 portal check: verify `⇔ Подогнать` changes row heights as well as column widths for selected cells and for the whole table with no selection.
+- Stage 2 portal check: verify `Обновить поля` refreshes CRM-bound values, compacts the table, and auto-fits widths/heights.
 - Verify on the portal that the outer app scrollbar is gone while the table scrollbars remain for added rows and columns.
 - Verify Enter saves a typed formula and exits formula edit mode.
 - Verify formula reference picking after typing `=` works inside the Bitrix24 iframe.

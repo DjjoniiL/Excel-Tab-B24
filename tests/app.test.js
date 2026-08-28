@@ -97,6 +97,7 @@ function testSelectionHelpers() {
   ]);
   assert.deepEqual(app.getFilledCellKeys([["", "x"], ["  ", "y"]]), ["0:1", "1:1"]);
   assert.deepEqual(app.getSelectedColumns(new Set(["2:3", "0:1", "1:3"])), [1, 3]);
+  assert.deepEqual(app.getSelectedRows(new Set(["2:3", "0:1", "2:1"])), [0, 2]);
   assert.ok(app.measureColumnWidth([["short"], ["long long text value"]], 0) > 132);
   assert.equal(app.measureColumnWidth([["x"]], 0), 90);
   assert.equal(app.measureColumnWidth([[Array.from({ length: 200 }, () => "x").join("")]], 0), 420);
@@ -113,6 +114,12 @@ function testSelectionHelpers() {
   assert.ok(widths[0] > 132);
   assert.ok(widths[1] > 132);
   assert.equal(typeof widths[2], "undefined");
+
+  const rowHeights = app.getAutoFitRowHeights([["one\ntwo\nthree"], ["short"]], [132], new Set(["0:0"]));
+  assert.ok(rowHeights[0] > app.DEFAULT_ROW_HEIGHT);
+  assert.equal(typeof rowHeights[1], "undefined");
+  assert.equal(app.measureRowHeight([["long long long long long long long long"]], 0, [90]), app.DEFAULT_ROW_HEIGHT);
+  assert.ok(app.measureRowHeight([["long long long long long long long long"]], 0, [90], null, new Set(["0:0"])) > app.DEFAULT_ROW_HEIGHT);
 }
 
 function testFieldBindingsAndExport() {
