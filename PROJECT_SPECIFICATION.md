@@ -15,6 +15,9 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Lets the user add columns with the plus button to the right of the table. Adding a column preserves existing cell values, field bindings, and formatting, including rows that were previously shorter than the visible table width.
 - Each cell can be edited manually.
 - Cells can be selected individually, as ranges, by row, by column, or by the whole table.
+- Cells can be selected by dragging across the grid while holding the left mouse button.
+- Column widths can be changed manually by dragging column header borders.
+- Row heights can be changed manually by dragging row header borders.
 - When a cell is active, a field picker button is available.
 - The hidden field picker control does not reserve permanent cell width; normal cell text uses the full column width and the picker appears as an overlay only when needed.
 - The field picker lists CRM deal fields and inserts the selected field value into the current cell.
@@ -55,6 +58,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Current local persistence uses `localStorage`.
 - Grid data is separated per deal when the deal ID is detected. The storage key format is `excel-tab-b24-grid-deal-v1-{dealId}`.
 - Per-deal local state also stores wrapped cells and custom column widths.
+- Per-deal local state also stores custom row heights.
 - Per-deal local state also stores cell fill color, font weight, italic style, and font size formatting.
 - Per-deal local state stores field bindings for cells filled from CRM deal fields.
 - Saved reusable formulas are stored in browser `localStorage` under `excel-tab-b24-saved-formulas-v1`.
@@ -124,3 +128,4 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-28: Prepared Marketplace v.23 with grouped alignment toolbar controls, short hover hints, multi-cell alignment formatting, and alignment export.
 - 2026-08-28: Prepared Marketplace v.24 with visible vertical alignment in the app, alignment toolbar placement after text wrapping, and auto-fit width measurement by the longest line inside multiline cells.
 - 2026-08-28: Prepared Marketplace v.25 with the version number visible in the app title and Bitrix24 iframe resizing so the app has no empty bottom area or outer scroll.
+- 2026-08-28: Prepared Marketplace v.26 with mouse drag selection, manual column resizing, and persisted manual row heights.

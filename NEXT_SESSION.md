@@ -11,16 +11,17 @@ Updated: 2026-08-28
 - No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
 - Marketplace zip archives are created in `dist app B24 zip/`.
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
-- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.25.zip`.
-- Latest v25 commit should be checked with `git log -1 --oneline` after pulling the repository.
+- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.26.zip`.
+- Latest v26 commit should be checked with `git log -1 --oneline` after pulling the repository.
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
 - The deal tab shows a 9x7 spreadsheet-like grid by default.
 - The default visible table window fits the column header plus all 9 default rows above the horizontal scrollbar before added rows require table scrolling.
 - Active sheet status text is user-facing: deal mode says `Таблица сделки "..." из воронки ...`; funnel mode says `Общая таблица сделок из воронки ...`.
 - Users can add rows and columns while keeping scrolling inside the table area.
+- Users can resize columns by dragging column header borders and resize rows by dragging row header borders; custom row heights persist in sheet state.
 - Adding columns preserves existing CRM field-bound cells, values, and formatting even if a saved table has uneven row widths.
 - The app iframe itself must not show or require any outer application scroll; only the table grid area may scroll.
-- Users can select the whole table, individual cells, ranges, rows, and columns.
+- Users can select the whole table, individual cells, ranges, rows, columns, and mouse-dragged ranges.
 - Hidden field picker buttons overlay the right edge of active cells instead of permanently taking width from every cell.
 - Users can enable wrapping, auto-fit columns, export to Excel-compatible `.xls`, apply fill colors, bold text, italic text, font size presets, and horizontal/vertical alignment to one or many selected cells. Default table font size is 13 pt, and the 13 pt selector value applies explicitly to multi-cell selections.
 - Users can clear selected cells together with data, field bindings, fill color, bold/italic/font-size formatting, and wrapping; selections larger than 18 cells ask for confirmation.
@@ -38,10 +39,10 @@ Updated: 2026-08-28
 - Stage 1 portal check: verify font size 11/13/15/18 pt applies to several selected cells.
 - Stage 1 portal check: verify the 9th row is visible above the horizontal scrollbar after loading v.18.
 - Stage 1 portal check: verify regular cell text is no longer clipped by the hidden field picker after adding columns in v.19.
-- Stage 2 next work: add mouse drag selection with held left button.
-- Stage 2 next work: add manual column width resizing by dragging column borders.
-- Stage 2 next work: add manual row height resizing by dragging row borders and persist custom row heights in sheet state.
-- Stage 2 next work: verify drag selection and resizing inside the Bitrix24 iframe without breaking cell editing, formula reference picking, or the CRM field picker.
+- Stage 2 portal check: verify mouse drag selection with held left button.
+- Stage 2 portal check: verify manual column width resizing by dragging column borders.
+- Stage 2 portal check: verify manual row height resizing by dragging row borders and persisted custom row heights after reload.
+- Stage 2 portal check: verify drag selection and resizing inside the Bitrix24 iframe without breaking cell editing, formula reference picking, or the CRM field picker.
 - Verify on the portal that the outer app scrollbar is gone while the table scrollbars remain for added rows and columns.
 - Verify Enter saves a typed formula and exits formula edit mode.
 - Verify formula reference picking after typing `=` works inside the Bitrix24 iframe.
@@ -53,7 +54,7 @@ Updated: 2026-08-28
 - Verify recent formula suggestions appear under the active cell after typing `=`, keep newest formulas first, and show no more than 5 items.
 - Verify field-bound cells refresh automatically when a deal field changes.
 - Verify Excel export opens correctly in desktop Excel and includes calculated formula values.
-- Add further UX polish after portal test: keyboard navigation and manual row/column resizing.
+- Add further UX polish after portal test: keyboard navigation.
 
 ## Required Cycle
 

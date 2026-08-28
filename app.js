@@ -16,11 +16,14 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "Excel Tab B24 v.25 Marketplace B24";
-  const DISPLAY_TITLE = "Excel Tab B24 v.25";
+  const DISPLAY_VERSION = "Excel Tab B24 v.26 Marketplace B24";
+  const DISPLAY_TITLE = "Excel Tab B24 v.26";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
+  const DEFAULT_ROW_HEIGHT = 34;
+  const MAX_ROW_HEIGHT = 180;
+  const MIN_ROW_HEIGHT = 28;
   const DELETE_CONFIRM_CELL_THRESHOLD = 18;
   const MAX_RECENT_FORMULAS = 5;
   const FILL_COLORS = ["", "#fff2cc", "#d9ead3", "#cfe2f3", "#f4cccc", "#eadcf8"];
@@ -132,6 +135,18 @@
       widths[columnIndex] = measureColumnWidth(grid, columnIndex);
       return widths;
     }, {});
+  }
+
+  function clampColumnWidth(width) {
+    const parsed = Number.parseFloat(width);
+    if (!Number.isFinite(parsed)) return DEFAULT_COLUMN_WIDTH;
+    return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, Math.round(parsed)));
+  }
+
+  function clampRowHeight(height) {
+    const parsed = Number.parseFloat(height);
+    if (!Number.isFinite(parsed)) return DEFAULT_ROW_HEIGHT;
+    return Math.max(MIN_ROW_HEIGHT, Math.min(MAX_ROW_HEIGHT, Math.round(parsed)));
   }
 
   function getSortedCellKeys(keys) {
@@ -557,6 +572,7 @@
       columnWidths: Array.isArray(state.columnWidths) ? state.columnWidths.slice(0, columnCount) : [],
       fieldBindings: filterCellKeyObjectByBounds(state.fieldBindings, rowCount, columnCount),
       grid,
+      rowHeights: Array.isArray(state.rowHeights) ? state.rowHeights.slice(0, rowCount) : [],
       wrappedCells,
     };
   }
@@ -1029,7 +1045,7 @@
       const saved = window.localStorage.getItem(storageKey);
       const parsed = saved ? JSON.parse(saved) : null;
       if (Array.isArray(parsed) && parsed.length && Array.isArray(parsed[0])) {
-        return { cellFormats: {}, columnWidths: [], fieldBindings: {}, grid: parsed, wrappedCells: new Set() };
+        return { cellFormats: {}, columnWidths: [], fieldBindings: {}, grid: parsed, rowHeights: [], wrappedCells: new Set() };
       }
       if (parsed && Array.isArray(parsed.grid) && parsed.grid.length && Array.isArray(parsed.grid[0])) {
         return {
@@ -1037,6 +1053,7 @@
           columnWidths: Array.isArray(parsed.columnWidths) ? parsed.columnWidths : [],
           fieldBindings: parsed.fieldBindings && typeof parsed.fieldBindings === "object" ? parsed.fieldBindings : {},
           grid: parsed.grid,
+          rowHeights: Array.isArray(parsed.rowHeights) ? parsed.rowHeights : [],
           wrappedCells: new Set(Array.isArray(parsed.wrappedCells) ? parsed.wrappedCells : []),
         };
       }
@@ -1044,7 +1061,7 @@
       window.localStorage.removeItem(storageKey);
     }
 
-    return { cellFormats: {}, columnWidths: [], fieldBindings: {}, grid: createGrid(), wrappedCells: new Set() };
+    return { cellFormats: {}, columnWidths: [], fieldBindings: {}, grid: createGrid(), rowHeights: [], wrappedCells: new Set() };
   }
 
   function saveSheetState(state, storageKey = STORAGE_KEY) {
@@ -1055,6 +1072,7 @@
         columnWidths: state.columnWidths || [],
         fieldBindings: state.fieldBindings || {},
         grid: state.grid,
+        rowHeights: state.rowHeights || [],
         wrappedCells: Array.from(state.wrappedCells || []),
       })
     );
@@ -1145,6 +1163,7 @@
     let cellFormats = sheetState.cellFormats;
     let wrappedCells = sheetState.wrappedCells;
     let columnWidths = sheetState.columnWidths;
+    let rowHeights = sheetState.rowHeights;
     let fieldBindings = sheetState.fieldBindings;
     let currentCell = null;
     let dealFields = [];
@@ -1160,9 +1179,12 @@
     let selectedSavedFormula = savedFormulas[0] || "";
     let recentFormulas = loadRecentFormulas();
     let formulaSuggestionInput = null;
+    let dragSelection = null;
+    let suppressSelectionClick = false;
+    let gridResize = null;
 
     function persistSheetState() {
-      saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, wrappedCells }, storageKey);
+      saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, rowHeights, wrappedCells }, storageKey);
     }
 
     function updateDealContext() {
@@ -1212,6 +1234,7 @@
       cellFormats = sheetState.cellFormats;
       wrappedCells = sheetState.wrappedCells;
       columnWidths = sheetState.columnWidths;
+      rowHeights = sheetState.rowHeights;
       fieldBindings = sheetState.fieldBindings;
       currentCell = null;
       selectedCells = new Set();
@@ -1235,11 +1258,12 @@
     }
 
     function compactGridToFilledBounds() {
-      const nextState = getTrimmedSheetState({ cellFormats, columnWidths, fieldBindings, grid, wrappedCells });
+      const nextState = getTrimmedSheetState({ cellFormats, columnWidths, fieldBindings, grid, rowHeights, wrappedCells });
       const changed =
         JSON.stringify(grid) !== JSON.stringify(nextState.grid) ||
         JSON.stringify(cellFormats) !== JSON.stringify(nextState.cellFormats) ||
         JSON.stringify(fieldBindings) !== JSON.stringify(nextState.fieldBindings) ||
+        JSON.stringify(rowHeights) !== JSON.stringify(nextState.rowHeights) ||
         JSON.stringify(columnWidths) !== JSON.stringify(nextState.columnWidths) ||
         Array.from(wrappedCells).join("\n") !== Array.from(nextState.wrappedCells).join("\n");
 
@@ -1249,6 +1273,7 @@
       cellFormats = nextState.cellFormats;
       fieldBindings = nextState.fieldBindings;
       columnWidths = nextState.columnWidths;
+      rowHeights = nextState.rowHeights;
       wrappedCells = nextState.wrappedCells;
       currentCell = null;
       selectedCells = new Set(Array.from(selectedCells).filter((key) => isCellKeyInsideBounds(key, grid.length, grid[0].length)));
@@ -1511,6 +1536,97 @@
       }
     }
 
+    function beginDragSelection(event, input, rowIndex, columnIndex) {
+      if (event.button !== 0 || event.shiftKey || event.ctrlKey || event.metaKey) return false;
+      if (event.target && event.target.closest(".field-picker-button")) return false;
+      if (handleFormulaReferencePointer(event, rowIndex, columnIndex)) return true;
+
+      setCurrentCell(input, rowIndex, columnIndex);
+      selectionAnchor = { rowIndex, columnIndex };
+      dragSelection = {
+        anchor: { rowIndex, columnIndex },
+        moved: false,
+        pointerId: event.pointerId,
+      };
+      setSelectedCells([cellKey(rowIndex, columnIndex)]);
+      return true;
+    }
+
+    function updateDragSelection(rowIndex, columnIndex) {
+      if (!dragSelection) return;
+      const target = { rowIndex, columnIndex };
+      if (!isSameCell(dragSelection.anchor, target)) dragSelection.moved = true;
+      setSelectedCells(getRangeCellKeys(dragSelection.anchor, target));
+    }
+
+    function endDragSelection(event) {
+      if (!dragSelection) return;
+      if (event && event.pointerId !== dragSelection.pointerId) return;
+      suppressSelectionClick = dragSelection.moved;
+      dragSelection = null;
+    }
+
+    function beginColumnResize(event, columnIndex) {
+      if (event.button !== 0) return;
+      gridResize = {
+        index: columnIndex,
+        pointerId: event.pointerId,
+        startSize: columnWidths[columnIndex] || DEFAULT_COLUMN_WIDTH,
+        startX: event.clientX,
+        type: "column",
+      };
+      document.body.classList.add("is-resizing-grid", "is-resizing-column");
+      if (typeof event.currentTarget.setPointerCapture === "function") {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    function beginRowResize(event, rowIndex) {
+      if (event.button !== 0) return;
+      gridResize = {
+        index: rowIndex,
+        pointerId: event.pointerId,
+        startSize: rowHeights[rowIndex] || DEFAULT_ROW_HEIGHT,
+        startY: event.clientY,
+        type: "row",
+      };
+      document.body.classList.add("is-resizing-grid", "is-resizing-row");
+      if (typeof event.currentTarget.setPointerCapture === "function") {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    function updateGridResize(event) {
+      if (!gridResize || event.pointerId !== gridResize.pointerId) return;
+
+      if (gridResize.type === "column") {
+        const width = clampColumnWidth(gridResize.startSize + event.clientX - gridResize.startX);
+        columnWidths[gridResize.index] = width;
+        const col = table.querySelector(`col[data-column="${gridResize.index}"]`);
+        if (col) col.style.width = `${width}px`;
+      } else {
+        const height = clampRowHeight(gridResize.startSize + event.clientY - gridResize.startY);
+        rowHeights[gridResize.index] = height;
+        const row = table.querySelector(`tr[data-row="${gridResize.index}"]`);
+        if (row) row.style.height = `${height}px`;
+      }
+
+      event.preventDefault();
+    }
+
+    function endGridResize(event) {
+      if (!gridResize || event.pointerId !== gridResize.pointerId) return;
+      persistSheetState();
+      document.body.classList.remove("is-resizing-grid", "is-resizing-column", "is-resizing-row");
+      gridResize = null;
+      resizeBitrixFrameToContent();
+      event.preventDefault();
+    }
+
     function setCurrentCell(input, rowIndex, columnIndex) {
       currentCell = { input, rowIndex, columnIndex };
       if (isFormula(grid[rowIndex] && grid[rowIndex][columnIndex])) {
@@ -1561,7 +1677,7 @@
 
       if (!insertFormulaReference(rowIndex, columnIndex)) return false;
 
-      if (event.type === "mousedown") formulaReferencePointerHandled = true;
+      if (event.type === "mousedown" || event.type === "pointerdown") formulaReferencePointerHandled = true;
       event.preventDefault();
       event.stopPropagation();
       return true;
@@ -1654,6 +1770,7 @@
 
       for (let column = 0; column < columnCount; column += 1) {
         const col = document.createElement("col");
+        col.dataset.column = String(column);
         col.style.width = `${columnWidths[column] || DEFAULT_COLUMN_WIDTH}px`;
         colgroup.appendChild(col);
       }
@@ -1676,8 +1793,15 @@
 
       for (let column = 0; column < columnCount; column += 1) {
         const th = document.createElement("th");
-        th.textContent = columnName(column);
+        const label = document.createElement("span");
+        const resizeHandle = document.createElement("span");
+        label.textContent = columnName(column);
+        resizeHandle.className = "column-resize-handle";
+        resizeHandle.setAttribute("aria-hidden", "true");
+        th.appendChild(label);
+        th.appendChild(resizeHandle);
         th.title = "Выделить столбец";
+        resizeHandle.addEventListener("pointerdown", (event) => beginColumnResize(event, column));
         th.addEventListener("click", (event) => {
           const columnCells = grid.map((row, rowIndex) => cellKey(rowIndex, column));
           if (event.ctrlKey || event.metaKey) {
@@ -1700,10 +1824,19 @@
       const tbody = document.createElement("tbody");
       grid.forEach((row, rowIndex) => {
         const tr = document.createElement("tr");
+        tr.dataset.row = String(rowIndex);
+        tr.style.height = `${rowHeights[rowIndex] || DEFAULT_ROW_HEIGHT}px`;
         const heading = document.createElement("th");
         heading.className = "row-heading";
-        heading.textContent = String(rowIndex + 1);
+        const headingLabel = document.createElement("span");
+        const resizeHandle = document.createElement("span");
+        headingLabel.textContent = String(rowIndex + 1);
+        resizeHandle.className = "row-resize-handle";
+        resizeHandle.setAttribute("aria-hidden", "true");
+        heading.appendChild(headingLabel);
+        heading.appendChild(resizeHandle);
         heading.title = "Выделить строку";
+        resizeHandle.addEventListener("pointerdown", (event) => beginRowResize(event, rowIndex));
         heading.addEventListener("click", (event) => {
           const rowCells = row.map((value, columnIndex) => cellKey(rowIndex, columnIndex));
           if (event.ctrlKey || event.metaKey) {
@@ -1745,6 +1878,12 @@
           picker.dataset.row = String(rowIndex);
           picker.dataset.column = String(columnIndex);
           td.addEventListener("click", (event) => {
+            if (suppressSelectionClick) {
+              suppressSelectionClick = false;
+              event.preventDefault();
+              event.stopPropagation();
+              return;
+            }
             if (handleFormulaReferencePointer(event, rowIndex, columnIndex)) return;
             setCurrentCell(input, rowIndex, columnIndex);
             selectCell(rowIndex, columnIndex, {
@@ -1752,18 +1891,13 @@
               toggleKey: event.ctrlKey || event.metaKey,
             });
           });
-          td.addEventListener("mousedown", (event) => {
-            handleFormulaReferencePointer(event, rowIndex, columnIndex);
-          });
-          input.addEventListener("mousedown", (event) => {
-            if (handleFormulaReferencePointer(event, rowIndex, columnIndex)) return;
-            setCurrentCell(input, rowIndex, columnIndex);
-            selectCell(rowIndex, columnIndex, {
-              shiftKey: event.shiftKey,
-              toggleKey: event.ctrlKey || event.metaKey,
-            });
-          });
+          td.addEventListener("pointerdown", (event) => beginDragSelection(event, input, rowIndex, columnIndex));
+          td.addEventListener("pointerenter", () => updateDragSelection(rowIndex, columnIndex));
           input.addEventListener("click", (event) => {
+            if (suppressSelectionClick) {
+              suppressSelectionClick = false;
+              event.preventDefault();
+            }
             event.stopPropagation();
           });
           input.addEventListener("focus", () => {
@@ -2191,6 +2325,15 @@
     }
     if (fieldPopoverClose) fieldPopoverClose.addEventListener("click", closeFieldPopover);
     fieldSearch.addEventListener("input", () => renderFieldList(fieldSearch.value));
+    document.addEventListener("pointermove", updateGridResize);
+    document.addEventListener("pointerup", (event) => {
+      endDragSelection(event);
+      endGridResize(event);
+    });
+    document.addEventListener("pointercancel", (event) => {
+      endDragSelection(event);
+      endGridResize(event);
+    });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         closeFieldPopover();
@@ -2235,6 +2378,8 @@
 
   return {
     DEFAULT_COLUMNS,
+    DEFAULT_COLUMN_WIDTH,
+    DEFAULT_ROW_HEIGHT,
     DEFAULT_ROWS,
     addColumn,
     addRow,
@@ -2246,6 +2391,8 @@
     buildExcelHtml,
     calculateSelectedCells,
     cellKey,
+    clampColumnWidth,
+    clampRowHeight,
     clearCellSelectionState,
     columnName,
     columnIndexFromName,

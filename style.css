@@ -368,6 +368,56 @@ body {
   z-index: 1;
 }
 
+.sheet th {
+  position: sticky;
+}
+
+.column-resize-handle,
+.row-resize-handle {
+  background: transparent;
+  position: absolute;
+  z-index: 4;
+}
+
+.column-resize-handle {
+  bottom: 0;
+  cursor: col-resize;
+  right: -5px;
+  top: 0;
+  width: 10px;
+}
+
+.row-resize-handle {
+  bottom: -5px;
+  cursor: row-resize;
+  height: 10px;
+  left: 0;
+  right: 0;
+}
+
+.column-resize-handle:hover,
+.row-resize-handle:hover {
+  background: rgba(32, 107, 255, 0.18);
+}
+
+.is-resizing-grid * {
+  user-select: none;
+}
+
+.is-resizing-column,
+.is-resizing-column * {
+  cursor: col-resize;
+}
+
+.is-resizing-row,
+.is-resizing-row * {
+  cursor: row-resize;
+}
+
+.is-resizing-grid {
+  user-select: none;
+}
+
 .sheet .row-heading {
   left: 0;
   min-width: 46px;

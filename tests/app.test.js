@@ -100,6 +100,10 @@ function testSelectionHelpers() {
   assert.ok(app.measureColumnWidth([["short"], ["long long text value"]], 0) > 132);
   assert.equal(app.measureColumnWidth([["x"]], 0), 90);
   assert.equal(app.measureColumnWidth([[Array.from({ length: 200 }, () => "x").join("")]], 0), 420);
+  assert.equal(app.clampColumnWidth(20), 90);
+  assert.equal(app.clampColumnWidth(999), 420);
+  assert.equal(app.clampRowHeight(10), 28);
+  assert.equal(app.clampRowHeight(999), 180);
 
   const autoFitGrid = [["manual value with enough length", ""], ["", ""]];
   const boundGrid = app.applyFieldBindings(autoFitGrid, { "1:1": "TITLE" }, [
@@ -235,6 +239,7 @@ function testTrimmedSheetState() {
     columnWidths: [100, 120, 140, 160, 180, 200, 220, 240, 260],
     fieldBindings: { "0:0": "TITLE", "9:8": "OPPORTUNITY" },
     grid: [["keep", "", "", "", "", "", "", "", ""], ...Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => ""))],
+    rowHeights: [30, 40, 50, 60, 70, 80, 90, 100, 110, 120],
     wrappedCells: new Set(["0:0", "9:8"]),
   });
 
@@ -244,6 +249,7 @@ function testTrimmedSheetState() {
   assert.deepEqual(trimmed.fieldBindings, { "0:0": "TITLE" });
   assert.deepEqual(Array.from(trimmed.wrappedCells), ["0:0"]);
   assert.deepEqual(trimmed.columnWidths, [100, 120, 140, 160, 180, 200, 220]);
+  assert.deepEqual(trimmed.rowHeights, [30, 40, 50, 60, 70, 80, 90, 100, 110]);
 }
 
 function testSheetStateStorage() {
@@ -253,6 +259,7 @@ function testSheetStateStorage() {
     assert.deepEqual(legacy.grid, [["a"]]);
     assert.deepEqual(legacy.cellFormats, {});
     assert.deepEqual(legacy.columnWidths, []);
+    assert.deepEqual(legacy.rowHeights, []);
     assert.deepEqual(Array.from(legacy.wrappedCells), []);
     assert.deepEqual(legacy.fieldBindings, {});
 
@@ -263,6 +270,7 @@ function testSheetStateStorage() {
         columnWidths: [180],
         fieldBindings: { "0:0": "TITLE" },
         grid: [["fresh"]],
+        rowHeights: [64],
         wrappedCells,
       },
       "state"
@@ -272,6 +280,7 @@ function testSheetStateStorage() {
     assert.deepEqual(saved.cellFormats, { "0:0": { fillColor: "#fff2cc", fontWeight: "700" } });
     assert.deepEqual(saved.columnWidths, [180]);
     assert.deepEqual(saved.fieldBindings, { "0:0": "TITLE" });
+    assert.deepEqual(saved.rowHeights, [64]);
     assert.deepEqual(Array.from(saved.wrappedCells), ["0:0"]);
   });
 }
