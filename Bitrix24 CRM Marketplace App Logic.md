@@ -1,126 +1,292 @@
-# Bitrix24 CRM Marketplace App Logic
+# Учебник по Bitrix24 CRM Marketplace-приложениям
 
-This document is a general implementation guide for building static, serverless Bitrix24 Marketplace apps for CRM workflows. It is intended for future AI-assisted development sessions and should be treated as a practical checklist for apps that synchronize CRM entities, cards, fields, and related records from inside Bitrix24 iframes.
+Этот файл - основной общий учебник для локальной работы с Bitrix24-проектами в `G:\AI Project B24`. Он должен лежать на верхнем уровне рабочей папки, вне папок отдельных проектов.
 
-## Core Principle
+Если на верхнем уровне уже есть этот учебник, надо обновлять и вести именно его, а не создавать новый учебник внутри проекта. Проектные папки могут содержать временные заметки, спецификации, release notes и handoff-файлы, но долговременные правила и повторно используемые выводы надо переносить сюда.
 
-A static Bitrix24 Marketplace app should work without its own backend unless the product explicitly requires server-side event handling, scheduled jobs, external integrations, or private credentials.
+Если в старых проектных учебниках найдены полезные правила, сначала перенести их сюда. Только после проверки полноты верхнеуровневого учебника можно удалять дубликаты внутри проектов.
 
-In the static model:
+## Правило Перед Реализацией
 
-- package the app as a zip with browser files only;
-- use the Bitrix24 JavaScript SDK inside the iframe;
-- call Bitrix24 REST through `BX24.callMethod`;
-- store app settings through Bitrix24 app options;
-- refresh open CRM cards through placement commands when available;
-- keep manual recovery actions available for users.
+Если принято решение что-то менять или реализовывать, перед началом правок нужно кратко показать пользователю план реализации.
 
-Do not put OAuth secrets, API keys, portal credentials, backend URLs, local data, server code, tests, documentation, `.git`, or `node_modules` into the Marketplace zip.
+В пояснении обязательно указать:
 
-## Typical Zip Structure
+- какие файлы или зоны проекта будут затронуты;
+- какие методы, функции или API будут использоваться;
+- каким образом эти функции решают задачу;
+- какие рабочие процессы пользователя могут измениться;
+- какие проверки будут выполнены после правок.
 
-A clean static Marketplace zip usually contains only runtime files.
+После этого нужно явно спросить:
 
-Recommended base set:
+```text
+Можно ли приступать к реализации?
+```
+
+К правкам переходить только после подтверждения пользователя. Исключение - когда пользователь прямо попросил выполнить конкретную мелкую правку без предварительного согласования.
+
+## Главный Принцип
+
+Статическое/serverless Marketplace-приложение Bitrix24 должно работать без собственного бэкенда, если продукту явно не нужны серверные события, расписания, очереди, внешние интеграции или приватные ключи.
+
+В статической модели:
+
+- приложение упаковывается в zip только с браузерными файлами;
+- внутри iframe используется Bitrix24 JavaScript SDK;
+- REST Bitrix24 вызывается через `BX24.callMethod`;
+- настройки приложения хранятся через `app.option.*`;
+- открытые CRM-карточки обновляются через placement-команды, если они доступны;
+- у пользователя остаются ручные действия восстановления: пересчёт, настройка, повторная проверка, скачивание отчёта.
+
+В Marketplace zip нельзя класть OAuth-секреты, API-ключи, учётные данные портала, URL бэкенда, локальные данные, серверный код, тесты, документацию, `.git`, `.env`, `node_modules` и рабочие заметки.
+
+## Выбор Типа Приложения
+
+Static Marketplace-модель подходит, если приложение работает внутри Bitrix24, пока у пользователя открыт портал, и может вызывать REST из iframe. Этого обычно достаточно для вкладок карточек, калькуляторов, лёгких отчётов, настроек приложения, синхронизации полей CRM и реакции `PAGE_BACKGROUND_WORKER` на сохранённые изменения CRM.
+
+Бэкенд нужен только если продукту действительно требуется:
+
+- получать серверные события, когда портал ни у кого не открыт;
+- выполнять расписания или очереди независимо от пользователя;
+- хранить приватные ключи вне браузера;
+- интегрироваться с внешними API, где есть секреты;
+- обрабатывать большие файлы, PDF, изображения или тяжёлые вычисления;
+- выполнять долгую работу, которую нельзя безопасно делать в iframe;
+- иметь центральное хранилище, которое нельзя заменить `app.option`, CRM-полями, Disk или локальным состоянием браузера.
+
+Для VibeCode или похожих серверов с одним приложением на runtime считать один развёрнутый сервер одним runtime приложения. Не разворачивать разные проекты в один и тот же `/opt/app`, чтобы не перезаписать существующее приложение. Перед деплоем на похожий общий сервер проверить портал, app URL, server ID, статус сервиса и текущую идентичность приложения.
+
+Никогда не писать API-ключи, ключи приложения, OAuth-секреты, personal tokens и учётные данные портала в git, Markdown, комментарии к коду, сообщения коммитов, zip-архивы или скриншоты. Секреты должны жить в `.env`, переменных окружения деплоя или приватной конфигурации сервера.
+
+## Создание Word-Документов
+
+Не создавать `.docx` через Microsoft Word COM automation, например `New-Object -ComObject Word.Application`, особенно в невидимом режиме. Такой способ может зависнуть и оставить процессы `WINWORD`.
+
+Предпочтительный путь:
+
+- генерировать OpenXML напрямую как zip-пакет;
+- использовать проверенный локальный скрипт;
+- использовать `pandoc`, только если он уже установлен.
+
+Практические правила:
+
+- перед использованием `pandoc` проверить `where.exe pandoc`;
+- для OpenXML создавать entry paths с прямыми слешами: `word/document.xml`, `word/_rels/document.xml.rels`, `_rels/.rels`, `[Content_Types].xml`;
+- в Windows PowerShell загрузить `System.IO.Compression` и `System.IO.Compression.FileSystem`;
+- после создания `.docx` проверить список entries и прочитать `word/document.xml`;
+- если существующий `.docx` заблокирован Word, не повторять перезапись бесконечно, а создать новый versioned/final файл.
+
+## Файлы Внутри Marketplace Zip
+
+Чистый статический Marketplace zip обычно содержит только runtime-файлы, которые Bitrix24 открывает в браузере.
+
+В файле/разделе "Файлы Bitrix24 Marketplace приложения" вместе с составом zip фиксировать и минимальные права текущего приложения. Для `Deal Invoice Summary` писать `Пользователи (базовый) / user_basic`, потому что `user.get` используется только для отображения ФИО ответственных; полный `Пользователи / user` не указывать без реальных вызовов `user.add` или `user.update`.
+
+Типовой состав:
 
 - `install.html`
-  - Installation entry point.
-  - Should include the Bitrix24 JS SDK, a minimal install UI, `install.css`, and `install.js`.
+  - Страница установки приложения.
+  - Подключает Bitrix24 SDK, минимальный UI установки, `install.css` и `install.js`.
 
 - `install.js`
-  - Installation logic.
-  - Should run `BX24.init`, register allowed placements, log installation steps, tolerate already-registered placements, and finish with `BX24.installFinish()`.
+  - Логика установки.
+  - Запускает `BX24.init`, регистрирует нужные placements, ведёт журнал установки, терпимо обрабатывает уже существующие привязки и завершает установку через `BX24.installFinish()`.
 
 - `install.css`
-  - Styles for the installation screen only.
+  - Стили только для страницы установки.
 
 - `index.html`
-  - Main app iframe.
-  - Can also serve as a CRM card placement UI if the app is configured that way.
+  - Главный iframe приложения.
+  - Может также использоваться как CRM card placement UI, если приложение так настроено.
 
 - `app.js`
-  - Main browser-side application logic.
-  - Should contain CRM reads/writes, settings, UI handlers, calculations, CSV generation, and card refresh logic.
+  - Основная браузерная логика.
+  - Содержит CRM-чтение и запись, настройки, UI handlers, расчёты, CSV-экспорт и обновление карточки.
 
 - `style.css`
-  - Main app styles.
+  - Основные стили приложения.
+
+- `settings.html`
+  - Отдельная страница настроек, если приложению нужен отдельный экран конфигурации.
+
+- `settings.js`
+  - Логика страницы настроек: загрузка, сохранение, проверка прав, справочники и статусы.
 
 - `worker.html`
-  - Optional entry point for `PAGE_BACKGROUND_WORKER`.
-  - Should be tiny and load the Bitrix24 SDK plus `worker.js`.
+  - Entry point для `PAGE_BACKGROUND_WORKER`.
+  - Должен быть маленьким и подключать Bitrix24 SDK плюс `worker.js`.
 
 - `worker.js`
-  - Optional background worker logic for open portal pages.
-  - Should detect current context, poll lightweight CRM state, run synchronization, and save compact diagnostics.
+  - Фоновая логика для открытых страниц портала.
+  - Определяет контекст, опрашивает лёгкие CRM-снимки, запускает синхронизацию и сохраняет компактную диагностику.
 
 - `worker-error.html`
-  - Optional error handler page for `PAGE_BACKGROUND_WORKER`.
-  - Should be very small and free of sensitive data.
+  - Error handler для `PAGE_BACKGROUND_WORKER`.
+  - Должен быть маленьким и без секретов.
 
-Zip hygiene:
+- `assets/`
+  - Только runtime-ресурсы, которые приложение реально загружает: иконки, изображения, шрифты.
 
-- Build from the Marketplace runtime folder only.
-- Use a versioned archive name.
-- Do not overwrite archives already uploaded or sent for testing.
-- After making Marketplace runtime changes, immediately build a new versioned zip.
-- Keep cache-busting versions aligned across HTML, JS, CSS, and tests.
-- Inspect the zip before upload.
+- `vendor/` или `lib/`
+  - Только нужные браузерные библиотеки, если приложение не использует сборщик или CDN.
 
-When an installer registers a CRM tab with `placement.bind`, make the operation idempotent. Before binding the current `PLACEMENT` and `HANDLER`, call `placement.unbind` for the same pair and ignore a missing-binding error. Repeated installs should leave one visible tab, not accumulate duplicate tabs with the same title.
+- `locales/`
+  - Файлы переводов, если приложение многоязычное.
 
-## Runtime And Display Versioning
+## Гигиена Zip
 
-Keep two version strings in Marketplace apps:
+- Собирать zip только из runtime-папки Marketplace.
+- Использовать имя архива с номером версии.
+- Не перезаписывать архивы, которые уже загружались или отправлялись на тестирование.
+- После изменения runtime-файлов сразу собирать новый versioned zip.
+- Синхронизировать cache-busting marker во всех HTML, JS, CSS, тестах и документации.
+- Проверять состав zip перед загрузкой.
+- Документация, тесты, source maps, скриншоты, старые архивы, локальные данные и рабочие заметки не должны попадать в архив для загрузки в Marketplace.
+- Если пользователь явно разрешил `git push` и дал команду пушить, перед push обязательно обновить `Next_PROMT.md`, `NEXT_SESSION.md`, основную документацию, тесты и versioned zip.
+
+Если installer регистрирует CRM-вкладку через `placement.bind`, операция должна быть идемпотентной. Перед bind текущего `PLACEMENT` и `HANDLER` вызвать `placement.unbind` для той же пары и спокойно обработать ошибку отсутствующей привязки. Повторная установка должна оставлять одну видимую вкладку, а не копить дубли.
+
+## Файлы Репозитория Вне Zip
+
+Marketplace-проекту обычно нужны рабочие файлы, которые хранятся в репозитории, но не попадают в архив для загрузки.
+
+Типовые non-zip файлы:
+
+- `Opisanie_App_Marketplace.md`
+  - Пользовательское описание приложения для публикации в Marketplace: блок "Полное описание приложения" до 2000 символов и блок "Процесс установки" до 1000 символов. Текст должен быть понятен обычному пользователю, без внутренних технических терминов, методов, runtime-деталей, SDK, REST, worker, zip hygiene и developer-only контекста.
+
+- `README.md`
+  - Главная точка входа для разработчика и поддержки: назначение продукта, установка, проверки, release notes и текущая версия.
+
+- `PROJECT_SPECIFICATION.md`
+  - Полное продуктово-техническое описание: бизнес-правила, CRM-поля, настройки, права, REST-методы, сценарии пользователя, ограничения и версионные решения.
+
+- `NEXT_SESSION.md`
+  - Подробная передача контекста для следующей сессии: текущее состояние, последние решения, важные нюансы, риски, pending tasks и команды проверки.
+
+- `Next_PROMT.md`
+  - Короткий плотный промт для следующей AI-сессии. Он должен быть достаточно компактным для типовой модели и содержать путь к проекту, текущую версию, runtime marker, текущий zip, ключевое поведение, важные правила и явные ограничения на push.
+
+- `UI_GUIDE.md`
+  - UI-справочник проекта: структура страниц, правила компонентов, visual references, утверждённые макеты, палитра, типографика, spacing, стиль страниц, скриншоты и ограничения взаимодействий.
+
+- `CHANGELOG.md`
+  - История версий для отслеживания релизов и поддержки.
+
+- `package.json` и lock-файлы
+  - Dev-зависимости, scripts, lint/test/build commands и воспроизводимые версии зависимостей.
+
+- `src/`, `public/` или папки исходного кода framework
+  - Исходный код и dev-only entry points. В git они нужны, но в Marketplace zip попадает только собранный статический runtime-результат.
+
+- `marketplace/`
+  - Рабочая папка статических Marketplace runtime-файлов перед упаковкой. Runtime-файлы могут копироваться в корень zip, но саму папку, тесты и заметки внутри нельзя архивировать без разбора.
+
+- release archive folder
+  - Папка для versioned Marketplace zip. Старые загруженные архивы сохраняются для сравнения и rollback; для каждого релиза создаётся новое имя.
+
+- `tests/` или `*.test.js`
+  - Автотесты расчётов, REST wrappers, runtime-структуры, zip hygiene, version markers и критических user flows.
+
+- `scripts/`
+  - Локальные помощники сборки, упаковки, проверки, миграций или деплоя.
+
+- `docs/`
+  - Внутренняя документация и справочные материалы для разработчиков и поддержки.
+
+- `screenshots/`
+  - Скриншоты интерфейса для Marketplace-публикации, поддержки, QA и визуальной проверки. Скриншоты для карточки Marketplace не попадают в runtime zip: после тестирования пользователь добавляет их вручную в кабинете разработчика или форме публикации Bitrix24 Marketplace.
+
+- `icons/` или app icon files
+  - Иконки для Marketplace listing, документации и продукта. В zip класть только иконки, которые реально используются runtime-интерфейсом; publishing/source icons хранить вне zip, если они загружаются отдельно в developer cabinet.
+
+- `.env` и local config files
+  - Локальные секреты, API tokens, webhook URLs, test portal URLs и приватные настройки. Никогда не включать их в Marketplace zip и не коммитить реальные секреты.
+
+- `.gitignore`, `.git/` и local editor files
+  - Метаданные репозитория и рабочей станции. Никогда не включать их в Marketplace zip.
+
+## Локальный Процесс Релиза
+
+Для локальной работы держать шаги релиза явными и скучными:
+
+1. Проверить рабочее дерево через `git status --short`.
+2. Сделать только scoped changes для запрошенной версии.
+3. Запустить релевантные проверки: обычно lint, tests и build/package scripts.
+4. Проверить созданный zip или артефакт деплоя.
+5. Коммитить только нужные файлы, если commit запрошен.
+6. Делать push только если пользователь явно запросил push для текущей итерации или явно подтвердил его.
+
+Для статических Marketplace-приложений packaging scripts должны создавать архив с номером версии в согласованной release-папке проекта и не перезаписывать предыдущие загруженные архивы. Имя архива должно включать продукт и номер версии, например `Product Name v.N.zip`.
+
+## Версионирование Runtime И Отображаемой Версии
+
+В Marketplace-приложениях держать две версии:
 
 - Runtime/cache version
-  - Technical marker used in asset URLs and tests, for example `layout-20260813-1`.
-  - Purpose: force Bitrix24 and browser cache to load fresh `app.js`, `style.css`, `worker.js`, and similar assets.
-  - This string may be date-based and does not need to be user-friendly.
+  - Технический marker для asset URLs и тестов, например `layout-20260813-1`.
+  - Нужен, чтобы Bitrix24 и браузер загрузили свежие `app.js`, `style.css`, `worker.js` и похожие файлы.
+  - Может быть date-based и не обязан быть понятным пользователю.
 
-- Display/app version
-  - Human-readable product label used in visible UI, logs, diagnostics, install output, modal text, and support screenshots.
-  - When the package version changes, update this label in every frontend runtime file, install screen, worker diagnostics, static footer, tests, and project documentation before building the zip.
-  - Recommended format:
+- Отображаемая версия приложения
+  - Человекочитаемая версия продукта для UI, логов, диагностики, текста установки, модальных окон и скриншотов поддержки.
+  - При изменении package version обновлять этот label во всех runtime-файлах, экране установки, диагностике worker, footer, тестах и документации.
+  - Рекомендуемый формат:
 
 ```text
 {App Name} v.{PackageVersion} Marketplace B24
 ```
 
-Example:
+Не показывать raw cache markers вроде `layout-20260813-1` в пользовательском UI и обычных логах. Пользователям и поддержке нужны название приложения, версия пакета и тип платформы.
+
+## UX В Iframe Bitrix24
+
+Интерфейс Marketplace-приложения должен учитывать, что он часто работает внутри узкого iframe или slider.
+
+Практики:
+
+- первый экран должен быть рабочим инструментом, а не лендингом;
+- не делать декоративные большие hero-секции для утилитарных CRM-инструментов;
+- держать интерфейс компактным, сканируемым и предсказуемым;
+- важные действия должны быть видны без лишнего скролла;
+- таблицы должны иметь мобильный запасной режим отображения;
+- кнопки и статусы не должны обрезаться в узком iframe;
+- модальные окна должны помещаться во viewport;
+- тексты не должны перекрывать соседние элементы;
+- карточки не вкладывать в карточки;
+- не использовать однотонные палитры, где весь UI выглядит вариацией одного цвета.
+
+Для UI-решений фиксировать утверждённые паттерны в `UI_GUIDE.md`.
+
+## Аудит Прав Bitrix24
+
+Перед каждой Marketplace-сборкой явно перечислять, какие права Bitrix24 должны быть включены. Маленькое JS-изменение может добавить REST-метод и сломать установленное приложение, если список прав устарел.
+
+Правило:
 
 ```text
-Deal Invoice Summary v.16 Marketplace B24
+Перед сохранением или загрузкой Marketplace-версии сравнить фактическое использование `BX24.callMethod` с выбранными правами Bitrix24.
 ```
 
-Do not show raw cache markers such as `layout-20260813-1` in user-facing UI or ordinary logs. Raw runtime markers are useful for developers, but users and support teams need the app name, package version, and platform type. Keep the runtime marker separate from the display version, but bump it when the frontend asset content changes and verify that all asset URLs and tests reference the same marker.
-
-## Required Permissions Rule
-
-Before every Marketplace build, explicitly state which Bitrix24 app permissions must be enabled. A small JavaScript change can add a REST method and break an installed app if the selected permission list is stale.
-
-Rule:
-
-```text
-Before saving or uploading a Marketplace app version, compare actual BX24.callMethod usage with the selected Bitrix24 permissions.
-```
-
-Common base permissions for CRM Marketplace apps:
+Типовые группы прав для CRM Marketplace-приложений:
 
 - CRM
-  - Deals, leads, companies, contacts, smart-process items, fields, stages, categories, and card configuration.
+  - Deals, leads, companies, contacts, smart-process items, fields, stages, categories и card configuration.
 
-- Users
-  - User name lookup, responsible person display, audit-friendly reports.
+  - Пользователи (базовый) / `user_basic`
+  - Чтение имён пользователей, отображение ответственных, audit-friendly reports. Полный скоуп `user` запрашивать только если приложение технически создаёт или изменяет профили пользователей через методы вроде `user.add` или `user.update`.
 
 - Application placements / embedding
-  - Placement registration and iframe interaction.
+  - Регистрация placements и iframe interaction.
 
 - Application settings / app options
-  - `app.option.get` and `app.option.set`, if listed separately in the Bitrix24 UI.
+  - `app.option.get` и `app.option.set`, если они выделены отдельно в UI Bitrix24.
 
-Typical REST method families:
+Типовые REST method families:
 
 - `placement.bind`
+- `placement.unbind`
 - `app.option.get`
 - `app.option.set`
 - `crm.deal.*`
@@ -134,11 +300,25 @@ Typical REST method families:
 - `crm.category.*`
 - `user.get`
 
-Use the smallest permission set that covers the actual app behavior, but do not under-declare required CRM write/configuration permissions if the app creates fields or edits card layouts.
+Если приложение использует `user.get` только для ФИО/имени ответственного, фиксировать в документации и заявке Marketplace скоуп `Пользователи (базовый) / user_basic` или, если доступно и достаточно, `Пользователи (минимальный) / user_brief`. Не писать просто `Пользователи` без уровня, чтобы модерация не считала это заявкой на полный `user`.
 
-## REST Wrapper Pattern
+Идея не в том, чтобы зафиксировать одно универсальное минимальное право. Идея в том, чтобы перед сборкой проговорить, какие права появляются в конкретном проекте, и перечислить методы, которые нужны для загрузки и работы приложения.
 
-Wrap `BX24.callMethod` once and use that wrapper everywhere:
+## Описание Для Публикации
+
+Для публикации в Bitrix24 Marketplace держать отдельный файл `Opisanie_App_Marketplace.md`.
+
+Правило:
+
+- блок "Полное описание приложения" - не более 2000 символов;
+- блок "Процесс установки" - не более 1000 символов;
+- писать для обычного пользователя: что приложение делает, кому полезно, какой результат даёт и как начать работу;
+- не включать внутренние технические термины, REST-методы, SDK, worker, runtime, zip-состав, ключи, серверы, тесты и developer-only детали;
+- файл хранится в репозитории и не попадает в runtime zip.
+
+## Обёртка REST
+
+Обернуть `BX24.callMethod` один раз и использовать wrapper везде:
 
 ```javascript
 function callMethod(method, params = {}) {
@@ -151,48 +331,41 @@ function callMethod(method, params = {}) {
 }
 ```
 
-For list methods, add pagination support. Bitrix24 list responses often require `start` handling.
+Для list-методов добавить поддержку пагинации, потому что list-ответы Bitrix24 часто требуют `start`.
 
-## Settings Storage
+## Хранение Настроек
 
-Use Bitrix24 app options for shared app settings:
+Общие настройки приложения хранить через Bitrix24 app options:
 
 ```javascript
 app.option.get
 app.option.set
 ```
 
-Good settings candidates:
+Подходящие настройки:
 
-- field mapping;
+- mapping полей;
 - feature flags;
-- selected period/window;
-- display preferences;
-- lightweight diagnostics.
+- выбранный период или окно;
+- настройки отображения;
+- лёгкая диагностика.
 
-Keep `localStorage` only as fallback for development or local diagnostics. When parsing stored options, handle:
+`localStorage` держать как запасной вариант для разработки, пользовательских локальных настроек или компактной диагностики. При чтении настроек обрабатывать отсутствующие значения, JSON-строки, вложенные объекты, повреждённый или старый формат.
 
-- missing values;
-- JSON strings;
-- nested objects;
-- corrupted or old-format values.
+## Определение CRM-Контекста
 
-For entity-scoped UI state in a static app, never use one shared browser key for all CRM cards. If a backend or CRM custom field has not been introduced yet, key the local fallback by entity type and entity ID, for example `app-grid-deal-v1-{dealId}`. This prevents one deal card from showing another deal card's draft table while keeping the Marketplace package serverless and free of extra REST permissions.
+Marketplace-приложение может запускаться в разных iframe-контекстах, поэтому entity IDs надо определять защитно.
 
-## CRM Context Detection
-
-Marketplace apps often run in different iframe contexts. Detect entity IDs defensively.
-
-Common sources:
+Обычные источники:
 
 - query parameters;
 - `PLACEMENT_OPTIONS`;
 - lowercase `placement_options`;
 - `BX24.placement.info()`;
 - `document.referrer`;
-- current portal URL passed by placement context.
+- текущий URL портала из placement context.
 
-For card-like URLs, parse both current and legacy forms when relevant:
+Для CRM-карточек разбирать несколько форм URL:
 
 ```text
 /crm/deal/details/{id}/
@@ -200,304 +373,400 @@ For card-like URLs, parse both current and legacy forms when relevant:
 /crm/type/{entityTypeId}/details/{id}/
 ```
 
-Do not assume that the iframe itself has the same URL as the CRM card. Background workers and placement iframes often need to infer context from placement options.
+Не считать, что URL iframe совпадает с URL CRM-карточки. Background workers и placement iframes часто получают контекст через placement options.
 
-## Reading Related CRM Records
+## Чтение Связанных CRM-Записей
 
-Read related CRM entities from Bitrix24 REST using stable relations, not visible UI text.
+Связанные CRM-объекты читать через Bitrix24 REST по стабильным связям, а не по видимому UI-тексту.
 
-Examples:
+Примеры:
 
-- invoices/smart-process items linked to a deal can use relation fields such as `parentId2`;
-- deal fields can be read through `crm.deal.get`;
-- smart-process items can be read through `crm.item.list`;
-- field metadata can be read through `crm.*.fields` and `crm.*.userfield.list`.
+- invoices/smart-process items, связанные со сделкой, можно читать через поля связи вроде `parentId2`;
+- сделки читать через `crm.deal.get`;
+- smart-process items читать через `crm.item.list`;
+- metadata полей читать через `crm.*.fields` и `crm.*.userfield.list`.
 
-Always select only fields needed for the workflow.
+Всегда выбирать только поля, нужные для рабочего процесса.
 
-## Calculation And Synchronization
+## Расчёт И Синхронизация
 
-The recommended sync sequence is:
+Рекомендуемая последовательность:
 
-1. Detect the current CRM entity.
-2. Read the current entity from REST.
-3. Read related records from REST.
-4. Normalize values.
-5. Calculate business results.
-6. Compare calculated values with current CRM fields.
-7. Write only changed fields.
-8. Refresh the open card if possible.
-9. Save compact diagnostics.
+1. Определить текущую CRM-сущность.
+2. Прочитать текущую сущность через REST.
+3. Прочитать связанные записи через REST.
+4. Нормализовать значения.
+5. Посчитать бизнес-результаты.
+6. Сравнить рассчитанные значения с текущими CRM-полями.
+7. Записать только изменившиеся поля.
+8. Обновить открытую карточку, если это возможно.
+9. Сохранить компактную диагностику.
 
-Writing only changed fields is important because it:
+Запись только изменившихся полей важна, потому что она снижает лишние CRM writes, мерцание UI, риск sync loops и шум в диагностике.
 
-- avoids unnecessary CRM writes;
-- reduces flicker;
-- lowers the chance of sync loops;
-- makes diagnostics easier to understand.
+Для money values:
 
-For money values:
+- приводить значения к числам;
+- защищаться от `null`, пустых строк и non-numeric values;
+- округлять одинаково перед сравнением;
+- не считать пустое CRM-поле равным `0`, если рассчитанное значение действительно `0` и поле надо заполнить.
 
-- convert to numbers;
-- guard against `null`, empty strings, and non-numeric values;
-- round consistently before comparison.
+## Стадии И Статусы
 
-## Stages And Statuses
+Значения стадий CRM могут приходить в разных форматах. Обрабатывать их защитно.
 
-CRM stage values can appear in different formats. Treat them defensively.
-
-Useful sources:
+Полезные источники:
 
 - `crm.item.stage.list`;
 - `crm.status.list`;
 - `crm.status.entity.types`;
 - entity-specific stage/category methods.
 
-Prefer full stage codes over numeric dictionary row IDs when both exist. A full code is usually safer for matching and display.
+Предпочитать полные коды стадий, если доступны. Полный код обычно безопаснее числового ID строки справочника для сопоставления и отображения.
 
-Always provide a fallback:
+Всегда иметь запасной вариант: читаемое название, если найдено, или исходный код стадии.
 
-- resolved human-readable title when available;
-- raw stage code when not.
+## Пользователи И Читаемые Отчёты
 
-## Users And Human-Readable Reports
+Если отчёт или экран управления показывает ответственных, резолвить user IDs через `user.get`.
 
-When reports or management screens show responsible people, resolve user IDs through `user.get`.
+Нельзя блокировать основной расчёт, если имя пользователя не найдено. Показывать безопасный запасной вариант: user ID или пустое значение.
 
-Do not block core calculation if a user name cannot be resolved. Display a safe fallback such as the user ID or an empty value.
+## CRM-Поля И Mapping
 
-## CRM Field Creation And Mapping
+Если приложение создаёт пользовательские поля:
 
-If the app creates custom fields:
+- сначала читать существующие поля;
+- создавать только отсутствующие;
+- обновлять metadata только при необходимости;
+- сохранять выбранный mapping полей в app options;
+- давать администратору ручное действие `create/configure fields`.
 
-- read existing fields first;
-- create only missing fields;
-- update metadata only when needed;
-- store selected field mapping in app options;
-- expose a manual "create/configure fields" action.
+Если приложение пишет рассчитанные значения в CRM, mapping должен быть явным и видимым администратору.
 
-If the app writes calculated values to CRM, keep field mapping explicit and visible to an administrator.
+## Конфигурация Карточки
 
-## Card Layout Configuration
+Некоторым приложениям нужно добавлять рассчитанные поля в CRM card layout.
 
-Some apps need to add calculated fields to the CRM card layout.
-
-Useful method families include:
+Полезные method families:
 
 - `crm.item.details.configuration.get`
 - `crm.item.details.configuration.set`
-- legacy or entity-specific `crm.*.details.configuration.*`
+- legacy или entity-specific `crm.*.details.configuration.*`
 
-Nuances:
+Нюансы:
 
-- layouts may differ by category/funnel;
-- empty card layout errors can require creating a safe default section;
-- configuration writes may need elevated CRM permissions;
-- install tokens may not be allowed to configure every placement or layout.
+- layouts могут отличаться по category/funnel;
+- ошибка пустого card layout может требовать создания безопасной default section;
+- записи конфигурации могут требовать повышенных CRM-прав;
+- install token может не иметь права на каждый placement или layout.
 
-Keep this operation user-triggered when possible, and log partial success clearly.
+По возможности делать эту операцию по действию пользователя и ясно логировать частичный успех.
 
-## Card Refresh
+## Обновление Карточки
 
-After CRM writes, try to refresh the open card.
-
-Preferred:
+После CRM writes сначала пробовать мягкое обновление открытой карточки:
 
 ```javascript
 BX24.placement.call("reloadData", {}, callback)
 ```
 
-Before calling it, inspect placement capabilities:
+Перед вызовом проверять placement capabilities:
 
 ```javascript
 BX24.placement.getInterface(callback)
 ```
 
-Fallbacks depend on context:
+Fallback зависит от контекста:
 
-- `BX24.reloadWindow()` can refresh the wider Bitrix24 window when available;
-- no-op with diagnostics is better than throwing if refresh commands are unavailable.
+- `BX24.reloadWindow()` может обновить более широкое окно Bitrix24, но его нельзя использовать из автоматического background worker без явного продуктового решения;
+- no-op с диагностикой лучше, чем ошибка, если команды обновления недоступны.
 
-Do not assume every placement supports `reloadData`.
+Нельзя считать, что каждый placement поддерживает `reloadData`.
 
 ## PAGE_BACKGROUND_WORKER
 
-`PAGE_BACKGROUND_WORKER` is useful for static Marketplace apps that need to react while the user has portal pages open.
+`PAGE_BACKGROUND_WORKER` полезен для статических Marketplace-приложений, которым нужно реагировать, пока у пользователя открыты страницы портала.
 
-Good worker responsibilities:
+Хорошие обязанности worker:
 
-- initialize through `BX24.init`;
-- read placement info;
-- identify relevant CRM pages;
-- poll lightweight CRM snapshots;
-- run sync after saved changes become visible through REST;
-- use a short lock to avoid duplicate worker writes;
-- save compact diagnostics.
+- инициализироваться через `BX24.init`;
+- читать placement info;
+- определять релевантные CRM-страницы;
+- опрашивать лёгкие CRM snapshots;
+- запускать синхронизацию после того, как сохранённые изменения видны через REST;
+- заново читать активный placement URI на каждом цикле, если shell Bitrix24 может перейти с карточки на список или канбан без перезагрузки worker iframe;
+- запоминать последний detected entity ID в памяти и, если полезно, в маленькой записи `localStorage`;
+- использовать короткий lock, чтобы избежать duplicate writes;
+- сохранять компактную диагностику.
 
-Good snapshot fields:
+Хорошие поля снимка:
 
 - amount;
 - stage;
 - responsible user;
 - updated timestamp;
-- any small field that represents the trigger condition.
+- любое маленькое поле, которое представляет условие запуска.
 
-Important limits:
+Ограничения:
 
-- it is not an external backend;
-- it only works while Bitrix24 loads the worker in an active portal context;
-- it sees saved REST-visible data, not unsaved form edits;
-- it should stay lightweight.
+- это не внешний бэкенд;
+- worker работает только пока Bitrix24 загрузил его в активном контексте портала;
+- worker видит сохранённые данные, доступные через REST, а не несохранённые правки формы;
+- worker должен быть лёгким.
 
-## Practical Pattern: Deal Stage Updates In Static Apps
+## Практический Паттерн: Сделки И Канбан
 
-In a static Bitrix24 Marketplace app, a reliable reaction to deal stage changes can be implemented without an external backend by using `PAGE_BACKGROUND_WORKER`.
+В статическом Bitrix24 Marketplace-приложении реакцию на сохранённые изменения сделки можно реализовать без внешнего бэкенда через `PAGE_BACKGROUND_WORKER`.
 
-What worked in Deal Invoice Summary:
+Что показало себя рабочим:
 
-- The installer registers `PAGE_BACKGROUND_WORKER` with `placement.bind`, while `LEFT_MENU` remains configured by the Marketplace version settings instead of runtime binding.
-- `worker.html` loads the Bitrix24 JS SDK and `worker.js`; the worker runs as a hidden iframe on open Bitrix24 portal pages.
-- The worker reads context from `BX24.placement.info()` and `PLACEMENT_OPTIONS.URI`.
-- If the current URI is an open deal card, parse the deal ID from `/crm/deal/details/{id}/` or `/crm/deal/show/{id}/`.
-- For an open deal card, poll `crm.deal.get` every few seconds and compare a compact snapshot: `OPPORTUNITY`, `STAGE_ID`, and any other trigger field needed by the workflow.
-- When the saved `STAGE_ID` or amount changes, recalculate the related data through direct REST calls from the iframe and update the deal only if calculated fields actually differ.
-- After `crm.deal.update`, try `BX24.placement.call("reloadData")`; if the current placement does not expose that command, fall back to `BX24.reloadWindow()` when available.
-- On CRM list or kanban pages where there is no single deal ID in the URL, use a lightweight `crm.deal.list` poll ordered by `DATE_MODIFY DESC`, keep a baseline map of recent deal snapshots, and recalculate only changed deals.
-- Use a short `localStorage` lock per deal ID to avoid duplicate writes when several worker iframes are active.
-- Store compact diagnostics in `localStorage` and, if allowed, `app.option.set`: operation, app version, deal ID, changed fields, skipped update flag, refresh result, and error text.
+- installer регистрирует `PAGE_BACKGROUND_WORKER` через `placement.bind`, а `LEFT_MENU` лучше настраивать в Marketplace version settings, если так меньше дублей;
+- `worker.html` загружает Bitrix24 SDK и `worker.js`;
+- worker читает контекст из `BX24.placement.info()` и `PLACEMENT_OPTIONS.URI`;
+- если текущий URI - карточка сделки, ID можно парсить из `/crm/deal/details/{id}/` или `/crm/deal/show/{id}/`;
+- для открытой карточки опрашивать `crm.deal.get` раз в несколько секунд и сравнивать компактный snapshot: `OPPORTUNITY`, `STAGE_ID` и другие trigger fields;
+- если сохранённые `STAGE_ID` или сумма изменились, пересчитать связанные данные через прямой REST из iframe и обновить сделку только при реальном отличии рассчитанных полей;
+- после `crm.deal.update` пробовать `BX24.placement.call("reloadData")`;
+- если `reloadData` недоступен в автоматическом worker-flow, сохранить диагностику и не делать принудительный `BX24.reloadWindow()`;
+- `BX24.reloadWindow()` использовать только после явного продуктового решения, предпочтительно для действия пользователя;
+- на CRM list или kanban pages, где нет одного deal ID в URL, использовать лёгкий `crm.deal.list` poll с сортировкой `DATE_MODIFY DESC`, baseline map recent snapshots и пересчитывать только changed deals;
+- если пользователи часто открывают карточку с канбана и закрывают её обратно на доску, запоминать последний deal ID и на kanban URL приоритетно делать один прямой `crm.deal.get` для этой сделки перед широким list poll;
+- throttling для kanban-return check держать отдельно, например раз в 15 секунд;
+- использовать короткий `localStorage` lock по deal ID, чтобы несколько worker iframes не писали одновременно;
+- хранить compact diagnostics в `localStorage` и, если уместно, `app.option.set`.
 
-Important limits:
+Ограничения:
 
-- This catches saved stage changes, not unsaved edits still sitting in the Bitrix24 card form.
-- The worker runs only while Bitrix24 has loaded the app on an open portal page.
-- Do not add Beget, VibeCode servers, webhooks, OAuth secrets, or external handlers just to catch saved stage changes in a static Marketplace package.
+- это ловит сохранённые изменения, а не правки, которые ещё лежат в форме карточки;
+- worker работает только когда Bitrix24 загрузил приложение на открытой странице портала;
+- не добавлять Beget, VibeCode-серверы, webhooks, OAuth-секреты или внешние обработчики только ради сохранённых изменений стадии в статическом Marketplace-пакете.
 
-For deal field updates that calculate to zero, do not treat an empty CRM field as already equal to `0`. Before comparing money values, explicitly check whether the current CRM value is blank (`undefined`, `null`, or empty string). If it is blank, write the calculated value, including `0`, so the card shows a real value instead of an unfilled field.
+Практический вывод из Deal Invoice Summary v36: статический worker не может надёжно получить native-событие "карточку сделки закрыли", но может сделать работу с канбаном мягче. Надо запомнить последнюю сделку из контекста карточки, на каждом цикле перечитать `PLACEMENT_OPTIONS.URI` через `BX24.placement.info()`, распознать `/crm/deal/kanban/` и `/crm/deal/category/{id}/kanban/`, затем выполнить приоритетную проверку `crm.deal.get` для запомненной сделки. Если сохранённые сумма или стадия изменились, запускать тот же путь пересчёта, что и обычный polling сделки. Это мягкая эвристика с диагностикой, а не гарантированная подписка на событие.
 
-## Diagnostics
+## Диагностика
 
-Static Marketplace apps have limited server-side observability. Add browser-side diagnostics.
+Статические Marketplace-приложения имеют ограниченную серверную наблюдаемость, поэтому нужна браузерная диагностика.
 
-Useful diagnostic fields:
+Полезные поля диагностики:
 
 - app version;
-- operation name;
+- название операции;
 - entity ID;
-- current URL or placement URI;
-- summary of calculated values;
-- changed fields;
-- skipped update flag;
-- refresh result;
-- error message.
+- текущий URL или placement URI;
+- расчётная сводка;
+- изменённые поля;
+- флаг пропущенной записи;
+- результат обновления;
+- текст ошибки.
 
-Store diagnostics in:
+Хранить диагностику можно в `localStorage` и, если уместно, в `app.option.set`. Частую background diagnostics надо throttle.
 
-- `localStorage`;
-- `app.option.set`, if appropriate and not too noisy.
+## Ручные Действия
 
-Throttle repeated background diagnostics.
+Всегда оставлять ручной путь восстановления:
 
-## Manual Actions
+- пересчитать одну сущность по ID или URL;
+- повторно запустить field setup;
+- выполнить массовый пересчёт по действию пользователя;
+- скачать report только по кнопке.
 
-Always keep a manual recovery path:
+Ручные действия важны, потому что статические Marketplace-контексты могут быть недоступны или ограничены состоянием портала, правами или поведением placement.
 
-- recalculate one entity by ID or URL;
-- rerun field setup;
-- run a user-triggered batch recalculation;
-- download report only by button.
+## Массовый Пересчёт
 
-Manual actions are essential because static Marketplace contexts can be unavailable or limited by portal state, permissions, or placement behavior.
+Для статических приложений массовый пересчёт обычно должен запускаться пользователем.
 
-## Batch Recalculation
+Рекомендуемый паттерн:
 
-For static apps, batch recalculation should usually be user-triggered.
+1. Пользователь выбирает period/window.
+2. Приложение находит затронутые CRM-записи через REST.
+3. Приложение обрабатывает записи последовательно или аккуратными batches.
+4. Progress bar обновляется.
+5. В UI появляется results summary.
+6. CSV/report скачивается по кнопке.
 
-Recommended pattern:
+Избегать тихих фоновых массовых задач в статическом zip, если нет проверенного Bitrix24 runtime context для такой работы.
 
-1. User selects a period/window.
-2. App finds affected CRM records through REST.
-3. App processes records sequentially or in careful batches.
-4. Progress bar updates.
-5. Results summary appears in the UI.
-6. CSV/report can be downloaded by button.
+## Отчёты И CSV
 
-Avoid silent background batch jobs in a static zip unless there is a verified Bitrix24 runtime context that supports them reliably.
+CSV, созданный в браузере, - простой Marketplace-friendly вариант отчёта.
 
-## Reports And CSV
+Практики:
 
-Browser-generated CSV is a simple Marketplace-friendly reporting option.
-
-Best practices:
-
-- generate with `Blob`;
-- add UTF-8 BOM for Excel compatibility when needed;
-- use `;` delimiter for Russian Excel scenarios when appropriate;
+- генерировать через `Blob`;
+- добавлять UTF-8 BOM для совместимости с Excel, если нужно;
+- использовать `;` как delimiter для русских Excel-сценариев, если уместно;
 - escape cells;
-- format dates without unnecessary time;
-- do not auto-download on page load;
-- remove debug-only columns from management reports.
+- форматировать даты без лишнего времени;
+- не делать auto-download при загрузке страницы;
+- убирать debug-only columns из управленческих отчётов.
 
-## Clickable Charts To CRM Lists
+## Кликабельные Диаграммы И CRM-Списки
 
-When a dashboard chart opens a Bitrix24 CRM list, use exact entity IDs as the primary and only guaranteed filter. Do not describe stage/semantic URL parameters as a working segment filter unless the target portal proves that the standard Bitrix24 list UI actually applies them.
+Когда dashboard chart открывает Bitrix24 CRM list, использовать точные entity IDs как основной и единственный гарантированный фильтр.
 
-Recommended pattern:
+Рекомендуемый паттерн:
 
-1. Build each chart slice with `entityIds`.
-2. Open the standard CRM list URL with `FILTER[ID]`.
-3. Treat the opened list as the exact ID group for that chart segment.
-4. If you experiment with `FILTER[STAGE_SEMANTIC_ID]` or `FILTER[STAGE_ID]`, document the result as experimental until verified in the Bitrix24 UI.
-5. If the UI does not apply or show the segment's stage filter, remove that claim from product documentation.
+1. Для каждого chart slice собрать `entityIds`.
+2. Открыть standard CRM list URL с `FILTER[ID]`.
+3. Считать открытый список точной группой ID для сегмента.
+4. `FILTER[STAGE_SEMANTIC_ID]` или `FILTER[STAGE_ID]` использовать только как экспериментальные/дополнительные параметры, пока конкретный портал не подтвердит, что UI реально применяет их.
+5. Если UI не показывает или не применяет фильтр стадии сегмента, убрать такое утверждение из продуктовой документации.
 
-Practical lesson from Deal Invoice Summary v34: clickable chart segments reliably open the correct group of deals by ID. Segment filters by `STAGE_SEMANTIC_ID` / `STAGE_ID` did not work as a proper visible/applied Bitrix24 list filter, so v34 treats them as not working and relies only on the ID group.
+Практический вывод из Deal Invoice Summary v34: кликабельные сегменты диаграммы надёжно открывали нужную группу сделок по ID. Фильтры сегментов через `STAGE_SEMANTIC_ID` / `STAGE_ID` не работали как полноценный видимый Bitrix24 list filter, поэтому критичный переход должен опираться на группу ID.
 
-## Auto-Opening Open Line Chat
+## Автооткрытие Чата Открытой Линии
 
-Open Line widgets load asynchronously and may expose different API shapes across portals. A robust static app can auto-open chat, but it must stop retrying after the first credible success signal.
+Виджеты открытой линии загружаются асинхронно и могут иметь разные API shapes на разных порталах. Статическое приложение может auto-open chat, но retry должен остановиться после первого достоверного сигнала успеха.
 
-Recommended pattern:
+Рекомендуемый паттерн:
 
-1. Keep the chat widget off the main app screen if it destabilizes layout or iframe loading.
-2. Route the CTA to a dedicated settings/help page with a query flag such as `?openChat=1`.
-3. Try known widget APIs first, for example `B24Chat`, `BX.SiteButton`, or a portal-specific widget object.
-4. Fall back to clicking visible widget DOM targets with pointer and mouse events.
-5. Use a `MutationObserver` to detect late-rendered chat iframe/container nodes.
-6. Maintain a boolean such as `chatOpenDetected`.
-7. Clear retry timers and disconnect observers after a successful API call, a visible DOM click, or detection of an open chat container.
+1. Не загружать chat widget на основной экран приложения, если он ломает layout или загрузку iframe.
+2. Вести CTA на отдельную страницу настроек/помощи с query flag вроде `?openChat=1`.
+3. Сначала пробовать известные widget APIs: `B24Chat`, `BX.SiteButton` или portal-specific widget object.
+4. Затем делать DOM fallback по видимым целевым элементам виджета с событиями pointer/mouse.
+5. Использовать `MutationObserver` для поздно появляющихся chat iframe/container nodes.
+6. Держать boolean вроде `chatOpenDetected`.
+7. Очищать retry timers и отключать observers после успешного API call, DOM click или обнаружения открытого chat container.
 
-Practical lesson from Deal Invoice Summary v34: adding more retries made the chat open multiple times. The fix was not more delay; it was a clear stop condition. Retry logic without a stop condition is risky for third-party widgets.
+Практический вывод из Deal Invoice Summary v34: больше retries без stop condition привели к многократному открытию чата. Исправление - чёткое условие остановки, а не ещё одна задержка.
 
-## Manual Verification Checklist
+## Чеклист Перед Отправкой
 
-Before shipping a Marketplace build, verify:
+Перед shipping Marketplace build проверить:
 
-1. Zip contains only runtime files.
-2. Required Bitrix24 permissions match actual REST methods.
-3. Install flow completes.
-4. Placements register or show acceptable already-registered status.
-5. Main app opens from the intended Bitrix24 area.
-6. CRM entity context is detected correctly.
-7. Settings save and reload.
-8. Custom fields are created or mapped correctly.
-9. Related CRM records are found through REST relations.
-10. Calculations match expected business rules.
-11. CRM writes update only changed fields.
-12. Open card refresh works or degrades with diagnostics.
-13. Background worker runs only in relevant contexts.
-14. Manual recalculation works.
-15. Batch recalculation works for the selected period.
-16. Reports download only by user action.
-17. No secrets or external backend URLs are present in the static package.
+1. Zip содержит только runtime-файлы.
+2. Права Bitrix24 соответствуют фактическим REST-методам.
+3. Install flow завершается.
+4. Placements регистрируются или показывают допустимый already-registered status.
+5. Main app открывается из нужной зоны Bitrix24.
+6. CRM entity context определяется правильно.
+7. Настройки сохраняются и перечитываются.
+8. Custom fields создаются или mapping работает.
+9. Related CRM records находятся через REST relations.
+10. Расчёты совпадают с бизнес-правилами.
+11. CRM writes обновляют только changed fields.
+12. Open card refresh работает или корректно деградирует с diagnostic.
+13. Background worker работает только в релевантных контекстах.
+14. Ручной пересчёт работает.
+15. Batch recalculation работает для выбранного периода.
+16. Отчёты скачиваются только по действию пользователя.
+17. В статическом пакете нет секретов, URL бэкенда и лишних рабочих файлов.
 
-## When A Backend Is Actually Needed
+## Практические Выводы Из Excel Tab B24 MVP v26-v30
 
-Use a backend only when the app requires:
+Эти рекомендации появились после финального этапа `Excel Tab B24`, где статическое приложение внутри карточки сделки получило drag-select, ручной resize, auto-fit по ширине и высоте, компактный toolbar и undo/redo без backend.
 
-- true server-side event subscriptions;
-- webhooks that must be received while users are offline;
-- scheduled jobs independent of open Bitrix24 pages;
-- private API keys or OAuth secrets;
-- integration with external systems;
-- persistent queues or audit storage.
+### Drag-select В Таблице
 
-If a backend is introduced, document it as a separate product/runtime mode and do not mix backend-only assumptions into the static Marketplace zip.
+Если внутри iframe нужна Excel-подобная работа с диапазонами, лучше строить выделение вокруг стабильных ключей ячеек, например `rowIndex:columnIndex`, а не вокруг DOM-элементов. DOM можно перерисовать, а ключи остаются переносимым состоянием.
+
+Рабочий паттерн:
+
+- держать `selectionAnchor` как стартовую точку;
+- на `pointerdown` в ячейке начинать выделение;
+- на `pointerenter` или `pointermove` расширять диапазон через helper вроде `getRangeCellKeys`;
+- на `pointerup` и `pointercancel` завершать режим;
+- не запускать drag-select с resize-ручек, кнопок выбора CRM-поля и других вложенных controls;
+- после каждого render восстанавливать визуальное выделение по Set ключей.
+
+Для Ctrl-copy формул важно отделять простое расширение выделения от сценария "протянуть формулу". Если исходная ячейка содержит формулу, целевые ячейки должны получать копию с относительным смещением ссылок через отдельный helper, например `shiftFormulaReferences`.
+
+### Ручной Resize Строк И Колонок
+
+Для таблиц в Bitrix24 iframe resize лучше делать через маленькие handles в заголовках строк и колонок, а не через изменение самой ячейки. Так пользовательский drag не конфликтует с вводом текста.
+
+Рабочий паттерн:
+
+- на `pointerdown` у handle сохранять тип resize, индекс строки/колонки, стартовую координату и стартовый размер;
+- на `pointermove` считать delta и прогонять размер через clamp;
+- на `pointerup` сохранять состояние один раз;
+- ограничивать размеры безопасными пределами, например min/max width и min/max height;
+- хранить `columnWidths` и `rowHeights` рядом с остальным состоянием листа;
+- при добавлении колонок и строк не сбрасывать существующие размеры.
+
+Это помогает избежать ситуации, когда resize визуально работает, но после reload или обновления CRM-полей таблица возвращается к старым размерам.
+
+### Auto-fit Должен Работать На Одном Общем Пути
+
+Если есть кнопка ручного auto-fit и другая команда, которая должна вести себя "как auto-fit" после обновления данных, не дублировать расчеты в двух handlers. Нужен общий helper, например `autoFitSheetSize(targetCells)`.
+
+Рекомендации:
+
+- для ширины считать самый длинный видимый текст в колонке, включая строки внутри multiline-value;
+- для высоты считать количество строк текста и учитывать включенный wrap;
+- если есть выделение, брать только выбранные строки и колонки;
+- если выделения нет, обрабатывать всю таблицу;
+- после массового сценария вроде `Обновить поля` делать `refresh -> compact -> autoFit -> persist -> render` как одну пользовательскую операцию.
+
+Последний пункт особенно важен для undo/redo: пользователь ожидает откатить результат одного клика целиком, а не проходить отдельные внутренние микрошаги.
+
+### Компактный Toolbar В CRM-Карточке
+
+Встраиваемое приложение в карточке CRM не должно выглядеть как отдельная лендинговая страница. Панель инструментов лучше делать плотной и функциональной.
+
+Рабочий паттерн:
+
+- разбивать команды на группы с тонкой обводкой и короткой подписью;
+- делать кнопки стабильной высоты, чтобы toolbar не прыгал при смене выделения;
+- выносить разрушительные действия в отдельную группу;
+- держать часто используемые глобальные действия вроде export и refresh рядом и одного визуального размера;
+- рисовать небольшие иконки средствами CSS, если это дешевле и стабильнее, чем добавлять новую asset-систему.
+
+В `Excel Tab B24` кнопка удаления была вынесена из блока форматирования в `Бэкап`, потому что по смыслу она меняет состояние таблицы, а не стиль ячеек.
+
+### Undo/Redo Для Serverless Таблицы
+
+В browser-only Marketplace-приложении быстрый undo/redo можно делать без backend и без дополнительных прав Bitrix24.
+
+Рекомендуемый подход:
+
+- хранить историю в памяти текущей вкладки, а не в `localStorage`;
+- разделять историю по storage key сделки или листа;
+- перед сохранением нового состояния класть в undo-stack полный снимок предыдущего состояния;
+- в снимок включать не только `grid`, но и formatting, CRM bindings, wrapped cells, column widths, row heights;
+- при новом пользовательском изменении очищать redo-stack;
+- ограничивать оба стека, например `HISTORY_LIMIT = 15`;
+- отключать кнопки, если нужного состояния нет.
+
+Такой undo/redo не превращается в постоянное хранилище, не засоряет браузер и не требует новых Marketplace permissions, но закрывает главный пользовательский сценарий "вернуть как было".
+
+### Документация Финальной MVP-Версии
+
+Когда проект дошел до финального MVP-пакета, prompt-файлы следующей сессии не должны содержать старые задачи. Иначе следующая AI-сессия может начать выполнять уже закрытый этап.
+
+Финальный handoff должен содержать:
+
+- текущую версию;
+- путь к проекту;
+- ссылку на GitHub;
+- состав runtime-файлов;
+- имя финального zip;
+- список прав Bitrix24;
+- указание, что новых задач нет и будущая работа начинается только с нового запроса пользователя.
+
+## Когда Бэкенд Действительно Нужен
+
+Бэкенд нужен, если приложению требуются:
+
+- настоящие серверные подписки на события;
+- webhooks, которые должны приниматься, когда пользователи не открывали портал;
+- scheduled jobs независимо от открытых страниц портала;
+- private API keys или OAuth-секреты;
+- интеграции с внешними системами;
+- persistent queues или audit storage.
+
+Если бэкенд всё-таки нужен, разделить статический Marketplace frontend и server runtime. В документации явно описать, какие данные уходят на бэкенд, какие права нужны, где хранятся секреты и как пользователь может вручную проверить результат.
+
+## Бэкенд И VibeCode Runtime
+
+Если проект использует VibeCode или другой runtime server:
+
+- перед изменениями проверить текущий deployed app identity;
+- не деплоить несколько unrelated projects в один `/opt/app`;
+- держать `.env` и server-only config вне git;
+- после server changes проверять service status и health endpoint;
+- не смешивать server zip и статический Marketplace zip.
+
+Статический Marketplace zip и серверный артефакт деплоя - разные сущности. Их нельзя собирать одной неявной командой без проверки состава.

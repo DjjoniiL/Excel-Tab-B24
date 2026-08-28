@@ -1,73 +1,75 @@
 # Excel Tab B24
 
-Static serverless Bitrix24 Marketplace app that adds an Excel-like tab to a CRM deal card.
+`Excel Tab B24 MVP Final v.30` - статическое serverless-приложение для Bitrix24 Marketplace. Оно добавляет в карточку CRM-сделки вкладку `Excel Tab B24` с Excel-подобной таблицей, где пользователь может вести локальную рабочую таблицу сделки, подтягивать поля CRM, считать формулы, форматировать ячейки и выгружать заполненную область в Excel.
 
-The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bitrix24 JavaScript SDK and REST methods through `BX24.callMethod`, stores per-deal table state in `localStorage`, and is packaged as a small Marketplace zip without a backend, secrets, `node_modules`, tests, or documentation.
+Приложение работает целиком в браузере внутри iframe Bitrix24. Backend, серверные секреты, `.env`, внешние webhook-обработчики и база данных не используются.
 
-## What The App Does
+## Что Умеет Приложение
 
-- Adds a custom `Excel Tab B24` tab to a Bitrix24 deal card.
-- Shows a spreadsheet-like grid with 9 rows and 7 columns by default.
-- Shows clear active-sheet status text for the current deal table or the shared funnel table.
-- Lets users add rows and columns without shrinking existing data.
-- Keeps scrolling only inside the table area for large grids; the app page itself must not scroll.
-- Lets users edit cells manually.
-- Lets users insert CRM deal field values into cells through a field picker.
-- Refreshes field-bound cells from the current deal when fields are reloaded.
-- Resolves common reference fields to readable names where possible: users, contact, company, category, and stage.
-- Supports cell selection: single cell, Shift range, Ctrl multi-select, whole row, whole column, and whole table.
-- Supports mouse drag selection across cells while holding the left mouse button.
-- Supports manual column width and row height resizing from table headers; custom row heights are saved with the sheet.
-- The compact two-row toolbar groups table, cell, alignment, and formatting actions.
-- The Backup toolbar group provides 15-step undo/redo history for each sheet/deal and keeps delete separate from cell formatting actions.
-- Supports text wrapping, column auto-fit, fill color, bold text, italic text, and font size presets for selected cells. The default table font size is 13 pt.
-- Supports horizontal and vertical alignment controls for one or many selected cells.
-- Lets users clear selected cells together with their field bindings and formatting.
-- Supports formulas such as `=E4+B4`, including references, numbers, parentheses, and `+`, `-`, `*`, `/`.
-- Lets users build formulas by typing `=` and clicking cells to insert references.
-- Shows up to 5 recently used formulas under the active cell when formula input starts with `=`.
-- Saves formulas with Enter and displays calculated results outside edit mode.
-- Lets users save reusable formulas, remove saved formulas, and apply a selected saved formula to the active selected cell. Formula entry accepts English letters, numbers, and formula symbols, and automatically uppercases formula letters.
-- Copies formulas with relative reference shifts when Ctrl-selecting target cells.
-- Exports the filled table area to an Excel-compatible `.xls` file with formulas, numeric values, exported column widths, 1.5 pt borders, supported formatting, and no forced white fill when cells have no fill color.
-- Current Marketplace package: `dist app B24 zip/Excel Tab B24 MVP Final v.30.zip`.
+- Открывается как вкладка `Excel Tab B24` в карточке сделки Bitrix24.
+- Показывает таблицу 9 строк на 7 колонок по умолчанию.
+- Хранит состояние отдельно для каждой сделки в `localStorage` по ключу `excel-tab-b24-grid-deal-v1-{dealId}`.
+- Поддерживает заготовку общей таблицы воронки по ключу `excel-tab-b24-grid-funnel-v1-{categoryId}`.
+- Позволяет редактировать текст и числа прямо в ячейках.
+- Позволяет добавлять строки и колонки без потери данных, CRM-привязок и форматирования.
+- Поддерживает выделение одной ячейки, диапазона через Shift, нескольких ячеек через Ctrl, строки, колонки, всей таблицы и диапазона протягиванием мышью.
+- Позволяет менять ширину колонок и высоту строк перетаскиванием границ заголовков.
+- Сохраняет пользовательские ширины колонок и высоты строк вместе с таблицей.
+- Дает кнопку `⇔ Подогнать`, которая подгоняет ширину колонок и высоту строк по содержимому. Если есть выделение, подгоняются только строки и колонки выделенных ячеек; без выделения - вся таблица.
+- Кнопка `Обновить поля` обновляет CRM-привязанные значения, сжимает таблицу до последней заполненной области и запускает такую же подгонку ширины и высоты.
+- Через кнопку выбора поля в активной ячейке можно вставлять значения полей сделки.
+- Значения пользователей, контактов, компаний, стадий и воронок по возможности показываются в человекочитаемом виде.
+- Привязанные к CRM-полю ячейки сохраняют связь с полем и обновляются при загрузке вкладки или ручном обновлении.
+- Поддерживает перенос текста, заливку, жирный шрифт, курсив, кегль 11/13/15/18 pt, горизонтальное и вертикальное выравнивание.
+- Блок `Ячейки` содержит действия `Добавить формулу` и `Переносить текст`.
+- Блок `Бэкап` содержит undo, redo и `Удалить`. История хранит до 15 состояний назад и до 15 состояний вперед для каждого листа/сделки в памяти текущей сессии браузера.
+- `Удалить` очищает выделенные ячейки вместе с данными, CRM-привязками, переносом и форматированием. Для крупных выделений больше 18 ячеек появляется подтверждение.
+- Формулы вида `=E4+B4` поддерживают ссылки на ячейки, числа, скобки и операции `+`, `-`, `*`, `/`.
+- При вводе `=` клик по другой ячейке добавляет ссылку в формулу.
+- Enter сохраняет ввод или формулу и выходит из режима редактирования.
+- Последние 5 использованных формул показываются под активной ячейкой при начале ввода формулы.
+- Модальное окно `Добавить формулу` позволяет хранить reusable formulas, удалять их из списка и применять выбранную формулу к активной ячейке.
+- Ctrl-выделение от ячейки с формулой копирует формулу в новые ячейки с относительным смещением ссылок.
+- Экспортирует заполненную область в Excel-compatible `.xls`: формулы остаются формулами Excel, числа выгружаются числами, ширины колонок и форматирование сохраняются.
 
-## How It Works
+## Как Устроены Файлы
 
-Installation is handled by `install.html` and `install.js`. During install, the app unbinds and rebinds the Bitrix24 deal card placement so repeated installs do not create duplicate tabs.
+- `install.html` - страница установки Marketplace-приложения.
+- `install.js` - установка и регистрация placement `CRM_DEAL_DETAIL_TAB`.
+- `install.css` - стили страницы установки.
+- `index.html` - основной iframe приложения в карточке сделки.
+- `app.js` - состояние таблицы, Bitrix24 REST, формулы, выделение, resize, undo/redo, export и UI handlers.
+- `style.css` - визуальная система приложения, таблица и compact toolbar.
+- `tests/app.test.js` - unit-тесты ключевых helper-функций.
+- `tools/build-marketplace-zip.ps1` - сборка Marketplace zip.
+- `tools/check-marketplace-files.js` - проверка обязательных runtime-файлов.
+- `PROJECT_SPECIFICATION.md` - подробная спецификация финальной версии.
+- `DESIGN_GUIDE.md` - правила интерфейса.
+- `NEXT_SESSION.md`, `PROMT_NEXT_Ses.txt`, `для промта.txt` - финальные handoff-файлы без новых задач на разработку.
 
-The runtime app is `index.html`, `style.css`, and `app.js`. The app detects the current deal ID from Bitrix24 placement context, query parameters, and referrer-like URL sources. Data is stored per deal using keys like:
+## Runtime Модель
 
-```text
-excel-tab-b24-grid-deal-v1-{dealId}
-```
+Установка выполняется через `install.html` и `install.js`. Скрипт вызывает `BX24.init`, снимает старую привязку placement через `placement.unbind`, затем регистрирует вкладку сделки через `placement.bind`. Такой порядок делает повторную установку идемпотентной: вкладка не должна дублироваться.
 
-If no deal ID is detected, the app falls back to a local development key:
+Рабочая вкладка состоит из `index.html`, `style.css` и `app.js`. Приложение определяет ID сделки из placement context, query-параметров и URL карточки. Все вызовы Bitrix24 идут через `BX24.callMethod`.
+
+Если сделка не определена, используется локальный fallback-ключ:
 
 ```text
 excel-tab-b24-grid-v1
 ```
 
-The Marketplace package is generated by `npm run package`. The zip is created in `dist app B24 zip/` and contains only runtime files:
+## Права Bitrix24
 
-- `install.html`
-- `install.js`
-- `install.css`
-- `index.html`
-- `app.js`
-- `style.css`
-
-## Required Bitrix24 Permissions
-
-The current version requires:
+Для текущей версии нужны только:
 
 - CRM (CRM)
-- Placement (Встраивание приложений)
+- Placement / Встраивание приложений
 - `user_basic`
 
-The current version does not require full `user` or `user.userfield`.
+Полный `user` и `user.userfield` для текущей версии не нужны.
 
-## REST Methods Used
+## REST Методы
 
 - `placement.unbind`
 - `placement.bind`
@@ -79,46 +81,44 @@ The current version does not require full `user` or `user.userfield`.
 - `crm.status.list`
 - `user.get`
 
-## Project Files
+## Проверки И Сборка
 
-- `install.html` - Bitrix24 Marketplace install entry page.
-- `install.js` - install logic and placement registration.
-- `install.css` - install screen styles.
-- `index.html` - main deal-tab iframe UI.
-- `app.js` - grid state, Bitrix24 REST calls, formula engine, selection, formatting, export, and UI behavior.
-- `style.css` - main app layout and spreadsheet styling.
-- `tests/app.test.js` - unit tests for grid helpers, storage state, formulas, field bindings, selection, formatting, and export.
-- `tools/build-marketplace-zip.ps1` - creates the next versioned Marketplace zip.
-- `tools/check-marketplace-files.js` - checks Marketplace runtime file expectations.
-- `PROJECT_SPECIFICATION.md` - current product and technical specification.
-- `DESIGN_GUIDE.md` - UI direction and interaction notes.
-- `NEXT_SESSION.md` and `PROMT_NEXT_Ses.txt` - continuation notes for future development sessions.
-
-## Development
-
-Run syntax checks:
+Синтаксическая проверка:
 
 ```bash
 npm run lint
 ```
 
-Run tests:
+Unit-тесты:
 
 ```bash
 npm test
 ```
 
-Build a new Marketplace zip:
+Сборка Marketplace zip:
 
 ```bash
 npm run package
 ```
 
-Old zip archives should not be overwritten. Each build creates the next `Excel Tab B24 v.N.zip` file.
+Финальный пакет MVP:
 
-## Security And Packaging Rules
+```text
+dist app B24 zip/Excel Tab B24 MVP Final v.30.zip
+```
 
-- Keep the Marketplace app serverless unless a future feature truly requires a backend.
-- Do not commit OAuth secrets, API keys, portal credentials, `.env` files, or private backend URLs.
-- Do not include docs, tests, `.git`, `node_modules`, local data, or service files in the Marketplace zip.
-- Before upload, verify the zip contents and confirm the Bitrix24 permission list still matches actual REST usage.
+В zip должны входить только runtime-файлы:
+
+- `install.html`
+- `install.js`
+- `install.css`
+- `index.html`
+- `app.js`
+- `style.css`
+
+## Правила Безопасности И Упаковки
+
+- Не добавлять backend без отдельного продуктового требования.
+- Не хранить OAuth secrets, API keys, portal credentials, `.env` или приватные backend URL в коде, документации, zip и git.
+- Не включать в Marketplace zip документацию, тесты, `.git`, `node_modules`, локальные данные и служебные файлы.
+- Перед загрузкой в Marketplace сверять фактические `BX24.callMethod` с заявленными правами приложения.

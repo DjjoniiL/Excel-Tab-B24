@@ -1,34 +1,54 @@
 # DESIGN_GUIDE
 
-Updated: 2026-08-18
+Обновлено: 2026-08-28
 
-## Interface Direction
+## Направление Интерфейса
 
-The application should feel like a compact work tool inside Bitrix24, not a marketing page.
+`Excel Tab B24` должен ощущаться как компактный рабочий инструмент внутри карточки сделки Bitrix24. Это не landing page и не отдельная декоративная страница: первый экран сразу показывает таблицу и рабочие команды.
 
 ## Layout
 
-- First screen is the actual spreadsheet widget.
-- Header is short and functional: app name, deal context, field reload action.
-- Toolbar includes compact table commands such as selecting filled cells and selected-range actions.
-- Toolbar includes export as a direct table action.
-- Table area is the dominant surface.
-- Row add control sits below the table.
-- Column add control sits to the right of the table.
+- Верхняя часть короткая: название приложения, контекст сделки и кнопки `Экспорт в Excel` / `Обновить поля`.
+- Кнопки `Экспорт в Excel` и `Обновить поля` должны выглядеть одинаковыми по высоте, кеглю и плотности.
+- Toolbar должен занимать минимум вертикального места.
+- Действия группируются в блоки с тонкой обводкой и короткой подписью внутри блока.
+- Основная рабочая поверхность - таблица.
+- Кнопка добавления строки находится снизу таблицы.
+- Кнопка добавления колонки находится справа от таблицы.
+- Внешняя страница приложения не должна создавать отдельный scroll; scroll допустим только внутри таблицы.
 
-## Visual System
+## Группы Toolbar
 
-- Base background: light neutral gray.
-- Main table surface: white with clear grid lines.
-- Accent: blue for selected cells and primary actions.
-- Status elements: compact bordered pills.
-- Border radius is limited to 6px.
+- `Таблица`: `Выделить всё`, `⇔ Подогнать`.
+- `Ячейки`: `Добавить формулу`, `Переносить текст`.
+- `Выравнивание`: шесть icon-buttons для вертикального и горизонтального выравнивания.
+- `Формат`: жирный, курсив, кегль и заливка.
+- `Бэкап`: undo, redo и `Удалить`.
+
+Действия над выделением могут скрываться, когда выделения нет. Блок `Бэкап` остается видимым, потому что undo/redo относятся к состоянию листа целиком.
+
+## Визуальная Система
+
+- Основной фон: светлый нейтральный серый.
+- Поверхность таблицы: белая с четкими grid-lines.
+- Акцент: синий для выделения и focus-state.
+- Status elements: компактные bordered pills.
+- Border radius ограничен 6 px или меньше.
+- Кнопки toolbar имеют стабильную высоту, чтобы layout не прыгал при появлении и скрытии действий.
+- Вложенные cards внутри cards не используются.
+
+## Иконки
+
+- Иконки выравнивания рисуются CSS-линиями.
+- Иконки `Бэкап` рисуются CSS: левая кнопка показывает дугу против часовой стрелки для `Назад`, правая - дугу по часовой стрелке для `Вперёд`.
+- Внутри кнопок `Бэкап` есть маленький CSS-циферблат как визуальная подсказка истории состояний.
+- Наконечники стрелок должны быть приклеены к дуге, а не висеть отдельно.
 
 ## Interaction Notes
 
-- Cell controls stay quiet until focus.
-- Selection actions appear only after at least one cell is selected.
-- Field picker appears next to the selected cell control.
-- Field picker can be dismissed with a visible close button, outside click, Escape, or repeated click on the same picker control.
-- Field list shows human-readable field title and technical field ID.
-- Mobile layout stacks the topbar and keeps the table horizontally scrollable.
+- Cell controls остаются тихими до focus.
+- Кнопка выбора CRM-поля появляется поверх правого края активной ячейки и не забирает постоянную ширину у текста.
+- Field picker закрывается кнопкой, Escape, кликом вне popover или повторным кликом по той же control.
+- Field picker показывает человекочитаемое имя поля и технический ID.
+- Drag-select не должен конфликтовать с редактированием ячеек, formula reference picking и resize.
+- На мобильной ширине toolbar переносится, а таблица остается горизонтально прокручиваемой внутри своей области.

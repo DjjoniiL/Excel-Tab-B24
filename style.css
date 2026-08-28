@@ -191,63 +191,66 @@ body {
   width: 100%;
 }
 
-.history-button {
+.icon-button.history-button {
   color: #123566;
   position: relative;
 }
 
-.history-button::before {
+.icon-button.history-button::before {
   border: 2px solid #0f3263;
   border-radius: 50%;
-  border-top-color: transparent;
   content: "";
-  height: 16px;
-  left: 4px;
+  height: 17px;
+  left: 3px;
   position: absolute;
-  top: 4px;
-  width: 16px;
+  top: 3px;
+  width: 17px;
 }
 
-.history-button::after {
+.icon-button.history-button::after {
   content: "";
   position: absolute;
 }
 
 .undo-button::before {
   border-right-color: transparent;
-  transform: rotate(-48deg);
+  border-top-color: transparent;
+  left: 5px;
+  top: 5px;
+  transform: rotate(18deg);
 }
 
 .undo-button::after {
-  border-bottom: 4px solid transparent;
-  border-right: 6px solid currentColor;
-  border-top: 4px solid transparent;
-  left: 3px;
-  top: 5px;
+  border-bottom: 5px solid transparent;
+  border-right-color: transparent;
+  border-top: 5px solid transparent;
+  border-right: 8px solid currentColor;
+  left: 1px;
+  top: 7px;
+  transform: rotate(24deg);
 }
 
 .redo-button::before {
   border-left-color: transparent;
-  transform: rotate(48deg);
+  border-top-color: transparent;
+  transform: rotate(-18deg);
 }
 
 .redo-button::after {
   border-bottom: 4px solid transparent;
-  border-left: 6px solid currentColor;
+  border-left: 8px solid currentColor;
   border-top: 4px solid transparent;
-  right: 3px;
-  top: 5px;
+  right: 1px;
+  top: 6px;
+  transform: rotate(-24deg);
 }
 
-.history-button .clock-face {
-  display: none;
-}
-
-.history-button {
+.icon-button.history-button {
   background:
-    linear-gradient(#2d7dff, #2d7dff) 50% 50% / 1px 8px no-repeat,
-    linear-gradient(#2d7dff, #2d7dff) 56% 58% / 6px 1px no-repeat,
-    radial-gradient(circle at 50% 50%, transparent 0 5px, #2d7dff 5px 6px, transparent 6px);
+    linear-gradient(#2d7dff, #2d7dff) 17px 13px / 1px 7px no-repeat,
+    linear-gradient(#2d7dff, #2d7dff) 17px 17px / 5px 1px no-repeat,
+    radial-gradient(circle at 17px 17px, #ffffff 0 4px, #2d7dff 4px 5px, transparent 5px),
+    var(--panel);
 }
 
 .history-button:disabled {

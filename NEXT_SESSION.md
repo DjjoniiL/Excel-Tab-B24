@@ -1,83 +1,54 @@
 # NEXT_SESSION
 
-Updated: 2026-08-28
+Обновлено: 2026-08-28
 
-## Current State
+## Финальное Состояние
 
-- Repository `DjjoniiL/Excel-Tab-B24` is connected as `origin`.
-- Serverless Bitrix24 Marketplace app scaffold is present and actively developed.
-- Runtime files are plain browser assets: `install.html`, `install.js`, `install.css`, `index.html`, `app.js`, `style.css`.
-- Repository overview is documented in `README.md`.
-- No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
-- Marketplace zip archives are created in `dist app B24 zip/`.
-- Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
-- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 MVP Final v.30.zip`.
-- Latest v30 commit should be checked with `git log -1 --oneline` after pulling the repository.
-- A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
-- The deal tab shows a 9x7 spreadsheet-like grid by default.
-- The default visible table window fits the column header plus all 9 default rows above the horizontal scrollbar before added rows require table scrolling.
-- Active sheet status text is user-facing: deal mode says `Таблица сделки "..." из воронки ...`; funnel mode says `Общая таблица сделок из воронки ...`.
-- Users can add rows and columns while keeping scrolling inside the table area.
-- Users can resize columns by dragging column header borders and resize rows by dragging row header borders; custom row heights persist in sheet state.
-- The toolbar is compact, grouped in labeled blocks, and uses `⇔ Подогнать` for auto-fitting selected columns and rows.
-- The toolbar has a separate `Бэкап` group with undo, redo, and delete controls. Undo/redo keep up to 15 in-memory states per sheet/deal.
-- Adding columns preserves existing CRM field-bound cells, values, and formatting even if a saved table has uneven row widths.
-- The app iframe itself must not show or require any outer application scroll; only the table grid area may scroll.
-- Users can select the whole table, individual cells, ranges, rows, columns, and mouse-dragged ranges.
-- Hidden field picker buttons overlay the right edge of active cells instead of permanently taking width from every cell.
-- Users can enable wrapping, auto-fit columns, export to Excel-compatible `.xls`, apply fill colors, bold text, italic text, font size presets, and horizontal/vertical alignment to one or many selected cells. Default table font size is 13 pt, and the 13 pt selector value applies explicitly to multi-cell selections.
-- Users can clear selected cells together with data, field bindings, fill color, bold/italic/font-size formatting, and wrapping; selections larger than 18 cells ask for confirmation.
-- Formula cells support references such as `=E4+B4`, clicked cell references after typing `=`, relative Ctrl-fill behavior, and Enter-to-save edit mode.
-- Users can save reusable formulas in a modal, delete formulas from the saved list, and apply a selected saved formula to the active selected cell. Formula input in the modal and in cells removes non-English characters, uppercases English letters, and shows a user-facing explanation in the modal.
-- Entering `=` in a cell shows up to 5 recently used formulas under that cell; selecting a suggestion writes it into the active cell.
-- Formula cells export to `.xls` as Excel formulas, plain numeric cells export as numbers, exported columns keep app widths, exported table borders are 1.5 pt, alignment is exported, and unfilled cells do not receive forced white fill.
-- Clicking `Обновить поля` refreshes field-bound cells, compacts the current sheet to the last filled row and column, and auto-fits columns/rows, keeping at least the 9x7 default.
+Проект `DjjoniiL/Excel-Tab-B24` доведен до `Excel Tab B24 MVP Final v.30`.
 
-## Next Work
+Текущий локальный путь:
 
-- Stage 1 portal check: verify adding columns no longer clears or shifts CRM field-bound cells.
-- Stage 1 portal check: verify exported `.xls` opens in Excel with visible rows and formula cells remain formulas.
-- Stage 1 portal check: verify `Обновить поля` refreshes CRM-bound values and compacts the table to the filled area, with a minimum of 9 rows and 7 columns.
-- Stage 1 portal check: verify font size 11/13/15/18 pt applies to several selected cells.
-- Stage 1 portal check: verify the 9th row is visible above the horizontal scrollbar after loading v.18.
-- Stage 1 portal check: verify regular cell text is no longer clipped by the hidden field picker after adding columns in v.19.
-- Stage 2 portal check: verify mouse drag selection with held left button.
-- Stage 2 portal check: verify manual column width resizing by dragging column borders.
-- Stage 2 portal check: verify manual row height resizing by dragging row borders and persisted custom row heights after reload.
-- Stage 2 portal check: verify drag selection and resizing inside the Bitrix24 iframe without breaking cell editing, formula reference picking, or the CRM field picker.
-- Stage 2 portal check: verify `⇔ Подогнать` changes row heights as well as column widths for selected cells and for the whole table with no selection.
-- Stage 2 portal check: verify `Обновить поля` refreshes CRM-bound values, compacts the table, and auto-fits widths/heights.
-- Stage 2 portal check: verify the `Бэкап` undo/redo controls restore up to 15 recent table states and keep redo states available after undo.
-- Verify on the portal that the outer app scrollbar is gone while the table scrollbars remain for added rows and columns.
-- Verify Enter saves a typed formula and exits formula edit mode.
-- Verify formula reference picking after typing `=` works inside the Bitrix24 iframe.
-- Verify relative Ctrl-fill for formulas across rows and columns.
-- Verify saved formulas can be saved, selected, cancelled, and applied to the intended selected cell in the Bitrix24 iframe.
-- Verify saved formula deletion, formula-list scrolling, and English-only formula input guidance in the Bitrix24 iframe.
-- Verify `Удалить` clears selected cells and that deleting more than 18 selected cells requires confirmation.
-- Verify active sheet status text and bottom switcher labels in both deal and funnel modes.
-- Verify recent formula suggestions appear under the active cell after typing `=`, keep newest formulas first, and show no more than 5 items.
-- Verify field-bound cells refresh automatically when a deal field changes.
-- Verify Excel export opens correctly in desktop Excel and includes calculated formula values.
-- Add further UX polish after portal test: keyboard navigation.
+```text
+G:\AI Project B24\Excel Tab B24
+```
 
-## Required Cycle
+GitHub:
 
-1. Run `git status --short`.
-2. Make scoped changes.
-3. Run `npm run lint`.
-4. Run `npm test`.
-5. Commit changes.
-6. Ask for permission before `git push`, unless the user explicitly requested push in the current iteration.
+```text
+https://github.com/DjjoniiL/Excel-Tab-B24
+```
 
-## Marketplace Upload Permissions
+Финальный Marketplace zip:
 
-Before each Marketplace app upload, tell the user which Bitrix24 permissions are required for the current app version to work correctly. Always write the permissions as a list.
+```text
+dist app B24 zip/Excel Tab B24 MVP Final v.30.zip
+```
 
-For the current version, required permissions are:
+## Что Считать Актуальным
+
+- Приложение остается serverless и browser-only.
+- Runtime-файлы: `install.html`, `install.js`, `install.css`, `index.html`, `app.js`, `style.css`.
+- Основное описание проекта: `README.md`.
+- Подробная спецификация функций: `PROJECT_SPECIFICATION.md`.
+- Правила интерфейса: `DESIGN_GUIDE.md`.
+- Верхнеуровневый учебник обновлен рекомендациями из v26-v30.
+- В Marketplace zip не входят документация, тесты, `.git`, `.env`, `node_modules`, локальные данные и служебные файлы.
+
+## Права Приложения
 
 - CRM (CRM)
-- Placement (Встраивание приложений)
+- Placement / Встраивание приложений
 - `user_basic`
 
-Do not request full `user` or `user.userfield` for the current version.
+Полный `user` и `user.userfield` не нужны.
+
+## Финальный Контроль
+
+Перед любыми будущими изменениями сначала читать:
+
+- `README.md`
+- `PROJECT_SPECIFICATION.md`
+- `DESIGN_GUIDE.md`
+- верхнеуровневый `Bitrix24 CRM Marketplace App Logic.md`
+
+В этом handoff-файле нет открытых задач на следующую сессию. Новые задачи должны появляться только из нового запроса пользователя.
