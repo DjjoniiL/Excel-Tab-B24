@@ -11,23 +11,23 @@ Updated: 2026-08-28
 - No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
 - Marketplace zip archives are created in `dist app B24 zip/`.
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
-- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.19.zip`.
-- Version report for management is stored in `RELEASE_REPORT_v19.md`.
+- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.25.zip`.
+- Latest v25 commit should be checked with `git log -1 --oneline` after pulling the repository.
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
 - The deal tab shows a 9x7 spreadsheet-like grid by default.
 - The default visible table window fits the column header plus all 9 default rows above the horizontal scrollbar before added rows require table scrolling.
 - Active sheet status text is user-facing: deal mode says `Таблица сделки "..." из воронки ...`; funnel mode says `Общая таблица сделок из воронки ...`.
 - Users can add rows and columns while keeping scrolling inside the table area.
 - Adding columns preserves existing CRM field-bound cells, values, and formatting even if a saved table has uneven row widths.
-- The app iframe itself should not show a separate right-side page scrollbar.
+- The app iframe itself must not show or require any outer application scroll; only the table grid area may scroll.
 - Users can select the whole table, individual cells, ranges, rows, and columns.
 - Hidden field picker buttons overlay the right edge of active cells instead of permanently taking width from every cell.
-- Users can enable wrapping, auto-fit columns, export to Excel-compatible `.xls`, apply fill colors, bold text, italic text, and font size presets. Default table font size is 13 pt, and the 13 pt selector value applies explicitly to multi-cell selections.
+- Users can enable wrapping, auto-fit columns, export to Excel-compatible `.xls`, apply fill colors, bold text, italic text, font size presets, and horizontal/vertical alignment to one or many selected cells. Default table font size is 13 pt, and the 13 pt selector value applies explicitly to multi-cell selections.
 - Users can clear selected cells together with data, field bindings, fill color, bold/italic/font-size formatting, and wrapping; selections larger than 18 cells ask for confirmation.
 - Formula cells support references such as `=E4+B4`, clicked cell references after typing `=`, relative Ctrl-fill behavior, and Enter-to-save edit mode.
 - Users can save reusable formulas in a modal, delete formulas from the saved list, and apply a selected saved formula to the active selected cell. Formula input in the modal and in cells removes non-English characters, uppercases English letters, and shows a user-facing explanation in the modal.
 - Entering `=` in a cell shows up to 5 recently used formulas under that cell; selecting a suggestion writes it into the active cell.
-- Formula cells export to `.xls` as Excel formulas, not only as calculated text.
+- Formula cells export to `.xls` as Excel formulas, plain numeric cells export as numbers, exported columns keep app widths, exported table borders are 1.5 pt, alignment is exported, and unfilled cells do not receive forced white fill.
 - Clicking `Обновить поля` refreshes field-bound cells and compacts the current sheet to the last filled row and column, keeping at least the 9x7 default.
 
 ## Next Work

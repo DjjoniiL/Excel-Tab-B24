@@ -16,7 +16,8 @@
 
 html,
 body {
-  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 * {
@@ -33,9 +34,9 @@ body {
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: auto;
   overflow: hidden;
-  padding: 6px 12px 10px;
+  padding: 6px 12px;
   position: relative;
 }
 
@@ -174,6 +175,103 @@ body {
   font-weight: 700;
 }
 
+.alignment-group {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 4px 5px 3px;
+}
+
+.alignment-caption {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1;
+  margin: 0 auto;
+}
+
+.alignment-buttons {
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(3, 24px);
+}
+
+.align-button {
+  border-radius: 4px;
+  height: 24px;
+  position: relative;
+  width: 24px;
+}
+
+.align-button::before {
+  background:
+    linear-gradient(var(--text), var(--text)) 50% var(--line-one, 6px) / var(--line-one-width, 14px) 1.5px no-repeat,
+    linear-gradient(var(--text), var(--text)) 50% var(--line-two, 11px) / var(--line-two-width, 18px) 1.5px no-repeat,
+    linear-gradient(var(--text), var(--text)) 50% var(--line-three, 16px) / var(--line-three-width, 11px) 1.5px no-repeat;
+  content: "";
+  height: 18px;
+  width: 18px;
+}
+
+.align-top {
+  --line-one: 4px;
+  --line-two: 9px;
+  --line-three: 14px;
+}
+
+.align-middle {
+  --line-one: 6px;
+  --line-two: 11px;
+  --line-three: 16px;
+}
+
+.align-bottom {
+  --line-one: 8px;
+  --line-two: 13px;
+  --line-three: 18px;
+}
+
+.align-left::before {
+  background-position: 0 5px, 0 10px, 0 15px;
+}
+
+.align-center::before {
+  background-position: 50% 5px, 50% 10px, 50% 15px;
+}
+
+.align-right::before {
+  background-position: 100% 5px, 100% 10px, 100% 15px;
+}
+
+.align-button::after {
+  background: #172033;
+  border-radius: 4px;
+  bottom: calc(100% + 6px);
+  color: #ffffff;
+  content: attr(data-tooltip);
+  font-size: 10px;
+  font-weight: 600;
+  left: 50%;
+  line-height: 1.2;
+  opacity: 0;
+  padding: 4px 6px;
+  pointer-events: none;
+  position: absolute;
+  transform: translate(-50%, 2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.align-button:hover::after,
+.align-button:focus::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 .toolbar-select {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -283,8 +381,11 @@ body {
 }
 
 .cell-wrap {
-  display: block;
+  align-items: stretch;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  justify-content: stretch;
   position: relative;
   width: 100%;
 }
@@ -295,10 +396,11 @@ body {
   font: inherit;
   font-size: 13pt;
   height: 100%;
+  line-height: 1.2;
   min-width: 0;
   outline: none;
   overflow: hidden;
-  padding: 0 8px;
+  padding: 4px 8px;
   resize: none;
   white-space: nowrap;
   width: 100%;
@@ -329,6 +431,25 @@ body {
   padding-bottom: 6px;
   padding-top: 6px;
   white-space: pre-wrap;
+}
+
+.sheet td.align-vertical-top .cell-wrap {
+  justify-content: flex-start;
+}
+
+.sheet td.align-vertical-middle .cell-wrap {
+  justify-content: center;
+}
+
+.sheet td.align-vertical-bottom .cell-wrap {
+  justify-content: flex-end;
+}
+
+.sheet td.align-vertical-top .cell-input,
+.sheet td.align-vertical-middle .cell-input,
+.sheet td.align-vertical-bottom .cell-input {
+  height: auto;
+  min-height: 0;
 }
 
 .field-picker-button {

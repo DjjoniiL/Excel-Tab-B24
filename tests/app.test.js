@@ -36,6 +36,7 @@ function testAddRowAndColumn() {
   const withColumn = app.addColumn(withRow);
   assert.deepEqual(withColumn, [["a", "b", ""], ["", "", ""]]);
   assert.deepEqual(app.addColumn([["a", "b", "c"], ["x"]]), [["a", "b", "c", ""], ["x", "", "", ""]]);
+  assert.equal(app.measureColumnWidth([["short\nmuch longer"], ["tiny"]], 0), app.measureColumnWidth([["much longer"], ["tiny"]], 0));
 }
 
 function testColumnName() {
@@ -124,8 +125,14 @@ function testFieldBindingsAndExport() {
   assert.equal(app.escapeHtml("<x & \"y\">"), "&lt;x &amp; &quot;y&quot;&gt;");
   assert.match(
     app.buildExcelHtml([["a", "b"], ["", ""]]),
-    /<table><tr><td style='mso-number-format:"\\@"'>a<\/td><td style='mso-number-format:"\\@"'>b<\/td><\/tr><\/table>/
+    /<table><colgroup><col style='width:99pt'><col style='width:99pt'><\/colgroup><tr><td style='mso-number-format:"\\@"'>a<\/td><td style='mso-number-format:"\\@"'>b<\/td><\/tr><\/table>/
   );
+  assert.match(app.buildExcelHtml([["wide", "default"]], {}, { columnWidths: [180] }), /<col style='width:135pt'><col style='width:99pt'>/);
+  assert.match(app.buildExcelHtml([["7500.00", "3500", "=A1-B1"]]), /<td>7500\.00<\/td><td>3500<\/td><td>=A1-B1<\/td>/);
+  assert.doesNotMatch(app.buildExcelHtml([["7500.00"]]), /mso-number-format/);
+  assert.match(app.buildExcelHtml([["RUB"]]), /mso-number-format/);
+  assert.match(app.buildExcelHtml([["plain"]]), /td \{ border: 1\.5pt solid #7f7f7f; height: 25\.5pt; white-space: pre-wrap; \}/);
+  assert.doesNotMatch(app.buildExcelHtml([["plain"]]), /background-color:#(?:fff|ffffff)/i);
   assert.equal(app.getExportFileName(7), "Excel Tab B24 deal 7.xls");
 }
 
@@ -309,16 +316,28 @@ function testCalculationsAndCellStyles() {
     fontWeight: "",
     fontStyle: "",
     fontSize: "",
+    horizontalAlign: "",
+    verticalAlign: "",
   });
   assert.deepEqual(app.normalizeCellFormat({ fontStyle: "italic", fontSize: "15pt" }), {
     fillColor: "",
     fontWeight: "",
     fontStyle: "italic",
     fontSize: "15pt",
+    horizontalAlign: "",
+    verticalAlign: "",
+  });
+  assert.deepEqual(app.normalizeCellFormat({ horizontalAlign: "center", verticalAlign: "middle" }), {
+    fillColor: "",
+    fontWeight: "",
+    fontStyle: "",
+    fontSize: "",
+    horizontalAlign: "center",
+    verticalAlign: "middle",
   });
   assert.match(
-    app.buildExcelHtml([["styled"]], { "0:0": { fillColor: "#fff2cc", fontWeight: "700", fontStyle: "italic", fontSize: "15pt" } }),
-    /<td style='mso-number-format:"\\@";background-color:#fff2cc;font-weight:700;font-style:italic;font-size:15pt'>styled<\/td>/
+    app.buildExcelHtml([["styled"]], { "0:0": { fillColor: "#fff2cc", fontWeight: "700", fontStyle: "italic", fontSize: "15pt", horizontalAlign: "center", verticalAlign: "middle" } }),
+    /<td style='mso-number-format:"\\@";background-color:#fff2cc;font-weight:700;font-style:italic;font-size:15pt;text-align:center;vertical-align:middle'>styled<\/td>/
   );
 }
 

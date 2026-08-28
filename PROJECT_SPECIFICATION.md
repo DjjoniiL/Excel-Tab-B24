@@ -32,9 +32,9 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - When cells are selected, the user can apply fill color, bold text, italic text, and font size presets: 11 pt, 13 pt, 15 pt, and 18 pt. The default table font size is 13 pt, and the 13 pt toolbar option explicitly applies to multi-cell selections.
 - Deal reference fields are displayed as human-readable values where possible: users, contact, company, category, and stage.
 - Cells filled from a CRM deal field keep a local field binding and refresh from the current deal each time the tab opens or fields are reloaded.
-- The user can export the filled table area to an Excel-compatible `.xls` file trimmed to the last filled row and column, including fill color, font weight, italic style, and font size where applied. Formula cells are exported as Excel formulas instead of calculated text values.
+- The user can export the filled table area to an Excel-compatible `.xls` file trimmed to the last filled row and column, including exported column widths, 1.5 pt borders, fill color, font weight, italic style, font size, and alignment where applied. Formula cells are exported as Excel formulas, plain numeric cells are exported as numeric values instead of text, and cells without explicit fill color do not receive forced white fill.
 - When the user clicks `Обновить поля`, refreshed field-bound values are loaded and the current table is compacted to the last filled row and column, while keeping at least the default 9 rows and 7 columns.
-- The app iframe itself does not show a separate page scrollbar; scrolling is kept inside the table area when rows or columns exceed the visible grid.
+- The app iframe itself must not show or require any outer application scroll; scrolling is allowed only inside the table area when rows or columns exceed the visible grid.
 - The initial visible table area fits the header row plus all 9 default rows above the horizontal scrollbar.
 - Shift+Enter remains available for multiline wrapped text.
 
@@ -118,3 +118,9 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-27: Prepared Marketplace v.18 with a taller default table viewport so the 9th default row is not hidden by the horizontal scrollbar.
 - 2026-08-27: Prepared Marketplace v.19 so the hidden field picker no longer clips visible cell text after columns are added.
 - 2026-08-28: Added `RELEASE_REPORT_v19.md` with management-facing v.19 summary and stage 2 implementation scope.
+- 2026-08-28: Prepared Marketplace v.20 so exported `.xls` formulas can calculate against numeric cells instead of text-formatted numbers.
+- 2026-08-28: Prepared Marketplace v.21 so Excel export uses 1.5 pt borders and does not force a white table area when cells have no fill color.
+- 2026-08-28: Prepared Marketplace v.22 so Excel export preserves application column widths and stable row height instead of opening with squeezed columns.
+- 2026-08-28: Prepared Marketplace v.23 with grouped alignment toolbar controls, short hover hints, multi-cell alignment formatting, and alignment export.
+- 2026-08-28: Prepared Marketplace v.24 with visible vertical alignment in the app, alignment toolbar placement after text wrapping, and auto-fit width measurement by the longest line inside multiline cells.
+- 2026-08-28: Prepared Marketplace v.25 with the version number visible in the app title and Bitrix24 iframe resizing so the app has no empty bottom area or outer scroll.

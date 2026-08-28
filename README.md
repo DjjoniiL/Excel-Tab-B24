@@ -10,13 +10,14 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 - Shows a spreadsheet-like grid with 9 rows and 7 columns by default.
 - Shows clear active-sheet status text for the current deal table or the shared funnel table.
 - Lets users add rows and columns without shrinking existing data.
-- Keeps scrolling inside the table area for large grids.
+- Keeps scrolling only inside the table area for large grids; the app page itself must not scroll.
 - Lets users edit cells manually.
 - Lets users insert CRM deal field values into cells through a field picker.
 - Refreshes field-bound cells from the current deal when fields are reloaded.
 - Resolves common reference fields to readable names where possible: users, contact, company, category, and stage.
 - Supports cell selection: single cell, Shift range, Ctrl multi-select, whole row, whole column, and whole table.
 - Supports text wrapping, column auto-fit, fill color, bold text, italic text, and font size presets for selected cells. The default table font size is 13 pt.
+- Supports horizontal and vertical alignment controls for one or many selected cells.
 - Lets users clear selected cells together with their field bindings and formatting.
 - Supports formulas such as `=E4+B4`, including references, numbers, parentheses, and `+`, `-`, `*`, `/`.
 - Lets users build formulas by typing `=` and clicking cells to insert references.
@@ -24,8 +25,8 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 - Saves formulas with Enter and displays calculated results outside edit mode.
 - Lets users save reusable formulas, remove saved formulas, and apply a selected saved formula to the active selected cell. Formula entry accepts English letters, numbers, and formula symbols, and automatically uppercases formula letters.
 - Copies formulas with relative reference shifts when Ctrl-selecting target cells.
-- Exports the filled table area to an Excel-compatible `.xls` file with calculated values and supported formatting.
-- Current Marketplace package: `dist app B24 zip/Excel Tab B24 v.19.zip`.
+- Exports the filled table area to an Excel-compatible `.xls` file with formulas, numeric values, exported column widths, 1.5 pt borders, supported formatting, and no forced white fill when cells have no fill color.
+- Current Marketplace package: `dist app B24 zip/Excel Tab B24 v.25.zip`.
 
 ## How It Works
 
@@ -86,7 +87,6 @@ The current version does not require full `user` or `user.userfield`.
 - `tools/build-marketplace-zip.ps1` - creates the next versioned Marketplace zip.
 - `tools/check-marketplace-files.js` - checks Marketplace runtime file expectations.
 - `PROJECT_SPECIFICATION.md` - current product and technical specification.
-- `RELEASE_REPORT_v19.md` - brief management report for the current Marketplace version and stage 2 scope.
 - `DESIGN_GUIDE.md` - UI direction and interaction notes.
 - `NEXT_SESSION.md` and `PROMT_NEXT_Ses.txt` - continuation notes for future development sessions.
 

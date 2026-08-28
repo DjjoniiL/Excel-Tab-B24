@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Excel Tab B24</title>
-    <link rel="stylesheet" href="style.css?v=excel-tab-v19">
+    <link rel="stylesheet" href="style.css?v=excel-tab-v25">
     <script src="//api.bitrix24.com/api/v1/"></script>
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <h1>Excel Tab B24</h1>
+          <h1>Excel Tab B24 v.25</h1>
           <p id="dealContext">Загрузка карточки сделки...</p>
         </div>
         <button class="ghost-button" id="reloadFieldsButton" type="button">Обновить поля</button>
@@ -24,6 +24,17 @@
           <button class="toolbar-button" id="formulaLibraryButton" type="button">Добавить формулу</button>
           <button class="toolbar-button" id="clearSelectionButton" type="button">Удалить</button>
           <button class="toolbar-button" id="wrapTextButton" type="button">Переносить текст</button>
+          <div class="alignment-group" role="group" aria-label="Выравнивание">
+            <div class="alignment-buttons">
+              <button class="icon-button align-button align-top" id="alignTopButton" type="button" aria-label="По верхнему краю" data-tooltip="По верхнему"></button>
+              <button class="icon-button align-button align-middle" id="alignMiddleButton" type="button" aria-label="По середине" data-tooltip="По середине"></button>
+              <button class="icon-button align-button align-bottom" id="alignBottomButton" type="button" aria-label="По нижнему краю" data-tooltip="По нижнему"></button>
+              <button class="icon-button align-button align-left" id="alignLeftButton" type="button" aria-label="По левому краю" data-tooltip="По левому"></button>
+              <button class="icon-button align-button align-center" id="alignCenterButton" type="button" aria-label="По центру" data-tooltip="По центру"></button>
+              <button class="icon-button align-button align-right" id="alignRightButton" type="button" aria-label="По правому краю" data-tooltip="По правому"></button>
+            </div>
+            <div class="alignment-caption">Выравнивание</div>
+          </div>
           <div class="toolbar-group" aria-label="Формат">
             <button class="icon-button strong-button" id="boldButton" type="button" title="Жирный шрифт">B</button>
             <button class="icon-button italic-button" id="italicButton" type="button" title="Курсив">I</button>
@@ -118,6 +129,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=excel-tab-v19"></script>
+    <script src="app.js?v=excel-tab-v25"></script>
   </body>
 </html>

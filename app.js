@@ -16,7 +16,8 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "Excel Tab B24 v.19 Marketplace B24";
+  const DISPLAY_VERSION = "Excel Tab B24 v.25 Marketplace B24";
+  const DISPLAY_TITLE = "Excel Tab B24 v.25";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
@@ -26,6 +27,8 @@
   const FONT_WEIGHTS = ["", "600", "700", "800"];
   const FONT_STYLES = ["", "italic"];
   const FONT_SIZES = ["", "11pt", "13pt", "15pt", "18pt"];
+  const HORIZONTAL_ALIGNMENTS = ["", "left", "center", "right"];
+  const VERTICAL_ALIGNMENTS = ["", "top", "middle", "bottom"];
 
   function createGrid(rows = DEFAULT_ROWS, columns = DEFAULT_COLUMNS) {
     return Array.from({ length: rows }, () => Array.from({ length: columns }, () => ""));
@@ -110,7 +113,9 @@
 
   function measureColumnWidth(grid, columnIndex) {
     const maxLength = grid.reduce((max, row, rowIndex) => {
-      const textLength = String(getCellDisplayValue(grid, rowIndex, columnIndex)).length;
+      const textLength = String(getCellDisplayValue(grid, rowIndex, columnIndex))
+        .split(/\r?\n/)
+        .reduce((lineMax, line) => Math.max(lineMax, line.length), 0);
       return Math.max(max, textLength);
     }, columnName(columnIndex).length);
     return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, Math.ceil(maxLength * 8.5) + 42));
@@ -499,6 +504,8 @@
       fontWeight: FONT_WEIGHTS.includes(format.fontWeight) ? format.fontWeight : "",
       fontStyle: FONT_STYLES.includes(format.fontStyle) ? format.fontStyle : "",
       fontSize: FONT_SIZES.includes(format.fontSize) ? format.fontSize : "",
+      horizontalAlign: HORIZONTAL_ALIGNMENTS.includes(format.horizontalAlign) ? format.horizontalAlign : "",
+      verticalAlign: VERTICAL_ALIGNMENTS.includes(format.verticalAlign) ? format.verticalAlign : "",
     };
   }
 
@@ -577,22 +584,61 @@
     if (normalizedFormat.fontWeight) styles.push(`font-weight:${normalizedFormat.fontWeight}`);
     if (normalizedFormat.fontStyle) styles.push(`font-style:${normalizedFormat.fontStyle}`);
     if (normalizedFormat.fontSize) styles.push(`font-size:${normalizedFormat.fontSize}`);
+    if (normalizedFormat.horizontalAlign) styles.push(`text-align:${normalizedFormat.horizontalAlign}`);
+    if (normalizedFormat.verticalAlign) styles.push(`vertical-align:${normalizedFormat.verticalAlign}`);
     return styles.join(";");
+  }
+
+  function parseExportNumber(value) {
+    const normalized = String(value || "")
+      .trim()
+      .replace(/\s+/g, "")
+      .replace(",", ".");
+    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) return null;
+
+    const number = Number.parseFloat(normalized);
+    return Number.isFinite(number) ? normalized : null;
+  }
+
+  function getExportCellType(grid, rowIndex, columnIndex) {
+    const value = grid[rowIndex] && grid[rowIndex][columnIndex];
+    if (isFormula(value)) return "formula";
+    return parseExportNumber(getCellDisplayValue(grid, rowIndex, columnIndex)) === null ? "text" : "number";
   }
 
   function getExportCellContent(grid, rowIndex, columnIndex) {
     const value = grid[rowIndex] && grid[rowIndex][columnIndex];
-    return isFormula(value) ? value : getCellDisplayValue(grid, rowIndex, columnIndex);
+    if (isFormula(value)) return value;
+
+    const displayValue = getCellDisplayValue(grid, rowIndex, columnIndex);
+    return parseExportNumber(displayValue) || displayValue;
   }
 
-  function buildExcelHtml(grid, cellFormats = {}) {
+  function pxToPt(value) {
+    const number = Number.parseFloat(value);
+    if (!Number.isFinite(number) || number <= 0) return "";
+    return `${Math.round(number * 0.75 * 100) / 100}pt`;
+  }
+
+  function getExportColumnWidths(columnCount, columnWidths = []) {
+    return Array.from({ length: columnCount }, (_, columnIndex) => {
+      const width = columnWidths[columnIndex] || DEFAULT_COLUMN_WIDTH;
+      return pxToPt(width) || pxToPt(DEFAULT_COLUMN_WIDTH);
+    });
+  }
+
+  function buildExcelHtml(grid, cellFormats = {}, options = {}) {
     const rows = getExportGrid(grid);
+    const columnCount = rows[0] ? rows[0].length : 0;
+    const colgroup = getExportColumnWidths(columnCount, options.columnWidths)
+      .map((width) => `<col style='width:${width}'>`)
+      .join("");
     const body = rows
       .map((row, rowIndex) => {
         const cells = row
           .map((value, columnIndex) => {
-            const formulaCell = isFormula(value);
-            const style = getExportCellStyle(cellFormats[cellKey(rowIndex, columnIndex)], !formulaCell);
+            const exportType = getExportCellType(grid, rowIndex, columnIndex);
+            const style = getExportCellStyle(cellFormats[cellKey(rowIndex, columnIndex)], exportType === "text");
             return `<td${style ? ` style='${style}'` : ""}>${escapeHtml(getExportCellContent(grid, rowIndex, columnIndex))}</td>`;
           })
           .join("");
@@ -601,17 +647,31 @@
       .join("");
 
     return `<!doctype html>
-<html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Type" content="application/vnd.ms-excel; charset=utf-8">
+  <!--[if gte mso 9]><xml>
+    <x:ExcelWorkbook>
+      <x:ExcelWorksheets>
+        <x:ExcelWorksheet>
+          <x:Name>Excel Tab B24</x:Name>
+          <x:WorksheetOptions>
+            <x:DisplayGridlines/>
+          </x:WorksheetOptions>
+        </x:ExcelWorksheet>
+      </x:ExcelWorksheets>
+    </x:ExcelWorkbook>
+  </xml><![endif]-->
   <style>
+    html, body { background: transparent; margin: 0; padding: 0; }
     table { border-collapse: collapse; }
-    td { border: 1px solid #d7dde8; padding: 4px 8px; white-space: pre-wrap; }
+    tr { height: 25.5pt; }
+    td { border: 1.5pt solid #7f7f7f; height: 25.5pt; white-space: pre-wrap; }
   </style>
 </head>
 <body>
-  <table>${body}</table>
+  <table><colgroup>${colgroup}</colgroup>${body}</table>
 </body>
 </html>`;
   }
@@ -1002,7 +1062,9 @@
 
   function bootBrowserApp() {
     const table = document.getElementById("sheet");
+    const appShell = document.querySelector(".app-shell");
     const topbar = document.querySelector(".topbar");
+    const appTitle = document.querySelector(".topbar h1");
     const gridFrame = document.querySelector(".grid-frame");
     const sheetSwitcher = document.querySelector(".sheet-switcher");
     const cellTemplate = document.getElementById("cellTemplate");
@@ -1028,6 +1090,12 @@
     const fontSizeSelect = document.getElementById("fontSizeSelect");
     const boldButton = document.getElementById("boldButton");
     const italicButton = document.getElementById("italicButton");
+    const alignTopButton = document.getElementById("alignTopButton");
+    const alignMiddleButton = document.getElementById("alignMiddleButton");
+    const alignBottomButton = document.getElementById("alignBottomButton");
+    const alignLeftButton = document.getElementById("alignLeftButton");
+    const alignCenterButton = document.getElementById("alignCenterButton");
+    const alignRightButton = document.getElementById("alignRightButton");
     const exportExcelButton = document.getElementById("exportExcelButton");
     const formulaLibraryButton = document.getElementById("formulaLibraryButton");
     const formulaModal = document.getElementById("formulaModal");
@@ -1042,6 +1110,18 @@
     const deleteConfirmClose = document.getElementById("deleteConfirmClose");
     const confirmDeleteButton = document.getElementById("confirmDeleteButton");
     const cancelDeleteButton = document.getElementById("cancelDeleteButton");
+
+    if (appTitle) appTitle.textContent = DISPLAY_TITLE;
+
+    function resizeBitrixFrameToContent() {
+      if (!window.BX24 || typeof window.BX24.resizeWindow !== "function" || !appShell) return;
+      window.requestAnimationFrame(() => {
+        const rect = appShell.getBoundingClientRect();
+        const width = Math.ceil(Math.max(document.documentElement.scrollWidth, rect.width));
+        const height = Math.ceil(rect.height);
+        window.BX24.resizeWindow(width, height);
+      });
+    }
 
     if (topbar && reloadFieldsButton && exportExcelButton) {
       topbar.insertBefore(exportExcelButton, reloadFieldsButton);
@@ -1197,6 +1277,12 @@
       const selectedFormats = Array.from(selectedCells).map((key) => normalizeCellFormat(cellFormats[key] || {}).fontSize || "13pt");
       const firstSize = selectedFormats[0] || "13pt";
       fontSizeSelect.value = selectedFormats.every((size) => size === firstSize) ? firstSize : "";
+    }
+
+    function fitCellInputHeight(input) {
+      if (!input) return;
+      input.style.height = "auto";
+      input.style.height = `${Math.max(input.scrollHeight, 20)}px`;
     }
 
     function setFormulaModalStatus(message) {
@@ -1640,6 +1726,7 @@
           td.classList.toggle("is-selected", selectedCells.has(key));
           td.classList.toggle("is-wrapped", wrappedCells.has(key));
           const format = normalizeCellFormat(cellFormats[key] || {});
+          if (format.verticalAlign) td.classList.add(`align-vertical-${format.verticalAlign}`);
           if (format.fillColor) td.style.backgroundColor = format.fillColor;
           const fragment = cellTemplate.content.cloneNode(true);
           const input = fragment.querySelector(".cell-input");
@@ -1649,6 +1736,10 @@
           if (format.fontWeight) input.style.fontWeight = format.fontWeight;
           if (format.fontStyle) input.style.fontStyle = format.fontStyle;
           if (format.fontSize) input.style.fontSize = format.fontSize;
+          if (format.horizontalAlign) input.style.textAlign = format.horizontalAlign;
+          if (format.verticalAlign) {
+            td.style.verticalAlign = format.verticalAlign;
+          }
           input.dataset.row = String(rowIndex);
           input.dataset.column = String(columnIndex);
           picker.dataset.row = String(rowIndex);
@@ -1690,6 +1781,7 @@
           });
           input.addEventListener("input", () => {
             commitCellInput(input, rowIndex, columnIndex);
+            if (td.classList.contains("is-wrapped") || format.verticalAlign) fitCellInputHeight(input);
             updateCellFormulaSuggestions(input, rowIndex, columnIndex);
           });
           input.addEventListener("keydown", (event) => {
@@ -1716,8 +1808,10 @@
       });
 
       table.appendChild(tbody);
+      table.querySelectorAll("td.is-wrapped .cell-input, td[class*='align-vertical-'] .cell-input").forEach(fitCellInputHeight);
       updateGridStatus();
       updateSelectionActions();
+      resizeBitrixFrameToContent();
     }
 
     function renderFieldList(filter = "") {
@@ -1932,7 +2026,12 @@
 
       selectedCells.forEach((key) => {
         const nextFormat = normalizeCellFormat(updateFormat({ ...(cellFormats[key] || {}) }));
-        const hasFormat = nextFormat.fillColor || nextFormat.fontWeight || nextFormat.fontStyle || nextFormat.fontSize;
+        const hasFormat = nextFormat.fillColor ||
+          nextFormat.fontWeight ||
+          nextFormat.fontStyle ||
+          nextFormat.fontSize ||
+          nextFormat.horizontalAlign ||
+          nextFormat.verticalAlign;
         if (hasFormat) cellFormats[key] = nextFormat;
         else delete cellFormats[key];
       });
@@ -1980,6 +2079,20 @@
       }));
     }
 
+    function setSelectedHorizontalAlign(alignment) {
+      applyCellFormatToSelection((format) => ({
+        ...format,
+        horizontalAlign: alignment || "",
+      }));
+    }
+
+    function setSelectedVerticalAlign(alignment) {
+      applyCellFormatToSelection((format) => ({
+        ...format,
+        verticalAlign: alignment || "",
+      }));
+    }
+
     function autoFitSelectedColumns() {
       const widths = getAutoFitColumnWidths(grid, selectedCells);
       Object.entries(widths).forEach(([columnIndex, width]) => {
@@ -2015,7 +2128,7 @@
     }
 
     function downloadExcelFile() {
-      const html = buildExcelHtml(grid, cellFormats);
+      const html = buildExcelHtml(grid, cellFormats, { columnWidths });
       const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -2050,6 +2163,12 @@
     if (fontSizeSelect) fontSizeSelect.addEventListener("change", () => setSelectedFontSize(fontSizeSelect.value));
     if (boldButton) boldButton.addEventListener("click", toggleSelectedBold);
     if (italicButton) italicButton.addEventListener("click", toggleSelectedItalic);
+    if (alignTopButton) alignTopButton.addEventListener("click", () => setSelectedVerticalAlign("top"));
+    if (alignMiddleButton) alignMiddleButton.addEventListener("click", () => setSelectedVerticalAlign("middle"));
+    if (alignBottomButton) alignBottomButton.addEventListener("click", () => setSelectedVerticalAlign("bottom"));
+    if (alignLeftButton) alignLeftButton.addEventListener("click", () => setSelectedHorizontalAlign("left"));
+    if (alignCenterButton) alignCenterButton.addEventListener("click", () => setSelectedHorizontalAlign("center"));
+    if (alignRightButton) alignRightButton.addEventListener("click", () => setSelectedHorizontalAlign("right"));
     if (exportExcelButton) exportExcelButton.addEventListener("click", downloadExcelFile);
     if (formulaLibraryButton) formulaLibraryButton.addEventListener("click", openFormulaModal);
     if (formulaModalClose) formulaModalClose.addEventListener("click", closeFormulaModal);
@@ -2143,6 +2262,8 @@
     formatUser,
     getCellDisplayValue,
     getDealStageEntityId,
+    getExportCellContent,
+    getExportCellType,
     getExportFileName,
     getExportGrid,
     getTrimmedSheetState,
@@ -2166,6 +2287,7 @@
     normalizeRecentFormulas,
     parseCellKey,
     parseCellNumber,
+    parseExportNumber,
     parseFormulaReference,
     normalizeSavedFormula,
     normalizeSavedFormulas,
