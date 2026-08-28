@@ -1,6 +1,6 @@
 # PROJECT_SPECIFICATION
 
-Updated: 2026-08-27
+Updated: 2026-08-28
 
 ## Product
 
@@ -90,6 +90,14 @@ Do not request full `user` or `user.userfield` for the current version.
 
 - Unit tests cover grid creation, row/column growth, column names, formula parsing/evaluation/reference shifting, saved and recent formula helpers, cell clearing helpers, deal ID extraction, per-deal storage keys, reference value formatting, selection helper behavior, arithmetic helpers, field-bound cell refresh, sheet state persistence, cell formatting persistence, and Excel export trimming/escaping/styling.
 
+## Stage 2 Scope
+
+- Add mouse drag selection for selecting multiple cells while holding the left mouse button.
+- Add manual column width resizing by dragging column borders.
+- Add manual row height resizing by dragging row borders.
+- Persist custom row heights together with the current sheet state.
+- Verify drag selection and resizing inside the Bitrix24 iframe, including interactions with cell editing, formula reference picking, and the CRM field picker.
+
 ## History
 
 - 2026-08-18: Project initialized from an empty GitHub repository. Added first serverless Marketplace scaffold, documentation, lint/test scripts, and versioned zip builder.
@@ -109,3 +117,4 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-27: Prepared Marketplace v.17 with safer column growth, explicit 13 pt multi-cell font sizing, manual compacting on field reload, and formula-preserving `.xls` export.
 - 2026-08-27: Prepared Marketplace v.18 with a taller default table viewport so the 9th default row is not hidden by the horizontal scrollbar.
 - 2026-08-27: Prepared Marketplace v.19 so the hidden field picker no longer clips visible cell text after columns are added.
+- 2026-08-28: Added `RELEASE_REPORT_v19.md` with management-facing v.19 summary and stage 2 implementation scope.

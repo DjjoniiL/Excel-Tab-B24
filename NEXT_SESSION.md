@@ -1,6 +1,6 @@
 # NEXT_SESSION
 
-Updated: 2026-08-27
+Updated: 2026-08-28
 
 ## Current State
 
@@ -12,6 +12,7 @@ Updated: 2026-08-27
 - Marketplace zip archives are created in `dist app B24 zip/`.
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
 - Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.19.zip`.
+- Version report for management is stored in `RELEASE_REPORT_v19.md`.
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
 - The deal tab shows a 9x7 spreadsheet-like grid by default.
 - The default visible table window fits the column header plus all 9 default rows above the horizontal scrollbar before added rows require table scrolling.
@@ -38,7 +39,9 @@ Updated: 2026-08-27
 - Stage 1 portal check: verify the 9th row is visible above the horizontal scrollbar after loading v.18.
 - Stage 1 portal check: verify regular cell text is no longer clipped by the hidden field picker after adding columns in v.19.
 - Stage 2 next work: add mouse drag selection with held left button.
-- Stage 2 next work: add manual column width and row height resizing by dragging borders.
+- Stage 2 next work: add manual column width resizing by dragging column borders.
+- Stage 2 next work: add manual row height resizing by dragging row borders and persist custom row heights in sheet state.
+- Stage 2 next work: verify drag selection and resizing inside the Bitrix24 iframe without breaking cell editing, formula reference picking, or the CRM field picker.
 - Verify on the portal that the outer app scrollbar is gone while the table scrollbars remain for added rows and columns.
 - Verify Enter saves a typed formula and exits formula edit mode.
 - Verify formula reference picking after typing `=` works inside the Bitrix24 iframe.

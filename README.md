@@ -25,6 +25,7 @@ The app runs entirely in the browser inside the Bitrix24 iframe. It uses the Bit
 - Lets users save reusable formulas, remove saved formulas, and apply a selected saved formula to the active selected cell. Formula entry accepts English letters, numbers, and formula symbols, and automatically uppercases formula letters.
 - Copies formulas with relative reference shifts when Ctrl-selecting target cells.
 - Exports the filled table area to an Excel-compatible `.xls` file with calculated values and supported formatting.
+- Current Marketplace package: `dist app B24 zip/Excel Tab B24 v.19.zip`.
 
 ## How It Works
 
@@ -85,6 +86,7 @@ The current version does not require full `user` or `user.userfield`.
 - `tools/build-marketplace-zip.ps1` - creates the next versioned Marketplace zip.
 - `tools/check-marketplace-files.js` - checks Marketplace runtime file expectations.
 - `PROJECT_SPECIFICATION.md` - current product and technical specification.
+- `RELEASE_REPORT_v19.md` - brief management report for the current Marketplace version and stage 2 scope.
 - `DESIGN_GUIDE.md` - UI direction and interaction notes.
 - `NEXT_SESSION.md` and `PROMT_NEXT_Ses.txt` - continuation notes for future development sessions.
 
