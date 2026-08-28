@@ -11,8 +11,8 @@ Updated: 2026-08-28
 - No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
 - Marketplace zip archives are created in `dist app B24 zip/`.
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
-- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.29.zip`.
-- Latest v29 commit should be checked with `git log -1 --oneline` after pulling the repository.
+- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 MVP Final v.30.zip`.
+- Latest v30 commit should be checked with `git log -1 --oneline` after pulling the repository.
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
 - The deal tab shows a 9x7 spreadsheet-like grid by default.
 - The default visible table window fits the column header plus all 9 default rows above the horizontal scrollbar before added rows require table scrolling.

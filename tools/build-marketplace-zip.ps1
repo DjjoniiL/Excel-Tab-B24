@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root "dist app B24 zip"
-$archiveBaseName = "Excel Tab B24"
+$archiveBaseName = "Excel Tab B24 MVP Final"
 $runtimeFiles = @(
   "install.html",
   "install.js",
@@ -16,7 +16,7 @@ if (-not (Test-Path $dist)) {
   New-Item -ItemType Directory -Path $dist | Out-Null
 }
 
-$nextVersion = 29
+$nextVersion = 30
 
 $archive = Join-Path $dist "$archiveBaseName v.$nextVersion.zip"
 

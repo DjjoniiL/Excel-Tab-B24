@@ -132,4 +132,4 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-28: Prepared Marketplace v.25 with the version number visible in the app title and Bitrix24 iframe resizing so the app has no empty bottom area or outer scroll.
 - 2026-08-28: Prepared Marketplace v.26 with mouse drag selection, manual column resizing, and persisted manual row heights.
 - 2026-08-28: Prepared Marketplace v.27 with compact grouped toolbar controls and row-height auto-fit in the `⇔ Подогнать` and field refresh flows.
-- 2026-08-28: Prepared Marketplace v.29 with a separate Backup toolbar group, 15-step per-sheet undo/redo, and matched export/reload button sizing.
+- 2026-08-28: Prepared Marketplace v.30 with a separate Backup toolbar group, 15-step per-sheet undo/redo, and matched export/reload button sizing.
