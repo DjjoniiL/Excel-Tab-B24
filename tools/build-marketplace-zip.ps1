@@ -16,7 +16,7 @@ if (-not (Test-Path $dist)) {
   New-Item -ItemType Directory -Path $dist | Out-Null
 }
 
-$nextVersion = 27
+$nextVersion = 29
 
 $archive = Join-Path $dist "$archiveBaseName v.$nextVersion.zip"
 

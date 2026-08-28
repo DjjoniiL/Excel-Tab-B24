@@ -76,6 +76,15 @@ body {
   padding: 0 10px;
 }
 
+.topbar .ghost-button,
+.topbar .toolbar-button {
+  font-size: 14px;
+  height: 32px;
+  line-height: 1;
+  min-height: 32px;
+  padding: 0 12px;
+}
+
 .toolbar {
   align-items: flex-start;
   display: flex;
@@ -169,6 +178,67 @@ body {
 
 .toolbar-control-grid-3 {
   grid-template-columns: repeat(2, max-content);
+}
+
+.backup-controls {
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(2, 26px);
+}
+
+.backup-delete-button {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.history-button {
+  position: relative;
+}
+
+.history-button::before {
+  border: 2px solid currentColor;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  content: "";
+  height: 13px;
+  position: absolute;
+  top: 5px;
+  width: 13px;
+}
+
+.history-button::after {
+  border-bottom: 4px solid transparent;
+  border-top: 4px solid transparent;
+  content: "";
+  position: absolute;
+  top: 4px;
+}
+
+.undo-button::before {
+  border-right-color: transparent;
+  left: 7px;
+  transform: rotate(-35deg);
+}
+
+.undo-button::after {
+  border-right: 6px solid currentColor;
+  left: 4px;
+}
+
+.redo-button::before {
+  border-left-color: transparent;
+  right: 7px;
+  transform: rotate(35deg);
+}
+
+.redo-button::after {
+  border-left: 6px solid currentColor;
+  right: 4px;
+}
+
+.history-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .toolbar-control-grid-format {

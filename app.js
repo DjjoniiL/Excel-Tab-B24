@@ -16,14 +16,15 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "Excel Tab B24 v.27 Marketplace B24";
-  const DISPLAY_TITLE = "Excel Tab B24 v.27";
+  const DISPLAY_VERSION = "Excel Tab B24 v.29 Marketplace B24";
+  const DISPLAY_TITLE = "Excel Tab B24 v.29";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
   const DEFAULT_ROW_HEIGHT = 34;
   const MAX_ROW_HEIGHT = 180;
   const MIN_ROW_HEIGHT = 28;
+  const HISTORY_LIMIT = 15;
   const DELETE_CONFIRM_CELL_THRESHOLD = 18;
   const MAX_RECENT_FORMULAS = 5;
   const FILL_COLORS = ["", "#fff2cc", "#d9ead3", "#cfe2f3", "#f4cccc", "#eadcf8"];
@@ -1119,6 +1120,21 @@
     );
   }
 
+  function cloneSheetSnapshot(state) {
+    return {
+      cellFormats: JSON.parse(JSON.stringify(state.cellFormats || {})),
+      columnWidths: Array.isArray(state.columnWidths) ? [...state.columnWidths] : [],
+      fieldBindings: JSON.parse(JSON.stringify(state.fieldBindings || {})),
+      grid: JSON.parse(JSON.stringify(state.grid || createGrid())),
+      rowHeights: Array.isArray(state.rowHeights) ? [...state.rowHeights] : [],
+      wrappedCells: Array.from(state.wrappedCells || []),
+    };
+  }
+
+  function areSheetSnapshotsEqual(left, right) {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+
   function bootBrowserApp() {
     const table = document.getElementById("sheet");
     const appShell = document.querySelector(".app-shell");
@@ -1144,6 +1160,8 @@
     const selectionActions = document.getElementById("selectionActions");
     const wrapTextButton = document.getElementById("wrapTextButton");
     const clearSelectionButton = document.getElementById("clearSelectionButton");
+    const undoButton = document.getElementById("undoButton");
+    const redoButton = document.getElementById("redoButton");
     const autoFitButton = document.getElementById("autoFitButton");
     const fillColorSelect = document.getElementById("fillColorSelect");
     const fontSizeSelect = document.getElementById("fontSizeSelect");
@@ -1223,9 +1241,82 @@
     let dragSelection = null;
     let suppressSelectionClick = false;
     let gridResize = null;
+    let undoStack = [];
+    let redoStack = [];
+    const sheetHistories = {};
+    let isRestoringHistory = false;
 
-    function persistSheetState() {
+    function getCurrentSheetSnapshot() {
+      return cloneSheetSnapshot({ cellFormats, columnWidths, fieldBindings, grid, rowHeights, wrappedCells });
+    }
+
+    function updateHistoryButtons() {
+      if (undoButton) undoButton.disabled = undoStack.length === 0;
+      if (redoButton) redoButton.disabled = redoStack.length === 0;
+    }
+
+    function bindHistoryToStorageKey() {
+      if (!sheetHistories[storageKey]) {
+        sheetHistories[storageKey] = { redo: [], undo: [] };
+      }
+      undoStack = sheetHistories[storageKey].undo;
+      redoStack = sheetHistories[storageKey].redo;
+      updateHistoryButtons();
+    }
+
+    function pushUndoSnapshot(snapshot) {
+      const last = undoStack[undoStack.length - 1];
+      if (last && areSheetSnapshotsEqual(last, snapshot)) return;
+      undoStack.push(snapshot);
+      if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+    }
+
+    function persistSheetState(options = {}) {
+      if (!isRestoringHistory && !options.skipHistory) {
+        const previousSnapshot = cloneSheetSnapshot(loadSheetState(storageKey));
+        const currentSnapshot = getCurrentSheetSnapshot();
+        if (!areSheetSnapshotsEqual(previousSnapshot, currentSnapshot)) {
+          pushUndoSnapshot(previousSnapshot);
+          redoStack = [];
+        }
+      }
       saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, rowHeights, wrappedCells }, storageKey);
+      updateHistoryButtons();
+    }
+
+    function restoreSheetSnapshot(snapshot) {
+      cellFormats = JSON.parse(JSON.stringify(snapshot.cellFormats || {}));
+      columnWidths = Array.isArray(snapshot.columnWidths) ? [...snapshot.columnWidths] : [];
+      fieldBindings = JSON.parse(JSON.stringify(snapshot.fieldBindings || {}));
+      grid = JSON.parse(JSON.stringify(snapshot.grid || createGrid()));
+      rowHeights = Array.isArray(snapshot.rowHeights) ? [...snapshot.rowHeights] : [];
+      wrappedCells = new Set(Array.isArray(snapshot.wrappedCells) ? snapshot.wrappedCells : []);
+      currentCell = null;
+      formulaSourceCell = null;
+      formulaEditCell = null;
+      formulaEditInput = null;
+      selectedCells = new Set(Array.from(selectedCells).filter((key) => isCellKeyInsideBounds(key, grid.length, grid[0].length)));
+      isRestoringHistory = true;
+      persistSheetState({ skipHistory: true });
+      isRestoringHistory = false;
+      renderGrid();
+      updateHistoryButtons();
+    }
+
+    function undoSheetState() {
+      const snapshot = undoStack.pop();
+      if (!snapshot) return;
+      redoStack.push(getCurrentSheetSnapshot());
+      if (redoStack.length > HISTORY_LIMIT) redoStack.shift();
+      restoreSheetSnapshot(snapshot);
+    }
+
+    function redoSheetState() {
+      const snapshot = redoStack.pop();
+      if (!snapshot) return;
+      undoStack.push(getCurrentSheetSnapshot());
+      if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+      restoreSheetSnapshot(snapshot);
     }
 
     function updateDealContext() {
@@ -1270,6 +1361,7 @@
 
     function loadActiveSheetState() {
       storageKey = getSheetStorageKey(activeSheetType, dealId, dealCategoryId);
+      bindHistoryToStorageKey();
       sheetState = loadSheetState(storageKey);
       grid = sheetState.grid;
       cellFormats = sheetState.cellFormats;
@@ -1287,18 +1379,20 @@
       updateSheetModeControls();
     }
 
-    function refreshFieldBoundCells() {
+    function refreshFieldBoundCells(options = {}) {
       if (!dealFields.length) return;
 
       const updatedBindings = applyFieldBindings(grid, fieldBindings, dealFields);
       if (!updatedBindings.changed) return;
 
       grid = updatedBindings.grid;
+      if (options.deferPersist) return;
+
       persistSheetState();
       renderGrid();
     }
 
-    function compactGridToFilledBounds() {
+    function compactGridToFilledBounds(options = {}) {
       const nextState = getTrimmedSheetState({ cellFormats, columnWidths, fieldBindings, grid, rowHeights, wrappedCells });
       const changed =
         JSON.stringify(grid) !== JSON.stringify(nextState.grid) ||
@@ -1318,8 +1412,10 @@
       wrappedCells = nextState.wrappedCells;
       currentCell = null;
       selectedCells = new Set(Array.from(selectedCells).filter((key) => isCellKeyInsideBounds(key, grid.length, grid[0].length)));
-      persistSheetState();
-      renderGrid();
+      if (!options.deferPersist) {
+        persistSheetState();
+        renderGrid();
+      }
       return true;
     }
 
@@ -1338,6 +1434,7 @@
     function updateSelectionActions() {
       if (!selectionActions) return;
       selectionActions.hidden = selectedCells.size === 0;
+      if (clearSelectionButton) clearSelectionButton.disabled = selectedCells.size === 0;
       if (!fontSizeSelect || !selectedCells.size) return;
 
       const selectedFormats = Array.from(selectedCells).map((key) => normalizeCellFormat(cellFormats[key] || {}).fontSize || "13pt");
@@ -2159,9 +2256,9 @@
           updateSheetModeControls();
         }
         dealFields = applyDisplayValues(normalizedFields, displayValues);
-        refreshFieldBoundCells();
+        refreshFieldBoundCells({ deferPersist: compactAfterLoad });
         if (compactAfterLoad) {
-          compactGridToFilledBounds();
+          compactGridToFilledBounds({ deferPersist: true });
           autoFitSheetSize();
           persistSheetState();
           renderGrid();
@@ -2344,6 +2441,8 @@
     if (funnelSheetButton) funnelSheetButton.addEventListener("click", () => switchSheetType(SHEET_TYPE_FUNNEL));
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
     if (clearSelectionButton) clearSelectionButton.addEventListener("click", requestClearSelectedCells);
+    if (undoButton) undoButton.addEventListener("click", undoSheetState);
+    if (redoButton) redoButton.addEventListener("click", redoSheetState);
     if (wrapTextButton) wrapTextButton.addEventListener("click", toggleWrapSelectedCells);
     if (autoFitButton) autoFitButton.addEventListener("click", autoFitSelectedCells);
     if (fillColorSelect) fillColorSelect.addEventListener("change", () => setSelectedFillColor(fillColorSelect.value));
@@ -2406,6 +2505,7 @@
       closeFormulaSuggestions();
     });
 
+    bindHistoryToStorageKey();
     renderGrid();
     updateSheetModeControls();
 
@@ -2441,6 +2541,7 @@
     appendFormulaReference,
     applyFormulaToGridCell,
     applyFieldBindings,
+    areSheetSnapshotsEqual,
     buildExcelHtml,
     calculateSelectedCells,
     cellKey,
@@ -2449,6 +2550,7 @@
     clearCellSelectionState,
     columnName,
     columnIndexFromName,
+    cloneSheetSnapshot,
     createGrid,
     evaluateFormula,
     escapeHtml,

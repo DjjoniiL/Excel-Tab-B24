@@ -32,6 +32,7 @@ Excel Tab B24 is a static, serverless Bitrix24 Marketplace application embedded 
 - Pressing Enter in a cell saves the current value or formula, exits edit mode, and shows the calculated formula result when applicable.
 - When a cell is selected, the toolbar shows `Добавить формулу`. It opens a modal where the user can choose or delete a saved formula, save a new formula in the right-side formula entry panel, apply the selected formula to the active selected cell, or cancel. Formula entry blocks non-English characters, automatically uppercases English letters, and explains that formulas must use English letters, numbers, and formula symbols.
 - The toolbar is visually compact, grouped with labeled sections, and uses a short `⇔ Подогнать` action for auto-fitting selected columns and rows.
+- The toolbar has a separate `Бэкап` group with undo, redo, and delete controls. Undo and redo keep up to 15 in-memory table states per sheet/deal.
 - When a formula cell is selected and the user Ctrl-selects additional cells, the formula is copied into those cells with relative row and column reference shifts, including row and column header Ctrl-selection.
 - When cells are selected, the user can apply fill color, bold text, italic text, and font size presets: 11 pt, 13 pt, 15 pt, and 18 pt. The default table font size is 13 pt, and the 13 pt toolbar option explicitly applies to multi-cell selections.
 - Deal reference fields are displayed as human-readable values where possible: users, contact, company, category, and stage.
@@ -131,3 +132,4 @@ Do not request full `user` or `user.userfield` for the current version.
 - 2026-08-28: Prepared Marketplace v.25 with the version number visible in the app title and Bitrix24 iframe resizing so the app has no empty bottom area or outer scroll.
 - 2026-08-28: Prepared Marketplace v.26 with mouse drag selection, manual column resizing, and persisted manual row heights.
 - 2026-08-28: Prepared Marketplace v.27 with compact grouped toolbar controls and row-height auto-fit in the `⇔ Подогнать` and field refresh flows.
+- 2026-08-28: Prepared Marketplace v.29 with a separate Backup toolbar group, 15-step per-sheet undo/redo, and matched export/reload button sizing.

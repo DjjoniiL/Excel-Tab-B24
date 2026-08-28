@@ -292,6 +292,22 @@ function testSheetStateStorage() {
   });
 }
 
+function testSheetSnapshotHelpers() {
+  const snapshot = app.cloneSheetSnapshot({
+    cellFormats: { "0:0": { fontWeight: "700" } },
+    columnWidths: [180],
+    fieldBindings: { "0:0": "TITLE" },
+    grid: [["fresh"]],
+    rowHeights: [64],
+    wrappedCells: new Set(["0:0"]),
+  });
+
+  assert.deepEqual(snapshot.wrappedCells, ["0:0"]);
+  assert.equal(app.areSheetSnapshotsEqual(snapshot, app.cloneSheetSnapshot(snapshot)), true);
+  snapshot.grid[0][0] = "changed";
+  assert.equal(app.areSheetSnapshotsEqual(snapshot, app.cloneSheetSnapshot({ grid: [["fresh"]] })), false);
+}
+
 function testNormalizeAndFormatFields() {
   const fields = {
     TITLE: { title: "Название" },
@@ -371,6 +387,7 @@ testRecentFormulas();
 testClearCellSelectionState();
 testTrimmedSheetState();
 testSheetStateStorage();
+testSheetSnapshotHelpers();
 testNormalizeAndFormatFields();
 testCalculationsAndCellStyles();
 

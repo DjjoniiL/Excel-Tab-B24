@@ -11,8 +11,8 @@ Updated: 2026-08-28
 - No backend, OAuth secrets, API keys, `.env`, documentation, tests, or `node_modules` are included in Marketplace zip output.
 - Marketplace zip archives are created in `dist app B24 zip/`.
 - Marketplace zip names use `Excel Tab B24 v.N.zip`, where `N` is the next available version number.
-- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.27.zip`.
-- Latest v27 commit should be checked with `git log -1 --oneline` after pulling the repository.
+- Latest local Marketplace zip after this iteration: `dist app B24 zip/Excel Tab B24 v.29.zip`.
+- Latest v29 commit should be checked with `git log -1 --oneline` after pulling the repository.
 - A compact next-session prompt is stored in `PROMT_NEXT_Ses.txt`.
 - The deal tab shows a 9x7 spreadsheet-like grid by default.
 - The default visible table window fits the column header plus all 9 default rows above the horizontal scrollbar before added rows require table scrolling.
@@ -20,6 +20,7 @@ Updated: 2026-08-28
 - Users can add rows and columns while keeping scrolling inside the table area.
 - Users can resize columns by dragging column header borders and resize rows by dragging row header borders; custom row heights persist in sheet state.
 - The toolbar is compact, grouped in labeled blocks, and uses `⇔ Подогнать` for auto-fitting selected columns and rows.
+- The toolbar has a separate `Бэкап` group with undo, redo, and delete controls. Undo/redo keep up to 15 in-memory states per sheet/deal.
 - Adding columns preserves existing CRM field-bound cells, values, and formatting even if a saved table has uneven row widths.
 - The app iframe itself must not show or require any outer application scroll; only the table grid area may scroll.
 - Users can select the whole table, individual cells, ranges, rows, columns, and mouse-dragged ranges.
@@ -46,6 +47,7 @@ Updated: 2026-08-28
 - Stage 2 portal check: verify drag selection and resizing inside the Bitrix24 iframe without breaking cell editing, formula reference picking, or the CRM field picker.
 - Stage 2 portal check: verify `⇔ Подогнать` changes row heights as well as column widths for selected cells and for the whole table with no selection.
 - Stage 2 portal check: verify `Обновить поля` refreshes CRM-bound values, compacts the table, and auto-fits widths/heights.
+- Stage 2 portal check: verify the `Бэкап` undo/redo controls restore up to 15 recent table states and keep redo states available after undo.
 - Verify on the portal that the outer app scrollbar is gone while the table scrollbars remain for added rows and columns.
 - Verify Enter saves a typed formula and exits formula edit mode.
 - Verify formula reference picking after typing `=` works inside the Bitrix24 iframe.

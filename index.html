@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Excel Tab B24</title>
-    <link rel="stylesheet" href="style.css?v=excel-tab-v27">
+    <link rel="stylesheet" href="style.css?v=excel-tab-v29">
     <script src="//api.bitrix24.com/api/v1/"></script>
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <h1>Excel Tab B24 v.27</h1>
+          <h1>Excel Tab B24 v.29</h1>
           <p id="dealContext">Загрузка карточки сделки...</p>
         </div>
         <button class="ghost-button" id="reloadFieldsButton" type="button">Обновить поля</button>
@@ -27,10 +27,9 @@
         </div>
         <div class="selection-actions" id="selectionActions" hidden>
           <div class="toolbar-cluster" role="group" aria-label="Ячейки">
-            <div class="toolbar-control-grid toolbar-control-grid-3">
-              <button class="toolbar-button" id="formulaLibraryButton" type="button">Формула</button>
-              <button class="toolbar-button" id="clearSelectionButton" type="button">Удалить</button>
-              <button class="toolbar-button" id="wrapTextButton" type="button">Перенос</button>
+            <div class="toolbar-control-grid toolbar-control-grid-2">
+              <button class="toolbar-button" id="formulaLibraryButton" type="button">Добавить формулу</button>
+              <button class="toolbar-button" id="wrapTextButton" type="button">Переносить текст</button>
             </div>
             <div class="toolbar-caption">Ячейки</div>
           </div>
@@ -66,6 +65,14 @@
             </div>
             <div class="toolbar-caption">Формат</div>
           </div>
+        </div>
+        <div class="toolbar-cluster backup-group" role="group" aria-label="Бэкап">
+          <div class="backup-controls">
+            <button class="icon-button history-button undo-button" id="undoButton" type="button" aria-label="Назад" title="Назад"></button>
+            <button class="icon-button history-button redo-button" id="redoButton" type="button" aria-label="Вперёд" title="Вперёд"></button>
+            <button class="toolbar-button backup-delete-button" id="clearSelectionButton" type="button">Удалить</button>
+          </div>
+          <div class="toolbar-caption">Бэкап</div>
         </div>
         <button class="toolbar-button toolbar-export" id="exportExcelButton" type="button">Экспорт в Excel</button>
         <div class="status-pill" id="fieldStatus">Поля сделки: ожидание</div>
@@ -142,6 +149,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=excel-tab-v27"></script>
+    <script src="app.js?v=excel-tab-v29"></script>
   </body>
 </html>
