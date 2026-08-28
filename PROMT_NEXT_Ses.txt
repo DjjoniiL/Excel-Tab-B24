@@ -25,6 +25,7 @@ G:\AI Project B24\Bitrix24 CRM Marketplace App Logic.md
 - В Marketplace zip должны входить только runtime-файлы.
 - Внешнего скролла приложения быть не должно; скролл допускается только внутри таблицы.
 - Логика приложения описана в README.md и PROJECT_SPECIFICATION.md.
+- Левая иконка undo в блоке "Бэкап" утверждена 2026-08-28. Не менять её дизайн без прямого запроса пользователя. Контрольный скриншот: screenshots/backup-left-undo-icon-approved-2026-08-28.png.
 
 Права для текущей версии:
 - CRM (CRM)

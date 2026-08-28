@@ -197,60 +197,33 @@ body {
 }
 
 .icon-button.history-button::before {
-  border: 2px solid #0f3263;
-  border-radius: 50%;
   content: "";
-  height: 17px;
-  left: 3px;
-  position: absolute;
-  top: 3px;
-  width: 17px;
+  display: none;
 }
 
 .icon-button.history-button::after {
   content: "";
-  position: absolute;
+  display: none;
 }
 
-.undo-button::before {
-  border-right-color: transparent;
-  border-top-color: transparent;
-  left: 5px;
-  top: 5px;
-  transform: rotate(18deg);
+.icon-button.undo-button,
+.icon-button.redo-button {
+  background-color: var(--panel);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 24px 24px;
 }
 
-.undo-button::after {
-  border-bottom: 5px solid transparent;
-  border-right-color: transparent;
-  border-top: 5px solid transparent;
-  border-right: 8px solid currentColor;
-  left: 1px;
-  top: 7px;
-  transform: rotate(24deg);
+.icon-button.undo-button {
+  background-image: url("data:image/svg+xml,%3Csvg width='26' height='26' viewBox='0 0 26 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20.5 9.6a8.6 8.6 0 1 0-9.3 10.3' fill='none' stroke='%230f3263' stroke-width='2' stroke-linecap='butt'/%3E%3Cpath d='M13.8 19.5l-6.8-4.2v8.4z' fill='%230f3263'/%3E%3Ccircle cx='19.5' cy='19.5' r='5' fill='white' stroke='%232d7dff' stroke-width='2.3'/%3E%3Cpath d='M19.5 15v4.5h4.5' fill='none' stroke='%232d7dff' stroke-width='2' stroke-linecap='square'/%3E%3C/svg%3E");
 }
 
-.redo-button::before {
-  border-left-color: transparent;
-  border-top-color: transparent;
-  transform: rotate(-18deg);
-}
-
-.redo-button::after {
-  border-bottom: 4px solid transparent;
-  border-left: 8px solid currentColor;
-  border-top: 4px solid transparent;
-  right: 1px;
-  top: 6px;
-  transform: rotate(-24deg);
+.icon-button.redo-button {
+  background-image: url("data:image/svg+xml,%3Csvg width='26' height='26' viewBox='0 0 26 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5.7 19a8.6 8.6 0 1 1 11.8-12.5' fill='none' stroke='%230f3263' stroke-width='2.4' stroke-linecap='butt'/%3E%3Cpath d='M16.9 6.4l7.1 2.5-5.6 4.8z' fill='%230f3263'/%3E%3Ccircle cx='19.5' cy='19.5' r='5' fill='white' stroke='%232d7dff' stroke-width='2.3'/%3E%3Cpath d='M19.5 15v4.5h4.5' fill='none' stroke='%232d7dff' stroke-width='2' stroke-linecap='square'/%3E%3C/svg%3E");
 }
 
 .icon-button.history-button {
-  background:
-    linear-gradient(#2d7dff, #2d7dff) 17px 13px / 1px 7px no-repeat,
-    linear-gradient(#2d7dff, #2d7dff) 17px 17px / 5px 1px no-repeat,
-    radial-gradient(circle at 17px 17px, #ffffff 0 4px, #2d7dff 4px 5px, transparent 5px),
-    var(--panel);
+  background-color: var(--panel);
 }
 
 .history-button:disabled {
