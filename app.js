@@ -910,7 +910,7 @@
 
   function applyFieldBindings(grid, fieldBindings = {}, fields = []) {
     const valuesByFieldId = fields.reduce((values, field) => {
-      values[field.id] = formatDealFieldValue(field.value);
+      values[field.id] = formatDealFieldValue(field.value, field.type);
       return values;
     }, {});
     let changed = false;
@@ -928,14 +928,47 @@
     return { changed, grid: nextGrid };
   }
 
-  function formatDealFieldValue(value) {
+  function padDatePart(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  function parseBitrixDateValue(value) {
+    const text = String(value || "").trim();
+    const match = text.match(/(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(?:([+-])(\d{2}):?(\d{2})|Z)?)?/);
+    if (!match) return null;
+
+    const [, year, month, day, hour = "00", minute = "00", offsetSign, offsetHour, offsetMinute] = match;
+    const offset =
+      match[0].endsWith("Z") && !offsetSign
+        ? "+0ч"
+        : offsetSign && offsetHour
+          ? `${offsetSign}${Number.parseInt(offsetHour, 10)}${offsetMinute && offsetMinute !== "00" ? `:${offsetMinute}` : ""}ч`
+          : "";
+
+    return {
+      date: `${padDatePart(day)}.${padDatePart(month)}.${year}`,
+      time: `${padDatePart(hour)}:${padDatePart(minute)}`,
+      offset,
+    };
+  }
+
+  function formatDealDateValue(value, fieldType) {
+    const parsed = parseBitrixDateValue(value);
+    if (!parsed) return String(value);
+    if (String(fieldType || "").toLowerCase() === "datetime") return `${parsed.time}${parsed.offset ? ` (${parsed.offset})` : ""} ${parsed.date}г.`;
+    return parsed.date;
+  }
+
+  function formatDealFieldValue(value, fieldType = "") {
+    const normalizedFieldType = String(fieldType || "").toLowerCase();
     if (value === null || typeof value === "undefined") return "";
-    if (Array.isArray(value)) return value.map(formatDealFieldValue).filter(Boolean).join(", ");
+    if (Array.isArray(value)) return value.map((item) => formatDealFieldValue(item, normalizedFieldType)).filter(Boolean).join(", ");
     if (typeof value === "object") {
-      if ("VALUE" in value) return formatDealFieldValue(value.VALUE);
-      if ("value" in value) return formatDealFieldValue(value.value);
+      if ("VALUE" in value) return formatDealFieldValue(value.VALUE, normalizedFieldType);
+      if ("value" in value) return formatDealFieldValue(value.value, normalizedFieldType);
       return JSON.stringify(value);
     }
+    if (normalizedFieldType === "date" || normalizedFieldType === "datetime") return formatDealDateValue(value, normalizedFieldType);
     return String(value);
   }
 
@@ -2122,7 +2155,7 @@
         button.querySelector("small").textContent = field.id;
         button.addEventListener("click", () => {
           if (!currentCell || !currentCell.input) return;
-          const formatted = formatDealFieldValue(field.value);
+          const formatted = formatDealFieldValue(field.value, field.type);
           currentCell.input.value = formatted;
           grid[currentCell.rowIndex][currentCell.columnIndex] = formatted;
           fieldBindings[cellKey(currentCell.rowIndex, currentCell.columnIndex)] = field.id;

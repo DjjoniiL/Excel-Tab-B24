@@ -325,6 +325,23 @@ function testNormalizeAndFormatFields() {
   assert.equal(app.formatDealFieldValue(null), "");
 }
 
+function testDealDateFieldFormatting() {
+  assert.equal(app.formatDealFieldValue("2026-09-16T03:00:00+03:00", "date"), "16.09.2026");
+  assert.equal(app.formatDealFieldValue("2026-09-16T03:00:00+03:00", "datetime"), "03:00 (+3ч) 16.09.2026г.");
+  assert.equal(app.formatDealFieldValue({ VALUE: "2026-09-16" }, "date"), "16.09.2026");
+  assert.deepEqual(
+    app.applyFieldBindings(
+      [["", ""]],
+      { "0:0": "UF_DATE", "0:1": "UF_DATETIME" },
+      [
+        { id: "UF_DATE", type: "date", value: "2026-09-16T03:00:00+03:00" },
+        { id: "UF_DATETIME", type: "datetime", value: "2026-09-16T03:00:00+03:00" },
+      ]
+    ),
+    { changed: true, grid: [["16.09.2026", "03:00 (+3ч) 16.09.2026г."]] }
+  );
+}
+
 function testCalculationsAndCellStyles() {
   const grid = [["10", "2,5", "0"], [" 3 000 ", "text", ""]];
   const selected = new Set(["0:0", "0:1", "1:0"]);
@@ -389,6 +406,7 @@ testTrimmedSheetState();
 testSheetStateStorage();
 testSheetSnapshotHelpers();
 testNormalizeAndFormatFields();
+testDealDateFieldFormatting();
 testCalculationsAndCellStyles();
 
 console.log("app tests passed");
