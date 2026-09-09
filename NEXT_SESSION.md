@@ -4,7 +4,7 @@
 
 ## Финальное Состояние
 
-Проект `DjjoniiL/Excel-Tab-B24` доведен до `Excel Tab B24 MVP Final v.30`.
+Проект `DjjoniiL/Excel-Tab-B24` доведен до `Excel Tab B24 MVP Final v.31`.
 
 Текущий локальный путь:
 
@@ -21,7 +21,7 @@ https://github.com/DjjoniiL/Excel-Tab-B24
 Финальный Marketplace zip:
 
 ```text
-dist app B24 zip/Excel Tab B24 MVP Final v.30.zip
+dist app B24 zip/Excel Tab B24 MVP Final v.31.zip
 ```
 
 ## Что Считать Актуальным
@@ -31,16 +31,16 @@ dist app B24 zip/Excel Tab B24 MVP Final v.30.zip
 - Основное описание проекта: `README.md`.
 - Подробная спецификация функций: `PROJECT_SPECIFICATION.md`.
 - Правила интерфейса: `DESIGN_GUIDE.md`.
-- Верхнеуровневый учебник обновлен рекомендациями из v26-v30.
+- Верхнеуровневый учебник обновлен рекомендациями из v26-v31.
 - В Marketplace zip не входят документация, тесты, `.git`, `.env`, `node_modules`, локальные данные и служебные файлы.
 
 ## Права Приложения
 
 - CRM (CRM)
 - Placement / Встраивание приложений
-- `user_basic`
+- `user_brief`
 
-Полный `user` и `user.userfield` не нужны.
+Полный `user`, `user_basic` и `user.userfield` не нужны.
 
 ## Финальный Контроль
 

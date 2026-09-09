@@ -73,7 +73,7 @@ function testGridStorageKey() {
 function testReferenceFormatting() {
   assert.deepEqual(app.normalizeIdList([{ VALUE: "12" }, "0", 14]), [12, 14]);
   assert.equal(app.formatUser({ LAST_NAME: "Иванов", NAME: "Иван", SECOND_NAME: "Иванович" }), "Иванов Иван Иванович");
-  assert.equal(app.formatUser({ ID: 5, EMAIL: "user@example.com" }), "user@example.com");
+  assert.equal(app.formatUser({ ID: 5, EMAIL: "user@example.com" }), "5");
   assert.equal(app.formatContact({ NAME: "Анна", LAST_NAME: "Петрова" }), "Петрова Анна");
   assert.equal(app.formatContact({ ID: 8 }), "8");
   assert.equal(app.formatCompany({ TITLE: "Ромашка" }), "Ромашка");

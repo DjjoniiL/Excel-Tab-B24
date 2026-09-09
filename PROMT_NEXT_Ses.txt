@@ -18,10 +18,10 @@ G:\AI Project B24\Bitrix24 CRM Marketplace App Logic.md
 - NEXT_SESSION.md
 
 Финальное состояние:
-- Версия: Excel Tab B24 MVP Final v.30.
+- Версия: Excel Tab B24 MVP Final v.31.
 - Приложение serverless, без backend.
 - Runtime-файлы: install.html, install.js, install.css, index.html, app.js, style.css.
-- Финальный Marketplace zip: dist app B24 zip/Excel Tab B24 MVP Final v.30.zip.
+- Финальный Marketplace zip: dist app B24 zip/Excel Tab B24 MVP Final v.31.zip.
 - В Marketplace zip должны входить только runtime-файлы.
 - Внешнего скролла приложения быть не должно; скролл допускается только внутри таблицы.
 - Логика приложения описана в README.md и PROJECT_SPECIFICATION.md.
@@ -30,10 +30,11 @@ G:\AI Project B24\Bitrix24 CRM Marketplace App Logic.md
 Права для текущей версии:
 - CRM (CRM)
 - Placement / Встраивание приложений
-- user_basic
+- user_brief
 
 Для текущей версии не нужно:
 - полный user
+- user_basic
 - user.userfield
 
 REST-методы текущей версии:

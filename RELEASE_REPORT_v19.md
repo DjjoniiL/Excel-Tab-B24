@@ -28,9 +28,9 @@ dist app B24 zip/Excel Tab B24 v.19.zip
 
 - CRM (CRM)
 - Placement / Встраивание приложений
-- `user_basic`
+- `user_brief`
 
-Полный `user` и `user.userfield` для текущей версии не нужны.
+Полный `user`, `user_basic` и `user.userfield` для текущей версии не нужны.
 
 ## Что проверить на портале
 

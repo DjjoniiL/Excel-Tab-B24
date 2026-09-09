@@ -1,6 +1,6 @@
 # Excel Tab B24
 
-`Excel Tab B24 MVP Final v.30` - статическое serverless-приложение для Bitrix24 Marketplace. Оно добавляет в карточку CRM-сделки вкладку `Excel Tab B24` с Excel-подобной таблицей, где пользователь может вести локальную рабочую таблицу сделки, подтягивать поля CRM, считать формулы, форматировать ячейки и выгружать заполненную область в Excel.
+`Excel Tab B24 MVP Final v.31` - статическое serverless-приложение для Bitrix24 Marketplace. Оно добавляет в карточку CRM-сделки вкладку `Excel Tab B24` с Excel-подобной таблицей, где пользователь может вести локальную рабочую таблицу сделки, подтягивать поля CRM, считать формулы, форматировать ячейки и выгружать заполненную область в Excel.
 
 Приложение работает целиком в браузере внутри iframe Bitrix24. Backend, серверные секреты, `.env`, внешние webhook-обработчики и база данных не используются.
 
@@ -65,9 +65,9 @@ excel-tab-b24-grid-v1
 
 - CRM (CRM)
 - Placement / Встраивание приложений
-- `user_basic`
+- `user_brief`
 
-Полный `user` и `user.userfield` для текущей версии не нужны.
+Полный `user`, `user_basic` и `user.userfield` для текущей версии не нужны: `user.get` используется только для отображения `ID`, `NAME`, `LAST_NAME`, `SECOND_NAME`.
 
 ## REST Методы
 
@@ -104,7 +104,7 @@ npm run package
 Финальный пакет MVP:
 
 ```text
-dist app B24 zip/Excel Tab B24 MVP Final v.30.zip
+dist app B24 zip/Excel Tab B24 MVP Final v.31.zip
 ```
 
 В zip должны входить только runtime-файлы:

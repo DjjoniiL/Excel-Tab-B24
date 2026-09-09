@@ -16,8 +16,8 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "Excel Tab B24 v.30 Marketplace B24";
-  const DISPLAY_TITLE = "Excel Tab B24 v.30";
+  const DISPLAY_VERSION = "Excel Tab B24 v.31 Marketplace B24";
+  const DISPLAY_TITLE = "Excel Tab B24 v.31";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
@@ -857,7 +857,7 @@
 
   function formatUser(user) {
     if (!user || typeof user !== "object") return "";
-    return compactName([user.LAST_NAME, user.NAME, user.SECOND_NAME]) || user.EMAIL || String(user.ID || "");
+    return compactName([user.LAST_NAME, user.NAME, user.SECOND_NAME]) || String(user.ID || "");
   }
 
   function formatContact(contact) {

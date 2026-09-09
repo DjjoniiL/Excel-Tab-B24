@@ -1,10 +1,10 @@
 # PROJECT_SPECIFICATION
 
-Обновлено: 2026-08-28
+Обновлено: 2026-09-09
 
 ## Продукт
 
-`Excel Tab B24 MVP Final v.30` - browser-only Bitrix24 Marketplace-приложение, которое встраивается во вкладку карточки CRM-сделки и дает пользователю компактную Excel-подобную таблицу для рабочих расчетов по сделке.
+`Excel Tab B24 MVP Final v.31` - browser-only Bitrix24 Marketplace-приложение, которое встраивается во вкладку карточки CRM-сделки и дает пользователю компактную Excel-подобную таблицу для рабочих расчетов по сделке.
 
 Главная архитектурная граница: приложение остается serverless. Вся логика работает внутри iframe Bitrix24, данные читаются через Bitrix24 JavaScript SDK, а состояние пользовательской таблицы хранится в браузерном `localStorage`.
 
@@ -152,9 +152,9 @@ Toolbar сделан компактным и разбит на визуальн�
 
 - CRM (CRM)
 - Placement / Встраивание приложений
-- `user_basic`
+- `user_brief`
 
-Полный `user` и `user.userfield` не требуются.
+Полный `user`, `user_basic` и `user.userfield` не требуются: `user.get` запрашивает только краткое ФИО пользователя.
 
 ## REST Методы
 
@@ -172,15 +172,16 @@ Toolbar сделан компактным и разбит на визуальн�
 
 - `npm run lint` проверяет синтаксис `app.js`, `install.js`, `tests/app.test.js`, `tools/check-marketplace-files.js`.
 - `npm test` запускает unit-тесты helper-логики.
-- `npm run package` собирает `dist app B24 zip/Excel Tab B24 MVP Final v.30.zip`.
+- `npm run package` собирает `dist app B24 zip/Excel Tab B24 MVP Final v.31.zip`.
 - Marketplace zip должен содержать только runtime-файлы.
 
-## История Финальных Изменений v26-v30
+## История Финальных Изменений v26-v31
 
 - v26: добавлены drag-select, ручной resize колонок, ручной resize строк и сохранение `rowHeights`.
 - v27: toolbar сжат в группы, `Автоширина колонок` переименована в `⇔ Подогнать`, auto-fit начал работать и по высоте строк, а `Обновить поля` стал автоматически применять compact и auto-fit.
 - v29: добавлен блок `Бэкап`, вынесена кнопка `Удалить`, добавлена история undo/redo на 15 состояний назад и вперед для каждого листа/сделки, выровнены размеры кнопок export/reload.
 - v30: финальный polish toolbar-иконок и упаковки, zip переименован в `Excel Tab B24 MVP Final v.30.zip`.
+- v31: права Marketplace снижены с `user_basic` до `user_brief`, потому что `user.get` используется только для краткого ФИО пользователя.
 
 ## Утверждённый Дизайн Левой Иконки Undo
 
