@@ -68,6 +68,12 @@ function testGridStorageKey() {
   assert.equal(app.getFunnelStorageKey(null), "excel-tab-b24-grid-funnel-v1-local");
   assert.equal(app.getSheetStorageKey("deal", 42, 7), "excel-tab-b24-grid-deal-v1-42");
   assert.equal(app.getSheetStorageKey("funnel", 42, 7), "excel-tab-b24-grid-funnel-v1-7");
+  assert.equal(app.getSheetStorageKey("deal", 42, 7, 1), "excel-tab-b24-grid-deal-v1-42-sheet-2");
+  assert.equal(app.getSheetStorageKey("funnel", 42, 7, 2), "excel-tab-b24-grid-funnel-v1-7-sheet-3");
+  assert.equal(app.getSheetListStorageKey("deal", 42, 7), "excel-tab-b24-grid-deal-v1-42-sheet-list-v1");
+  assert.equal(app.getSheetListStorageKey("funnel", 42, 7), "excel-tab-b24-grid-funnel-v1-7-sheet-list-v1");
+  assert.deepEqual(app.normalizeSheetList([]), [{ title: "Лист 1" }]);
+  assert.equal(app.normalizeSheetList(Array.from({ length: 12 }, (_, index) => ({ title: `Лист ${index + 1}` }))).length, app.MAX_SHEETS_PER_GROUP);
 }
 
 function testReferenceFormatting() {

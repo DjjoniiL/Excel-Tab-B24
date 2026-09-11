@@ -16,8 +16,10 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "v.33";
+  const DISPLAY_VERSION = "v.34";
   const DISPLAY_TITLE = "Excel таблица в сделке и экспорт";
+  const MAX_SHEETS_PER_GROUP = 8;
+  const SHEET_LIST_STORAGE_KEY_SUFFIX = "sheet-list-v1";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
@@ -1093,8 +1095,52 @@
     return `${FUNNEL_STORAGE_KEY_PREFIX}-local`;
   }
 
-  function getSheetStorageKey(sheetType, dealId, categoryId) {
+  function getBaseSheetStorageKey(sheetType, dealId, categoryId) {
     return sheetType === SHEET_TYPE_FUNNEL ? getFunnelStorageKey(categoryId) : getGridStorageKey(dealId);
+  }
+
+  function getSheetStorageKey(sheetType, dealId, categoryId, sheetIndex = 0) {
+    const baseKey = getBaseSheetStorageKey(sheetType, dealId, categoryId);
+    const normalizedSheetIndex = Number.parseInt(sheetIndex, 10);
+    if (Number.isInteger(normalizedSheetIndex) && normalizedSheetIndex > 0) {
+      return `${baseKey}-sheet-${normalizedSheetIndex + 1}`;
+    }
+    return baseKey;
+  }
+
+  function getSheetListStorageKey(sheetType, dealId, categoryId) {
+    return `${getBaseSheetStorageKey(sheetType, dealId, categoryId)}-${SHEET_LIST_STORAGE_KEY_SUFFIX}`;
+  }
+
+  function getDefaultSheetTitle(sheetIndex) {
+    return `Лист ${sheetIndex + 1}`;
+  }
+
+  function normalizeSheetList(sheetList = []) {
+    const normalized = Array.isArray(sheetList)
+      ? sheetList
+          .slice(0, MAX_SHEETS_PER_GROUP)
+          .map((sheet, index) => ({
+            title: String((sheet && sheet.title) || getDefaultSheetTitle(index)).trim() || getDefaultSheetTitle(index),
+          }))
+      : [];
+
+    return normalized.length ? normalized : [{ title: getDefaultSheetTitle(0) }];
+  }
+
+  function loadSheetList(storageKey) {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      const parsed = saved ? JSON.parse(saved) : null;
+      return normalizeSheetList(parsed && Array.isArray(parsed.sheets) ? parsed.sheets : []);
+    } catch (error) {
+      window.localStorage.removeItem(storageKey);
+      return normalizeSheetList();
+    }
+  }
+
+  function saveSheetList(sheetList, storageKey) {
+    window.localStorage.setItem(storageKey, JSON.stringify({ sheets: normalizeSheetList(sheetList) }));
   }
 
   function loadGrid(storageKey = STORAGE_KEY) {
@@ -1187,6 +1233,10 @@
     const dealContext = document.getElementById("dealContext");
     const dealSheetButton = document.getElementById("dealSheetButton");
     const funnelSheetButton = document.getElementById("funnelSheetButton");
+    const dealSheetTabs = document.getElementById("dealSheetTabs");
+    const funnelSheetTabs = document.getElementById("funnelSheetTabs");
+    const addDealSheetButton = document.getElementById("addDealSheetButton");
+    const addFunnelSheetButton = document.getElementById("addFunnelSheetButton");
     const addRowButton = document.getElementById("addRowButton");
     const addColumnButton = document.getElementById("addColumnButton");
     const reloadFieldsButton = document.getElementById("reloadFieldsButton");
@@ -1283,6 +1333,9 @@
     let gridResize = null;
     let undoStack = [];
     let redoStack = [];
+    let activeSheetIndex = 0;
+    let dealSheets = normalizeSheetList();
+    let funnelSheets = normalizeSheetList();
     const sheetHistories = {};
     let isRestoringHistory = false;
 
@@ -1376,23 +1429,71 @@
       dealContext.textContent = `Таблица сделки "${title}"`;
     }
 
+    function getActiveSheetList(sheetType) {
+      return sheetType === SHEET_TYPE_FUNNEL ? funnelSheets : dealSheets;
+    }
+
+    function setActiveSheetList(sheetType, sheets) {
+      const normalized = normalizeSheetList(sheets);
+      if (sheetType === SHEET_TYPE_FUNNEL) funnelSheets = normalized;
+      else dealSheets = normalized;
+      return normalized;
+    }
+
+    function getSheetGroupContext(sheetType) {
+      return {
+        addButton: sheetType === SHEET_TYPE_FUNNEL ? addFunnelSheetButton : addDealSheetButton,
+        sheets: getActiveSheetList(sheetType),
+        tabList: sheetType === SHEET_TYPE_FUNNEL ? funnelSheetTabs : dealSheetTabs,
+      };
+    }
+
+    function isSheetGroupAvailable(sheetType) {
+      return sheetType !== SHEET_TYPE_FUNNEL || (dealId && dealCategoryId !== null);
+    }
+
+    function renderSheetGroup(sheetType) {
+      const context = getSheetGroupContext(sheetType);
+      if (!context.tabList) return;
+
+      const isAvailable = isSheetGroupAvailable(sheetType);
+      context.tabList.innerHTML = "";
+      context.sheets.forEach((sheet, index) => {
+        const button = document.createElement("button");
+        button.className = "sheet-switch-button";
+        button.type = "button";
+        button.textContent = sheet.title || getDefaultSheetTitle(index);
+        button.disabled = !isAvailable;
+        const isActive = isAvailable && activeSheetType === sheetType && activeSheetIndex === index;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+        button.addEventListener("click", () => switchSheet(sheetType, index));
+        context.tabList.appendChild(button);
+      });
+
+      if (context.addButton) {
+        context.addButton.disabled = !isAvailable || context.sheets.length >= MAX_SHEETS_PER_GROUP;
+        context.addButton.title =
+          context.sheets.length >= MAX_SHEETS_PER_GROUP
+            ? `Можно добавить не больше ${MAX_SHEETS_PER_GROUP} листов`
+            : "";
+      }
+    }
+
     function updateSheetModeControls() {
-      if (dealSheetButton) {
-        dealSheetButton.textContent = dealId ? `Эта сделка ID ${dealId}` : "Эта сделка";
-        dealSheetButton.classList.toggle("is-active", activeSheetType === SHEET_TYPE_DEAL);
-        dealSheetButton.setAttribute("aria-pressed", String(activeSheetType === SHEET_TYPE_DEAL));
-      }
-      if (funnelSheetButton) {
-        funnelSheetButton.textContent = "Таблица всех сделок";
-        funnelSheetButton.classList.toggle("is-active", activeSheetType === SHEET_TYPE_FUNNEL);
-        funnelSheetButton.setAttribute("aria-pressed", String(activeSheetType === SHEET_TYPE_FUNNEL));
-        funnelSheetButton.disabled = !dealId || dealCategoryId === null;
-      }
+      renderSheetGroup(SHEET_TYPE_DEAL);
+      renderSheetGroup(SHEET_TYPE_FUNNEL);
       updateDealContext();
     }
 
+    function loadSheetLists() {
+      dealSheets = loadSheetList(getSheetListStorageKey(SHEET_TYPE_DEAL, dealId, dealCategoryId));
+      funnelSheets = loadSheetList(getSheetListStorageKey(SHEET_TYPE_FUNNEL, dealId, dealCategoryId));
+      if (activeSheetIndex >= getActiveSheetList(activeSheetType).length) activeSheetIndex = 0;
+    }
+
     function loadActiveSheetState() {
-      storageKey = getSheetStorageKey(activeSheetType, dealId, dealCategoryId);
+      storageKey = getSheetStorageKey(activeSheetType, dealId, dealCategoryId, activeSheetIndex);
       bindHistoryToStorageKey();
       sheetState = loadSheetState(storageKey);
       grid = sheetState.grid;
@@ -1451,16 +1552,34 @@
       return true;
     }
 
-    function switchSheetType(sheetType) {
-      if (sheetType === activeSheetType) return;
+    function switchSheet(sheetType, sheetIndex = 0) {
+      if (!isSheetGroupAvailable(sheetType)) return;
+      if (sheetType === activeSheetType && sheetIndex === activeSheetIndex) return;
+      if (sheetIndex < 0 || sheetIndex >= getActiveSheetList(sheetType).length) return;
       if (sheetType === SHEET_TYPE_FUNNEL && (!dealId || dealCategoryId === null)) return;
 
       persistSheetState();
       activeSheetType = sheetType;
+      activeSheetIndex = sheetIndex;
       closeFieldPopover();
       closeFormulaSuggestions();
       loadActiveSheetState();
       refreshFieldBoundCells();
+    }
+
+    function addSheetToGroup(sheetType) {
+      if (!isSheetGroupAvailable(sheetType)) return;
+      const sheets = getActiveSheetList(sheetType);
+      if (sheets.length >= MAX_SHEETS_PER_GROUP) return;
+
+      persistSheetState();
+      const nextSheets = setActiveSheetList(sheetType, [...sheets, { title: getDefaultSheetTitle(sheets.length) }]);
+      saveSheetList(nextSheets, getSheetListStorageKey(sheetType, dealId, dealCategoryId));
+      activeSheetType = sheetType;
+      activeSheetIndex = nextSheets.length - 1;
+      closeFieldPopover();
+      closeFormulaSuggestions();
+      loadActiveSheetState();
     }
 
     function updateSelectionActions() {
@@ -1934,11 +2053,9 @@
     function updateGridStatus() {
       const rows = grid.length;
       const columns = grid[0] ? grid[0].length : 0;
-      const sheetLabel =
-        activeSheetType === SHEET_TYPE_FUNNEL
-          ? "\u041b\u0418\u0421\u0422 \u0432\u043e\u0440\u043e\u043d\u043a\u0438"
-          : "\u0421\u0434\u0435\u043b\u043a\u0430";
-      gridStatus.textContent = `${sheetLabel}: ${rows} \u0441\u0442\u0440\u043e\u043a, ${columns} \u0441\u0442\u043e\u043b\u0431\u0446\u043e\u0432`;
+      const groupLabel = activeSheetType === SHEET_TYPE_FUNNEL ? "Общие" : "Сделка";
+      const activeSheet = getActiveSheetList(activeSheetType)[activeSheetIndex] || { title: getDefaultSheetTitle(activeSheetIndex) };
+      gridStatus.textContent = `${groupLabel}, ${activeSheet.title}: ${rows} строк, ${columns} столбцов`;
     }
 
     function renderGrid() {
@@ -2261,6 +2378,7 @@
       }
 
       if (!dealId) activeSheetType = SHEET_TYPE_DEAL;
+      loadSheetLists();
       loadActiveSheetState();
     }
 
@@ -2278,12 +2396,16 @@
         const nextCategoryId = normalizeCategoryId(deal.CATEGORY_ID);
         const normalizedFields = normalizeFields(fields, deal);
         const displayValues = await loadDisplayValues(normalizedFields, deal);
+        const previousFunnelStorageKey = getSheetListStorageKey(SHEET_TYPE_FUNNEL, dealId, dealCategoryId);
         dealCategoryId = nextCategoryId;
         dealCategoryName = displayValues.CATEGORY_ID || "";
         dealTitle = formatDealFieldValue(deal.TITLE) || `ID ${dealId}`;
+        if (previousFunnelStorageKey !== getSheetListStorageKey(SHEET_TYPE_FUNNEL, dealId, dealCategoryId)) {
+          loadSheetLists();
+        }
         if (
           activeSheetType === SHEET_TYPE_FUNNEL &&
-          storageKey !== getSheetStorageKey(activeSheetType, dealId, dealCategoryId)
+          storageKey !== getSheetStorageKey(activeSheetType, dealId, dealCategoryId, activeSheetIndex)
         ) {
           loadActiveSheetState();
         } else {
@@ -2471,8 +2593,8 @@
     });
 
     reloadFieldsButton.addEventListener("click", () => loadDealFields({ compactAfterLoad: true }));
-    if (dealSheetButton) dealSheetButton.addEventListener("click", () => switchSheetType(SHEET_TYPE_DEAL));
-    if (funnelSheetButton) funnelSheetButton.addEventListener("click", () => switchSheetType(SHEET_TYPE_FUNNEL));
+    if (addDealSheetButton) addDealSheetButton.addEventListener("click", () => addSheetToGroup(SHEET_TYPE_DEAL));
+    if (addFunnelSheetButton) addFunnelSheetButton.addEventListener("click", () => addSheetToGroup(SHEET_TYPE_FUNNEL));
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
     if (clearSelectionButton) clearSelectionButton.addEventListener("click", requestClearSelectedCells);
     if (undoButton) undoButton.addEventListener("click", undoSheetState);
@@ -2539,6 +2661,7 @@
       closeFormulaSuggestions();
     });
 
+    loadSheetLists();
     bindHistoryToStorageKey();
     renderGrid();
     updateSheetModeControls();
@@ -2568,6 +2691,7 @@
     DEFAULT_COLUMN_WIDTH,
     DEFAULT_ROW_HEIGHT,
     DEFAULT_ROWS,
+    MAX_SHEETS_PER_GROUP,
     addColumn,
     addRow,
     addRecentFormula,
@@ -2612,6 +2736,8 @@
     getSelectedColumns,
     getSelectedRows,
     getSheetStorageKey,
+    getSheetListStorageKey,
+    normalizeSheetList,
     getUsedGridBounds,
     loadRecentFormulas,
     loadSavedFormulas,
