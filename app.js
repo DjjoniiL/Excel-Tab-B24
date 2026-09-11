@@ -16,7 +16,7 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "v.34";
+  const DISPLAY_VERSION = "v.35";
   const DISPLAY_TITLE = "Excel таблица в сделке и экспорт";
   const MAX_SHEETS_PER_GROUP = 8;
   const SHEET_LIST_STORAGE_KEY_SUFFIX = "sheet-list-v1";
@@ -193,6 +193,34 @@
     return Math.max(MIN_ROW_HEIGHT, Math.min(MAX_ROW_HEIGHT, Math.round(parsed)));
   }
 
+  function normalizeColumnWidths(widths = [], columnCount = DEFAULT_COLUMNS, fillMissing = false) {
+    const source = Array.isArray(widths) ? widths : [];
+    const length = fillMissing ? columnCount : Math.min(columnCount, source.length);
+    return Array.from({ length }, (item, columnIndex) =>
+      typeof source[columnIndex] === "undefined" ? DEFAULT_COLUMN_WIDTH : clampColumnWidth(source[columnIndex])
+    );
+  }
+
+  function normalizeRowHeights(heights = [], rowCount = DEFAULT_ROWS, fillMissing = false) {
+    const source = Array.isArray(heights) ? heights : [];
+    const length = fillMissing ? rowCount : Math.min(rowCount, source.length);
+    return Array.from({ length }, (item, rowIndex) =>
+      typeof source[rowIndex] === "undefined" ? DEFAULT_ROW_HEIGHT : clampRowHeight(source[rowIndex])
+    );
+  }
+
+  function isCopyShortcut(event) {
+    if (!event || !(event.ctrlKey || event.metaKey)) return false;
+    const key = String(event.key || "").toLowerCase();
+    return event.code === "KeyC" || key === "c" || key === "с";
+  }
+
+  function isPasteShortcut(event) {
+    if (!event || !(event.ctrlKey || event.metaKey)) return false;
+    const key = String(event.key || "").toLowerCase();
+    return event.code === "KeyV" || key === "v" || key === "м";
+  }
+
   function getSortedCellKeys(keys) {
     return Array.from(keys).sort((left, right) => {
       const leftCell = parseCellKey(left);
@@ -247,7 +275,7 @@
     const base = current.startsWith("=") ? current : "=";
     const trimmed = base.trimEnd();
     if (trimmed === "=") return `${base}${reference}`;
-    if (/[+\-*/(]\s*$/.test(trimmed)) return `${base}${reference}`;
+    if (/[+\-*/^(]\s*$/.test(trimmed)) return `${base}${reference}`;
     return `${base} + ${reference}`;
   }
 
@@ -384,6 +412,155 @@
     };
   }
 
+  function getCellRangeBounds(selectedCells) {
+    const cells = getSortedCellKeys(selectedCells).map(parseCellKey);
+    if (!cells.length) return null;
+
+    return cells.reduce(
+      (bounds, cell) => ({
+        maxColumnIndex: Math.max(bounds.maxColumnIndex, cell.columnIndex),
+        maxRowIndex: Math.max(bounds.maxRowIndex, cell.rowIndex),
+        minColumnIndex: Math.min(bounds.minColumnIndex, cell.columnIndex),
+        minRowIndex: Math.min(bounds.minRowIndex, cell.rowIndex),
+      }),
+      {
+        maxColumnIndex: cells[0].columnIndex,
+        maxRowIndex: cells[0].rowIndex,
+        minColumnIndex: cells[0].columnIndex,
+        minRowIndex: cells[0].rowIndex,
+      }
+    );
+  }
+
+  function createCellClipboard(state, selectedCells) {
+    const bounds = getCellRangeBounds(selectedCells);
+    if (!bounds) return null;
+
+    const rowCount = bounds.maxRowIndex - bounds.minRowIndex + 1;
+    const columnCount = bounds.maxColumnIndex - bounds.minColumnIndex + 1;
+    const values = Array.from({ length: rowCount }, (_, rowOffset) =>
+      Array.from({ length: columnCount }, (_, columnOffset) => {
+        const rowIndex = bounds.minRowIndex + rowOffset;
+        const columnIndex = bounds.minColumnIndex + columnOffset;
+        return (state.grid[rowIndex] && state.grid[rowIndex][columnIndex]) || "";
+      })
+    );
+    const cellFormats = {};
+    const fieldBindings = {};
+    const wrappedCells = [];
+
+    for (let rowOffset = 0; rowOffset < rowCount; rowOffset += 1) {
+      for (let columnOffset = 0; columnOffset < columnCount; columnOffset += 1) {
+        const sourceKey = cellKey(bounds.minRowIndex + rowOffset, bounds.minColumnIndex + columnOffset);
+        const relativeKey = cellKey(rowOffset, columnOffset);
+        if (state.cellFormats && state.cellFormats[sourceKey]) {
+          cellFormats[relativeKey] = JSON.parse(JSON.stringify(state.cellFormats[sourceKey]));
+        }
+        if (state.fieldBindings && state.fieldBindings[sourceKey]) {
+          fieldBindings[relativeKey] = state.fieldBindings[sourceKey];
+        }
+        if (state.wrappedCells && state.wrappedCells.has(sourceKey)) {
+          wrappedCells.push(relativeKey);
+        }
+      }
+    }
+
+    return {
+      cellFormats,
+      columnCount,
+      fieldBindings,
+      originColumnIndex: bounds.minColumnIndex,
+      originRowIndex: bounds.minRowIndex,
+      rowCount,
+      values,
+      wrappedCells,
+    };
+  }
+
+  function getClipboardText(clipboard) {
+    if (!clipboard || !Array.isArray(clipboard.values)) return "";
+    return clipboard.values
+      .map((row) => row.map((value) => String(value || "").replace(/\r?\n/g, " ")).join("\t"))
+      .join("\n");
+  }
+
+  function ensureGridSize(grid, minRows, minColumns) {
+    const nextGrid = grid.map((row) => [...row]);
+    const currentColumns = Math.max(minColumns, ...nextGrid.map((row) => row.length), DEFAULT_COLUMNS);
+    while (nextGrid.length < minRows) {
+      nextGrid.push(Array.from({ length: currentColumns }, () => ""));
+    }
+    return nextGrid.map((row) => {
+      const nextRow = [...row];
+      while (nextRow.length < currentColumns) nextRow.push("");
+      return nextRow;
+    });
+  }
+
+  function pasteCellClipboard(state, clipboard, targetRowIndex, targetColumnIndex) {
+    if (!clipboard || !Array.isArray(clipboard.values) || !clipboard.values.length) {
+      return { changed: false, state };
+    }
+
+    const rowCount = clipboard.values.length;
+    const columnCount = Math.max(...clipboard.values.map((row) => row.length));
+    const nextGrid = ensureGridSize(state.grid || createGrid(), targetRowIndex + rowCount, targetColumnIndex + columnCount);
+    const nextCellFormats = { ...(state.cellFormats || {}) };
+    const nextFieldBindings = { ...(state.fieldBindings || {}) };
+    const nextWrappedCells = new Set(state.wrappedCells || []);
+    const formulaRowOffset = targetRowIndex - (clipboard.originRowIndex || 0);
+    const formulaColumnOffset = targetColumnIndex - (clipboard.originColumnIndex || 0);
+    const sourceWrappedCells = new Set(clipboard.wrappedCells || []);
+    let changed = false;
+
+    for (let rowOffset = 0; rowOffset < rowCount; rowOffset += 1) {
+      for (let columnOffset = 0; columnOffset < columnCount; columnOffset += 1) {
+        const targetKey = cellKey(targetRowIndex + rowOffset, targetColumnIndex + columnOffset);
+        const relativeKey = cellKey(rowOffset, columnOffset);
+        const sourceValue = (clipboard.values[rowOffset] && clipboard.values[rowOffset][columnOffset]) || "";
+        const nextValue = isFormula(sourceValue) ? shiftFormulaReferences(sourceValue, formulaRowOffset, formulaColumnOffset) : sourceValue;
+
+        if (nextGrid[targetRowIndex + rowOffset][targetColumnIndex + columnOffset] !== nextValue) changed = true;
+        nextGrid[targetRowIndex + rowOffset][targetColumnIndex + columnOffset] = nextValue;
+
+        if (clipboard.cellFormats && clipboard.cellFormats[relativeKey]) {
+          const nextFormat = JSON.parse(JSON.stringify(clipboard.cellFormats[relativeKey]));
+          if (JSON.stringify(nextCellFormats[targetKey] || {}) !== JSON.stringify(nextFormat)) changed = true;
+          nextCellFormats[targetKey] = nextFormat;
+        } else if (nextCellFormats[targetKey]) {
+          changed = true;
+          delete nextCellFormats[targetKey];
+        }
+
+        if (clipboard.fieldBindings && clipboard.fieldBindings[relativeKey]) {
+          if (nextFieldBindings[targetKey] !== clipboard.fieldBindings[relativeKey]) changed = true;
+          nextFieldBindings[targetKey] = clipboard.fieldBindings[relativeKey];
+        } else if (nextFieldBindings[targetKey]) {
+          changed = true;
+          delete nextFieldBindings[targetKey];
+        }
+
+        if (sourceWrappedCells.has(relativeKey)) {
+          if (!nextWrappedCells.has(targetKey)) changed = true;
+          nextWrappedCells.add(targetKey);
+        } else if (nextWrappedCells.has(targetKey)) {
+          changed = true;
+          nextWrappedCells.delete(targetKey);
+        }
+      }
+    }
+
+    return {
+      changed,
+      state: {
+        cellFormats: nextCellFormats,
+        fieldBindings: nextFieldBindings,
+        grid: nextGrid,
+        wrappedCells: nextWrappedCells,
+      },
+    };
+  }
+
   function tokenizeFormula(expression) {
     const tokens = [];
     let index = 0;
@@ -410,7 +587,7 @@
         continue;
       }
 
-      if ("+-*/()".includes(char)) {
+      if ("+-*/%^()".includes(char)) {
         tokens.push({ type: "operator", value: char });
         index += 1;
         continue;
@@ -485,16 +662,43 @@
       return null;
     }
 
-    function readProduct() {
+    function readPower() {
       let value = readValue();
+      if (value === null) return null;
+
+      if (peek() && peek().value === "^") {
+        consume("^");
+        const right = readPower();
+        if (right === null) return null;
+        value = value ** right;
+      }
+
+      return value;
+    }
+
+    function readPercent() {
+      let value = readPower();
+      if (value === null) return null;
+
+      while (peek() && peek().value === "%") {
+        consume("%");
+        value /= 100;
+      }
+
+      return value;
+    }
+
+    function readProduct() {
+      let value = readPercent();
       if (value === null) return null;
 
       while (peek() && (peek().value === "*" || peek().value === "/")) {
         const operator = consume().value;
-        const right = readValue();
+        const right = readPercent();
         if (right === null) return null;
         if (operator === "/" && right === 0) return null;
-        value = operator === "*" ? value * right : value / right;
+        if (operator === "*") value *= right;
+        if (operator === "/") value /= right;
       }
 
       return value;
@@ -613,10 +817,10 @@
 
     return {
       cellFormats: filterCellKeyObjectByBounds(state.cellFormats, rowCount, columnCount),
-      columnWidths: Array.isArray(state.columnWidths) ? state.columnWidths.slice(0, columnCount) : [],
+      columnWidths: normalizeColumnWidths(state.columnWidths, columnCount),
       fieldBindings: filterCellKeyObjectByBounds(state.fieldBindings, rowCount, columnCount),
       grid,
-      rowHeights: Array.isArray(state.rowHeights) ? state.rowHeights.slice(0, rowCount) : [],
+      rowHeights: normalizeRowHeights(state.rowHeights, rowCount),
       wrappedCells,
     };
   }
@@ -1169,12 +1373,14 @@
         return { cellFormats: {}, columnWidths: [], fieldBindings: {}, grid: parsed, rowHeights: [], wrappedCells: new Set() };
       }
       if (parsed && Array.isArray(parsed.grid) && parsed.grid.length && Array.isArray(parsed.grid[0])) {
+        const rowCount = parsed.grid.length;
+        const columnCount = Math.max(DEFAULT_COLUMNS, ...parsed.grid.map((row) => (Array.isArray(row) ? row.length : 0)));
         return {
           cellFormats: parsed.cellFormats && typeof parsed.cellFormats === "object" ? parsed.cellFormats : {},
-          columnWidths: Array.isArray(parsed.columnWidths) ? parsed.columnWidths : [],
+          columnWidths: normalizeColumnWidths(parsed.columnWidths, columnCount),
           fieldBindings: parsed.fieldBindings && typeof parsed.fieldBindings === "object" ? parsed.fieldBindings : {},
           grid: parsed.grid,
-          rowHeights: Array.isArray(parsed.rowHeights) ? parsed.rowHeights : [],
+          rowHeights: normalizeRowHeights(parsed.rowHeights, rowCount),
           wrappedCells: new Set(Array.isArray(parsed.wrappedCells) ? parsed.wrappedCells : []),
         };
       }
@@ -1242,6 +1448,8 @@
     const reloadFieldsButton = document.getElementById("reloadFieldsButton");
     const selectFilledButton = document.getElementById("selectFilledButton");
     const selectionActions = document.getElementById("selectionActions");
+    const copyCellsButton = document.getElementById("copyCellsButton");
+    const pasteCellsButton = document.getElementById("pasteCellsButton");
     const wrapTextButton = document.getElementById("wrapTextButton");
     const clearSelectionButton = document.getElementById("clearSelectionButton");
     const undoButton = document.getElementById("undoButton");
@@ -1278,7 +1486,7 @@
       if (!window.BX24 || typeof window.BX24.resizeWindow !== "function" || !appShell) return;
       window.requestAnimationFrame(() => {
         const rect = appShell.getBoundingClientRect();
-        const width = Math.ceil(Math.max(document.documentElement.scrollWidth, rect.width));
+        const width = Math.ceil(rect.width || window.innerWidth || document.documentElement.clientWidth);
         const height = Math.ceil(rect.height);
         window.BX24.resizeWindow(width, height);
       });
@@ -1333,6 +1541,7 @@
     let gridResize = null;
     let undoStack = [];
     let redoStack = [];
+    let cellClipboard = null;
     let activeSheetIndex = 0;
     let dealSheets = normalizeSheetList();
     let funnelSheets = normalizeSheetList();
@@ -1583,8 +1792,9 @@
     }
 
     function updateSelectionActions() {
-      if (!selectionActions) return;
-      selectionActions.hidden = selectedCells.size === 0;
+      if (selectionActions) selectionActions.hidden = selectedCells.size === 0;
+      if (copyCellsButton) copyCellsButton.disabled = selectedCells.size === 0;
+      if (pasteCellsButton) pasteCellsButton.disabled = !cellClipboard;
       if (clearSelectionButton) clearSelectionButton.disabled = selectedCells.size === 0;
       if (!fontSizeSelect || !selectedCells.size) return;
 
@@ -1593,10 +1803,57 @@
       fontSizeSelect.value = selectedFormats.every((size) => size === firstSize) ? firstSize : "";
     }
 
+    function copySelectedCells() {
+      if (!selectedCells.size) return;
+      cellClipboard = createCellClipboard({ cellFormats, fieldBindings, grid, wrappedCells }, selectedCells);
+      if (window.getSelection) window.getSelection().removeAllRanges();
+      updateSelectionActions();
+      return cellClipboard;
+    }
+
+    function getPasteTargetCell() {
+      if (currentCell) return { rowIndex: currentCell.rowIndex, columnIndex: currentCell.columnIndex };
+      const bounds = getCellRangeBounds(selectedCells);
+      return bounds ? { rowIndex: bounds.minRowIndex, columnIndex: bounds.minColumnIndex } : { rowIndex: 0, columnIndex: 0 };
+    }
+
+    function pasteCopiedCells() {
+      if (!cellClipboard) return;
+      const target = getPasteTargetCell();
+      const result = pasteCellClipboard({ cellFormats, fieldBindings, grid, wrappedCells }, cellClipboard, target.rowIndex, target.columnIndex);
+      if (!result.changed) return;
+
+      grid = result.state.grid;
+      cellFormats = result.state.cellFormats;
+      fieldBindings = result.state.fieldBindings;
+      wrappedCells = result.state.wrappedCells;
+      columnWidths = normalizeColumnWidths(columnWidths, grid[0] ? grid[0].length : DEFAULT_COLUMNS, true);
+      rowHeights = normalizeRowHeights(rowHeights, grid.length, true);
+      selectedCells = getRangeCellKeys(
+        target,
+        {
+          columnIndex: target.columnIndex + cellClipboard.columnCount - 1,
+          rowIndex: target.rowIndex + cellClipboard.rowCount - 1,
+        }
+      );
+      selectionAnchor = target;
+      persistSheetState();
+      renderGrid();
+      focusCell(target.rowIndex, target.columnIndex);
+    }
+
+    function shouldUseCellClipboardShortcut(event) {
+      if ((formulaModal && !formulaModal.hidden) || (deleteConfirmModal && !deleteConfirmModal.hidden)) return false;
+      const target = event.target;
+      if (!target || typeof target.closest !== "function") return true;
+      if (target.closest(".field-popover") || target.closest(".formula-suggestions")) return false;
+      return true;
+    }
+
     function fitCellInputHeight(input) {
       if (!input) return;
       input.style.height = "auto";
-      input.style.height = `${Math.max(input.scrollHeight, 20)}px`;
+      input.style.height = `${clampRowHeight(Math.max(input.scrollHeight, MIN_ROW_HEIGHT))}px`;
     }
 
     function setFormulaModalStatus(message) {
@@ -1830,13 +2087,19 @@
       if (event.target && event.target.closest(".field-picker-button")) return false;
       if (handleFormulaReferencePointer(event, rowIndex, columnIndex)) return true;
 
+      event.preventDefault();
       setCurrentCell(input, rowIndex, columnIndex);
+      input.focus({ preventScroll: true });
       selectionAnchor = { rowIndex, columnIndex };
       dragSelection = {
         anchor: { rowIndex, columnIndex },
         moved: false,
         pointerId: event.pointerId,
       };
+      if (event.currentTarget && typeof event.currentTarget.setPointerCapture === "function") {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      if (window.getSelection) window.getSelection().removeAllRanges();
       setSelectedCells([cellKey(rowIndex, columnIndex)]);
       return true;
     }
@@ -1859,10 +2122,22 @@
       setSelectedCells(getRangeCellKeys(dragSelection.anchor, target));
     }
 
+    function updateDragSelectionFromPointer(event) {
+      if (!dragSelection || event.pointerId !== dragSelection.pointerId) return;
+      const element = document.elementFromPoint(event.clientX, event.clientY);
+      const cell = element && typeof element.closest === "function" ? element.closest("td[data-cell-key]") : null;
+      if (!cell || !table.contains(cell)) return;
+      const target = parseCellKey(cell.dataset.cellKey);
+      updateDragSelection(target.rowIndex, target.columnIndex);
+      if (window.getSelection) window.getSelection().removeAllRanges();
+      event.preventDefault();
+    }
+
     function endDragSelection(event) {
       if (!dragSelection) return;
       if (event && event.pointerId !== dragSelection.pointerId) return;
       suppressSelectionClick = dragSelection.moved;
+      if (window.getSelection) window.getSelection().removeAllRanges();
       dragSelection = null;
     }
 
@@ -2069,7 +2344,7 @@
       for (let column = 0; column < columnCount; column += 1) {
         const col = document.createElement("col");
         col.dataset.column = String(column);
-        col.style.width = `${columnWidths[column] || DEFAULT_COLUMN_WIDTH}px`;
+        col.style.width = `${clampColumnWidth(columnWidths[column])}px`;
         colgroup.appendChild(col);
       }
 
@@ -2123,7 +2398,7 @@
       grid.forEach((row, rowIndex) => {
         const tr = document.createElement("tr");
         tr.dataset.row = String(rowIndex);
-        tr.style.height = `${rowHeights[rowIndex] || DEFAULT_ROW_HEIGHT}px`;
+        tr.style.height = `${clampRowHeight(rowHeights[rowIndex])}px`;
         const heading = document.createElement("th");
         heading.className = "row-heading";
         const headingLabel = document.createElement("span");
@@ -2596,6 +2871,8 @@
     if (addDealSheetButton) addDealSheetButton.addEventListener("click", () => addSheetToGroup(SHEET_TYPE_DEAL));
     if (addFunnelSheetButton) addFunnelSheetButton.addEventListener("click", () => addSheetToGroup(SHEET_TYPE_FUNNEL));
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
+    if (copyCellsButton) copyCellsButton.addEventListener("click", copySelectedCells);
+    if (pasteCellsButton) pasteCellsButton.addEventListener("click", pasteCopiedCells);
     if (clearSelectionButton) clearSelectionButton.addEventListener("click", requestClearSelectedCells);
     if (undoButton) undoButton.addEventListener("click", undoSheetState);
     if (redoButton) redoButton.addEventListener("click", redoSheetState);
@@ -2633,7 +2910,10 @@
     }
     if (fieldPopoverClose) fieldPopoverClose.addEventListener("click", closeFieldPopover);
     fieldSearch.addEventListener("input", () => renderFieldList(fieldSearch.value));
-    document.addEventListener("pointermove", updateGridResize);
+    document.addEventListener("pointermove", (event) => {
+      updateDragSelectionFromPointer(event);
+      updateGridResize(event);
+    });
     document.addEventListener("pointerup", (event) => {
       endDragSelection(event);
       endGridResize(event);
@@ -2649,6 +2929,26 @@
         closeDeleteConfirmModal();
         closeFormulaSuggestions();
       }
+      if (isCopyShortcut(event) && selectedCells.size && shouldUseCellClipboardShortcut(event)) {
+        event.preventDefault();
+        copySelectedCells();
+      }
+      if (isPasteShortcut(event) && cellClipboard && shouldUseCellClipboardShortcut(event)) {
+        event.preventDefault();
+        pasteCopiedCells();
+      }
+    });
+    document.addEventListener("copy", (event) => {
+      if (!selectedCells.size || !shouldUseCellClipboardShortcut(event)) return;
+      const clipboard = copySelectedCells();
+      if (!clipboard || !event.clipboardData) return;
+      event.clipboardData.setData("text/plain", getClipboardText(clipboard));
+      event.preventDefault();
+    });
+    document.addEventListener("paste", (event) => {
+      if (!cellClipboard || !shouldUseCellClipboardShortcut(event)) return;
+      event.preventDefault();
+      pasteCopiedCells();
     });
     document.addEventListener("click", (event) => {
       if (popover.hidden) return;
@@ -2709,6 +3009,7 @@
     columnName,
     columnIndexFromName,
     cloneSheetSnapshot,
+    createCellClipboard,
     createGrid,
     evaluateFormula,
     escapeHtml,
@@ -2721,6 +3022,8 @@
     formatFormulaInput,
     formatUser,
     getCellDisplayValue,
+    getCellRangeBounds,
+    getClipboardText,
     getDealStageEntityId,
     getExportCellContent,
     getExportCellType,
@@ -2738,7 +3041,10 @@
     getSheetStorageKey,
     getSheetListStorageKey,
     normalizeSheetList,
+    pasteCellClipboard,
     getUsedGridBounds,
+    isCopyShortcut,
+    isPasteShortcut,
     loadRecentFormulas,
     loadSavedFormulas,
     loadSheetState,
@@ -2749,7 +3055,9 @@
     normalizeCellFormat,
     normalizeFields,
     normalizeIdList,
+    normalizeColumnWidths,
     normalizeRecentFormulas,
+    normalizeRowHeights,
     parseCellKey,
     parseCellNumber,
     parseExportNumber,

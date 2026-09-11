@@ -596,6 +596,7 @@ body {
   overflow: hidden;
   padding: 4px 8px;
   resize: none;
+  user-select: none;
   white-space: nowrap;
   width: 100%;
 }

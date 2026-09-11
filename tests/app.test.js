@@ -104,6 +104,12 @@ function testSelectionHelpers() {
   assert.deepEqual(app.getFilledCellKeys([["", "x"], ["  ", "y"]]), ["0:1", "1:1"]);
   assert.deepEqual(app.getSelectedColumns(new Set(["2:3", "0:1", "1:3"])), [1, 3]);
   assert.deepEqual(app.getSelectedRows(new Set(["2:3", "0:1", "2:1"])), [0, 2]);
+  assert.deepEqual(app.getCellRangeBounds(new Set(["2:3", "0:1", "1:3"])), {
+    maxColumnIndex: 3,
+    maxRowIndex: 2,
+    minColumnIndex: 1,
+    minRowIndex: 0,
+  });
   assert.ok(app.measureColumnWidth([["short"], ["long long text value"]], 0) > 132);
   assert.equal(app.measureColumnWidth([["x"]], 0), 90);
   assert.equal(app.measureColumnWidth([[Array.from({ length: 200 }, () => "x").join("")]], 0), 420);
@@ -111,6 +117,12 @@ function testSelectionHelpers() {
   assert.equal(app.clampColumnWidth(999), 420);
   assert.equal(app.clampRowHeight(10), 28);
   assert.equal(app.clampRowHeight(999), 180);
+  assert.deepEqual(app.normalizeColumnWidths([999, 40, 132], 4, true), [420, 90, 132, 132]);
+  assert.deepEqual(app.normalizeRowHeights([999, 10, 34], 4, true), [180, 28, 34, 34]);
+  assert.equal(app.isCopyShortcut({ code: "KeyC", ctrlKey: true, key: "с" }), true);
+  assert.equal(app.isCopyShortcut({ code: "", ctrlKey: true, key: "с" }), true);
+  assert.equal(app.isPasteShortcut({ code: "KeyV", ctrlKey: true, key: "м" }), true);
+  assert.equal(app.isPasteShortcut({ code: "", ctrlKey: true, key: "м" }), true);
 
   const autoFitGrid = [["manual value with enough length", ""], ["", ""]];
   const boundGrid = app.applyFieldBindings(autoFitGrid, { "1:1": "TITLE" }, [
@@ -167,6 +179,10 @@ function testFormulaCells() {
   assert.equal(app.getCellDisplayValue(grid, 0, 2), "5");
   assert.equal(app.getCellDisplayValue(grid, 1, 2), "20");
   assert.equal(app.getCellDisplayValue(grid, 2, 2), "25");
+  assert.equal(app.getCellDisplayValue([["=2*3^2"]], 0, 0), "18");
+  assert.equal(app.getCellDisplayValue([["5", "=A1^3"]], 0, 1), "125");
+  assert.equal(app.getCellDisplayValue([["=10^(1/2)"]], 0, 0), "3,16227766");
+  assert.equal(app.getCellDisplayValue([["=200*10%"]], 0, 0), "20");
   assert.equal(app.getCellDisplayValue([["=A1"]], 0, 0), "#ОШИБКА");
   assert.equal(app.shiftFormulaReferences("= E4 + B4", 1, 0), "= E5 + B5");
   assert.equal(app.shiftFormulaReferences("= E4 + B4", 0, 1), "= F4 + C4");
@@ -348,6 +364,62 @@ function testDealDateFieldFormatting() {
   );
 }
 
+function testCellClipboard() {
+  const clipboard = app.createCellClipboard(
+    {
+      cellFormats: { "0:1": { fontWeight: "700" } },
+      fieldBindings: { "1:0": "TITLE" },
+      grid: [
+        ["1", "=A1+1"],
+        ["2", "3"],
+      ],
+      wrappedCells: new Set(["0:0"]),
+    },
+    new Set(["0:0", "0:1", "1:0", "1:1"])
+  );
+
+  assert.equal(clipboard.rowCount, 2);
+  assert.equal(clipboard.columnCount, 2);
+  assert.deepEqual(clipboard.values, [
+    ["1", "=A1+1"],
+    ["2", "3"],
+  ]);
+  assert.equal(app.getClipboardText(clipboard), "1\t=A1+1\n2\t3");
+
+  const pasted = app.pasteCellClipboard(
+    {
+      cellFormats: {},
+      fieldBindings: {},
+      grid: app.createGrid(),
+      wrappedCells: new Set(),
+    },
+    clipboard,
+    1,
+    1
+  );
+
+  assert.equal(pasted.changed, true);
+  assert.equal(pasted.state.grid[1][1], "1");
+  assert.equal(pasted.state.grid[1][2], "=B2+1");
+  assert.equal(app.getCellDisplayValue(pasted.state.grid, 1, 2), "2");
+  assert.equal(pasted.state.grid[2][1], "2");
+  assert.equal(pasted.state.grid[2][2], "3");
+  assert.deepEqual(pasted.state.cellFormats["1:2"], { fontWeight: "700" });
+  assert.deepEqual(pasted.state.fieldBindings, { "2:1": "TITLE" });
+  assert.deepEqual(Array.from(pasted.state.wrappedCells), ["1:1"]);
+
+  const firstCellRange = app.createCellClipboard(
+    {
+      grid: [
+        ["first", "second"],
+        ["third", "fourth"],
+      ],
+    },
+    new Set(["0:0", "0:1", "1:0", "1:1"])
+  );
+  assert.equal(firstCellRange.values[0][0], "first");
+}
+
 function testCalculationsAndCellStyles() {
   const grid = [["10", "2,5", "0"], [" 3 000 ", "text", ""]];
   const selected = new Set(["0:0", "0:1", "1:0"]);
@@ -408,6 +480,7 @@ testFormulaCells();
 testSavedFormulas();
 testRecentFormulas();
 testClearCellSelectionState();
+testCellClipboard();
 testTrimmedSheetState();
 testSheetStateStorage();
 testSheetSnapshotHelpers();

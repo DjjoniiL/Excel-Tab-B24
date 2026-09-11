@@ -2,9 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root "dist app B24 zip"
-$archiveBaseName = [Text.Encoding]::UTF8.GetString(
-  [Convert]::FromBase64String("RXhjZWwg0YLQsNCx0LvQuNGG0LAg0LIg0YHQtNC10LvQutC1INC4INGN0LrRgdC/0L7RgNGCIE1WUCBGaW5hbA==")
-)
+$archiveBaseName = "excel-tab-b24"
 $runtimeFiles = @(
   "install.html",
   "install.js",
@@ -18,9 +16,9 @@ if (-not (Test-Path $dist)) {
   New-Item -ItemType Directory -Path $dist | Out-Null
 }
 
-$nextVersion = 34
+$nextVersion = 35
 
-$archive = Join-Path $dist "$archiveBaseName v.$nextVersion.zip"
+$archive = Join-Path $dist "$archiveBaseName-v$nextVersion.zip"
 
 if (Test-Path $archive) {
   throw "Archive already exists: $archive"
