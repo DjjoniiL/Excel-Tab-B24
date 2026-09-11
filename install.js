@@ -2,7 +2,7 @@
   "use strict";
 
   const PLACEMENT_CODE = "CRM_DEAL_DETAIL_TAB";
-  const PLACEMENT_TITLE = "Excel Tab B24";
+  const PLACEMENT_TITLE = "Excel таблица в сделке и экспорт";
 
   function callMethod(method, params = {}) {
     return new Promise((resolve, reject) => {

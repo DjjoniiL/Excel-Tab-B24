@@ -144,7 +144,7 @@ function testFieldBindingsAndExport() {
   assert.match(app.buildExcelHtml([["RUB"]]), /mso-number-format/);
   assert.match(app.buildExcelHtml([["plain"]]), /td \{ border: 1\.5pt solid #7f7f7f; height: 25\.5pt; white-space: pre-wrap; \}/);
   assert.doesNotMatch(app.buildExcelHtml([["plain"]]), /background-color:#(?:fff|ffffff)/i);
-  assert.equal(app.getExportFileName(7), "Excel Tab B24 deal 7.xls");
+  assert.equal(app.getExportFileName(7), "Excel таблица в сделке и экспорт deal 7.xls");
 }
 
 function testFormulaCells() {

@@ -16,8 +16,8 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "Excel Tab B24 v.32 Marketplace B24";
-  const DISPLAY_TITLE = "Excel Tab B24 v.32";
+  const DISPLAY_VERSION = "v.33";
+  const DISPLAY_TITLE = "Excel таблица в сделке и экспорт";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
   const MIN_COLUMN_WIDTH = 90;
@@ -713,7 +713,7 @@
     <x:ExcelWorkbook>
       <x:ExcelWorksheets>
         <x:ExcelWorksheet>
-          <x:Name>Excel Tab B24</x:Name>
+          <x:Name>Excel таблица в сделке и экспорт</x:Name>
           <x:WorksheetOptions>
             <x:DisplayGridlines/>
           </x:WorksheetOptions>
@@ -736,7 +736,7 @@
 
   function getExportFileName(dealId) {
     const suffix = dealId ? ` deal ${dealId}` : "";
-    return `Excel Tab B24${suffix}.xls`;
+    return `Excel таблица в сделке и экспорт${suffix}.xls`;
   }
 
   function parsePlacementOptions(raw) {
@@ -1183,6 +1183,7 @@
     const formulaSuggestions = document.getElementById("formulaSuggestions");
     const fieldStatus = document.getElementById("fieldStatus");
     const gridStatus = document.getElementById("gridStatus");
+    const versionStatus = document.getElementById("versionStatus");
     const dealContext = document.getElementById("dealContext");
     const dealSheetButton = document.getElementById("dealSheetButton");
     const funnelSheetButton = document.getElementById("funnelSheetButton");
@@ -1236,12 +1237,18 @@
     if (topbar && reloadFieldsButton && exportExcelButton) {
       topbar.insertBefore(exportExcelButton, reloadFieldsButton);
     }
+    if (versionStatus) versionStatus.textContent = DISPLAY_VERSION;
+
     if (gridFrame && sheetSwitcher && fieldStatus && gridStatus) {
       const bottomPanel = document.createElement("div");
+      const bottomStatusGroup = document.createElement("div");
       bottomPanel.className = "bottom-panel";
+      bottomStatusGroup.className = "bottom-status-group";
       bottomPanel.appendChild(sheetSwitcher);
-      bottomPanel.appendChild(fieldStatus);
-      bottomPanel.appendChild(gridStatus);
+      bottomStatusGroup.appendChild(fieldStatus);
+      bottomStatusGroup.appendChild(gridStatus);
+      if (versionStatus) bottomStatusGroup.appendChild(versionStatus);
+      bottomPanel.appendChild(bottomStatusGroup);
       gridFrame.insertAdjacentElement("afterend", bottomPanel);
     }
 
@@ -1355,11 +1362,8 @@
     function updateDealContext() {
       if (!dealContext) return;
 
-      const funnelName = dealCategoryName || (dealCategoryId !== null ? `#${dealCategoryId}` : "");
       if (activeSheetType === SHEET_TYPE_FUNNEL) {
-        dealContext.textContent = funnelName
-          ? `Общая таблица сделок из воронки ${funnelName}`
-          : "Общая таблица сделок. Воронка не определена.";
+        dealContext.textContent = "Общая таблица сделок";
         return;
       }
 
@@ -1369,9 +1373,7 @@
       }
 
       const title = dealTitle || `ID ${dealId}`;
-      dealContext.textContent = funnelName
-        ? `Таблица сделки "${title}" из воронки ${funnelName}`
-        : `Таблица сделки "${title}"`;
+      dealContext.textContent = `Таблица сделки "${title}"`;
     }
 
     function updateSheetModeControls() {
@@ -1381,10 +1383,7 @@
         dealSheetButton.setAttribute("aria-pressed", String(activeSheetType === SHEET_TYPE_DEAL));
       }
       if (funnelSheetButton) {
-        const funnelName = dealCategoryName || (dealCategoryId !== null ? `#${dealCategoryId}` : "");
-        funnelSheetButton.textContent = funnelName
-          ? `Таблица всех сделок воронки ${funnelName}`
-          : "Таблица всех сделок воронки";
+        funnelSheetButton.textContent = "Таблица всех сделок";
         funnelSheetButton.classList.toggle("is-active", activeSheetType === SHEET_TYPE_FUNNEL);
         funnelSheetButton.setAttribute("aria-pressed", String(activeSheetType === SHEET_TYPE_FUNNEL));
         funnelSheetButton.disabled = !dealId || dealCategoryId === null;
@@ -2255,9 +2254,11 @@
       });
       dealTitle = "";
 
-      dealContext.textContent = dealId
-        ? `Таблица сделки "ID ${dealId}"`
-        : "Таблица сделки не определена. Обновите вкладку после полного открытия карточки.";
+      if (dealContext) {
+        dealContext.textContent = dealId
+          ? `Таблица сделки "ID ${dealId}"`
+          : "Таблица сделки не определена. Обновите вкладку после полного открытия карточки.";
+      }
 
       if (!dealId) activeSheetType = SHEET_TYPE_DEAL;
       loadActiveSheetState();
@@ -2543,7 +2544,7 @@
     updateSheetModeControls();
 
     if (!window.BX24 || typeof window.BX24.init !== "function") {
-      dealContext.textContent = `${DISPLAY_VERSION}. Локальный режим без Bitrix24 SDK.`;
+      if (dealContext) dealContext.textContent = `${DISPLAY_VERSION}. Локальный режим без Bitrix24 SDK.`;
       fieldStatus.textContent = "Поля сделки: локальный режим";
       return;
     }
