@@ -330,6 +330,39 @@ function testSheetStateStorage() {
   assert.deepEqual(sheetList, [{ title: "Shared" }]);
 }
 
+function testEmptySheetPruning() {
+  const emptyState = {
+    cellFormats: {},
+    columnWidths: [],
+    fieldBindings: {},
+    grid: app.createGrid(),
+    rowHeights: [],
+    wrappedCells: new Set(),
+  };
+  assert.equal(app.MAX_SHEETS_PER_GROUP, 7);
+  assert.equal(app.isSheetStateEmpty(emptyState), true);
+  assert.equal(app.isSheetStateEmpty({ ...emptyState, grid: [["", "value"]] }), false);
+  assert.equal(app.isSheetStateEmpty({ ...emptyState, cellFormats: { "0:0": { fontWeight: "700" } } }), false);
+
+  const pruned = app.pruneEmptySheetList(
+    [{ title: "Лист 1" }, { title: "Лист 2" }, { title: "Лист 3" }, { title: "Лист 4" }],
+    [
+      { ...emptyState, grid: [["first"]] },
+      emptyState,
+      { ...emptyState, grid: [["third"]] },
+      emptyState,
+    ]
+  );
+  assert.equal(pruned.changed, true);
+  assert.deepEqual(pruned.sheets, [{ title: "Лист 1" }, { title: "Лист 2" }]);
+  assert.deepEqual(pruned.oldToNewIndex, { 0: 0, 2: 1 });
+  assert.deepEqual(pruned.states.map((state) => state.grid[0][0]), ["first", "third"]);
+
+  const allEmpty = app.pruneEmptySheetList([{ title: "Лист 1" }, { title: "Лист 2" }], [emptyState, emptyState]);
+  assert.equal(allEmpty.changed, true);
+  assert.deepEqual(allEmpty.sheets, [{ title: "Лист 1" }]);
+}
+
 function testSheetSnapshotHelpers() {
   const snapshot = app.cloneSheetSnapshot({
     cellFormats: { "0:0": { fontWeight: "700" } },
@@ -501,6 +534,7 @@ testClearCellSelectionState();
 testCellClipboard();
 testTrimmedSheetState();
 testSheetStateStorage();
+testEmptySheetPruning();
 testSheetSnapshotHelpers();
 testNormalizeAndFormatFields();
 testDealDateFieldFormatting();

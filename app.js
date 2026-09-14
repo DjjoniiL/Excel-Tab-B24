@@ -16,11 +16,11 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "v.37";
+  const DISPLAY_VERSION = "v.39";
   const DISPLAY_TITLE = "Excel таблица в сделке и экспорт";
   const SHARED_STORAGE_ENTITY = "exctabb24";
   const SHARED_STORAGE_PROPERTY = "DATA";
-  const MAX_SHEETS_PER_GROUP = 8;
+  const MAX_SHEETS_PER_GROUP = 7;
   const SHEET_LIST_STORAGE_KEY_SUFFIX = "sheet-list-v1";
   const DEFAULT_COLUMN_WIDTH = 132;
   const MAX_COLUMN_WIDTH = 420;
@@ -1413,6 +1413,55 @@
     return normalized.length ? normalized : [{ title: getDefaultSheetTitle(0) }];
   }
 
+  function isPlainObjectEmpty(value) {
+    return !value || typeof value !== "object" || Object.keys(value).length === 0;
+  }
+
+  function isSheetStateEmpty(state) {
+    if (!state) return true;
+    const gridIsEmpty = !Array.isArray(state.grid)
+      ? true
+      : state.grid.every((row) =>
+          !Array.isArray(row) || row.every((value) => String(value === null || typeof value === "undefined" ? "" : value).trim() === "")
+        );
+    const wrappedCells = state.wrappedCells instanceof Set ? Array.from(state.wrappedCells) : state.wrappedCells || [];
+
+    return (
+      gridIsEmpty &&
+      isPlainObjectEmpty(state.cellFormats) &&
+      isPlainObjectEmpty(state.fieldBindings) &&
+      (!Array.isArray(wrappedCells) || wrappedCells.length === 0)
+    );
+  }
+
+  function pruneEmptySheetList(sheetList = [], sheetStates = []) {
+    const sheets = normalizeSheetList(sheetList);
+    const kept = sheets
+      .map((sheet, index) => ({ index, sheet, state: sheetStates[index] || getEmptySheetState() }))
+      .filter((item) => !isSheetStateEmpty(item.state));
+
+    if (!kept.length) {
+      return {
+        changed: sheets.length > 1,
+        oldToNewIndex: { 0: 0 },
+        sheets: [{ title: getDefaultSheetTitle(0) }],
+        states: [sheetStates[0] || getEmptySheetState()],
+      };
+    }
+
+    const oldToNewIndex = kept.reduce((indexMap, item, newIndex) => {
+      indexMap[item.index] = newIndex;
+      return indexMap;
+    }, {});
+
+    return {
+      changed: kept.length !== sheets.length || kept.some((item, newIndex) => item.index !== newIndex),
+      oldToNewIndex,
+      sheets: kept.map((item, newIndex) => ({ title: getDefaultSheetTitle(newIndex) })),
+      states: kept.map((item) => item.state),
+    };
+  }
+
   function parseSheetListData(rawValue) {
     try {
       const parsed = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
@@ -1797,6 +1846,7 @@
 
         const remoteState = parseSheetStateData(serialized);
         if (!remoteState || storageKey !== expectedStorageKey) return false;
+        if (currentCell && currentCell.input && document.activeElement === currentCell.input) return false;
 
         applyLoadedSheetState(remoteState);
         saveSheetState(remoteState, expectedStorageKey);
@@ -1805,6 +1855,27 @@
       } catch (error) {
         return false;
       }
+    }
+
+    async function loadSheetStateForCleanup(sheetType, sheetIndex, useRemote) {
+      const nextStorageKey = getSheetStorageKey(sheetType, dealId, dealCategoryId, sheetIndex);
+      if (sheetType === activeSheetType && sheetIndex === activeSheetIndex) return getCurrentSheetSnapshot();
+
+      const localState = loadSheetState(nextStorageKey);
+      if (!useRemote || !sharedStorageReady) return localState;
+
+      try {
+        const serialized = await loadSharedStorageValue(nextStorageKey);
+        const remoteState = parseSheetStateData(serialized);
+        if (remoteState) {
+          saveSheetState(remoteState, nextStorageKey);
+          return remoteState;
+        }
+      } catch (error) {
+        return localState;
+      }
+
+      return localState;
     }
 
     function getActiveSheetList(sheetType) {
@@ -1864,6 +1935,94 @@
       updateDealContext();
     }
 
+    async function pruneEmptySheetsInGroup(sheetType, options = {}) {
+      if (!isSheetGroupAvailable(sheetType)) return false;
+
+      const sheets = getActiveSheetList(sheetType);
+      if (sheets.length <= 1) return false;
+
+      const states = await Promise.all(
+        sheets.map((sheet, index) => loadSheetStateForCleanup(sheetType, index, Boolean(options.useRemote)))
+      );
+      const pruned = pruneEmptySheetList(sheets, states);
+      if (!pruned.changed) return false;
+
+      const sheetListKey = getSheetListStorageKey(sheetType, dealId, dealCategoryId);
+      const emptyState = getEmptySheetState();
+      pruned.states.forEach((state, index) => {
+        const nextStorageKey = getSheetStorageKey(sheetType, dealId, dealCategoryId, index);
+        saveSheetState(state, nextStorageKey);
+        saveSharedSheetState(state, nextStorageKey);
+      });
+      for (let index = pruned.states.length; index < sheets.length; index += 1) {
+        const staleStorageKey = getSheetStorageKey(sheetType, dealId, dealCategoryId, index);
+        saveSheetState(emptyState, staleStorageKey);
+        saveSharedSheetState(emptyState, staleStorageKey);
+      }
+
+      setActiveSheetList(sheetType, pruned.sheets);
+      saveSheetList(pruned.sheets, sheetListKey);
+      saveSharedSheetList(pruned.sheets, sheetListKey);
+
+      if (activeSheetType === sheetType) {
+        activeSheetIndex =
+          typeof pruned.oldToNewIndex[activeSheetIndex] === "number"
+            ? pruned.oldToNewIndex[activeSheetIndex]
+            : Math.min(activeSheetIndex, pruned.sheets.length - 1);
+        storageKey = getSheetStorageKey(activeSheetType, dealId, dealCategoryId, activeSheetIndex);
+        bindHistoryToStorageKey();
+      }
+
+      if (options.render) {
+        loadActiveSheetState();
+      } else {
+        updateSheetModeControls();
+      }
+
+      return true;
+    }
+
+    function pruneEmptySheetsInGroupBeforeExit(sheetType) {
+      if (!isSheetGroupAvailable(sheetType)) return false;
+
+      const sheets = getActiveSheetList(sheetType);
+      if (sheets.length <= 1) return false;
+
+      const states = sheets.map((sheet, index) => {
+        const nextStorageKey = getSheetStorageKey(sheetType, dealId, dealCategoryId, index);
+        return sheetType === activeSheetType && index === activeSheetIndex ? getCurrentSheetSnapshot() : loadSheetState(nextStorageKey);
+      });
+      const pruned = pruneEmptySheetList(sheets, states);
+      if (!pruned.changed) return false;
+
+      const sheetListKey = getSheetListStorageKey(sheetType, dealId, dealCategoryId);
+      const emptyState = getEmptySheetState();
+      pruned.states.forEach((state, index) => {
+        saveSheetState(state, getSheetStorageKey(sheetType, dealId, dealCategoryId, index));
+      });
+      for (let index = pruned.states.length; index < sheets.length; index += 1) {
+        saveSheetState(emptyState, getSheetStorageKey(sheetType, dealId, dealCategoryId, index));
+      }
+
+      setActiveSheetList(sheetType, pruned.sheets);
+      saveSheetList(pruned.sheets, sheetListKey);
+      return true;
+    }
+
+    async function pruneEmptySheets(options = {}) {
+      const changed = await Promise.all([
+        pruneEmptySheetsInGroup(SHEET_TYPE_DEAL, options),
+        pruneEmptySheetsInGroup(SHEET_TYPE_FUNNEL, options),
+      ]);
+      return changed.some(Boolean);
+    }
+
+    function pruneEmptySheetsBeforeExit() {
+      persistSheetState({ skipHistory: true });
+      pruneEmptySheetsInGroupBeforeExit(SHEET_TYPE_DEAL);
+      pruneEmptySheetsInGroupBeforeExit(SHEET_TYPE_FUNNEL);
+    }
+
     function loadSheetLists() {
       dealSheets = loadSheetList(getSheetListStorageKey(SHEET_TYPE_DEAL, dealId, dealCategoryId));
       funnelSheets = loadSheetList(getSheetListStorageKey(SHEET_TYPE_FUNNEL, dealId, dealCategoryId));
@@ -1897,6 +2056,7 @@
         syncSheetListFromSharedStorage(SHEET_TYPE_DEAL),
         syncSheetListFromSharedStorage(SHEET_TYPE_FUNNEL),
       ]);
+      await pruneEmptySheets({ render: true, useRemote: true });
     }
 
     async function initializeSharedStorage() {
@@ -2284,6 +2444,20 @@
       if (event.button !== 0 || event.shiftKey || event.ctrlKey || event.metaKey) return false;
       if (event.target && event.target.closest(".field-picker-button")) return false;
       if (handleFormulaReferencePointer(event, rowIndex, columnIndex)) return true;
+      if (event.target && event.target.closest(".cell-input")) {
+        setCurrentCell(input, rowIndex, columnIndex);
+        if (!selectedCells.has(cellKey(rowIndex, columnIndex))) selectCell(rowIndex, columnIndex);
+        selectionAnchor = { rowIndex, columnIndex };
+        dragSelection = {
+          anchor: { rowIndex, columnIndex },
+          moved: false,
+          pointerId: event.pointerId,
+        };
+        if (event.currentTarget && typeof event.currentTarget.setPointerCapture === "function") {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }
+        return false;
+      }
 
       event.preventDefault();
       setCurrentCell(input, rowIndex, columnIndex);
@@ -3074,6 +3248,8 @@
     reloadFieldsButton.addEventListener("click", () => loadDealFields({ compactAfterLoad: true }));
     if (addDealSheetButton) addDealSheetButton.addEventListener("click", () => addSheetToGroup(SHEET_TYPE_DEAL));
     if (addFunnelSheetButton) addFunnelSheetButton.addEventListener("click", () => addSheetToGroup(SHEET_TYPE_FUNNEL));
+    window.addEventListener("pagehide", pruneEmptySheetsBeforeExit);
+    window.addEventListener("beforeunload", pruneEmptySheetsBeforeExit);
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
     if (copyCellsButton) copyCellsButton.addEventListener("click", copySelectedCells);
     if (pasteCellsButton) pasteCellsButton.addEventListener("click", pasteCopiedCells);
@@ -3246,8 +3422,10 @@
     getSelectedRows,
     getSheetStorageKey,
     getSheetListStorageKey,
+    isSheetStateEmpty,
     normalizeSheetList,
     pasteCellClipboard,
+    pruneEmptySheetList,
     getUsedGridBounds,
     isCopyShortcut,
     isPasteShortcut,

@@ -105,8 +105,10 @@ body {
   align-items: center;
   display: flex;
   gap: 6px;
-  max-width: min(760px, 100%);
-  overflow-x: auto;
+  flex: 1 1 auto;
+  max-width: none;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sheet-group {
@@ -114,9 +116,10 @@ body {
   border: 1px solid var(--line);
   border-radius: 6px;
   display: grid;
-  flex: 0 0 auto;
+  flex: 0 1 380px;
   gap: 2px;
   max-width: 360px;
+  min-width: 0;
   min-height: 30px;
   padding: 2px;
 }
@@ -137,7 +140,8 @@ body {
 .sheet-tab-list {
   display: flex;
   gap: 2px;
-  overflow-x: auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sheet-switch-button {
@@ -146,9 +150,16 @@ body {
   border-radius: 4px;
   color: var(--muted);
   cursor: pointer;
+  flex: 1 1 42px;
   font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  max-width: 64px;
+  min-width: 0;
   min-height: 24px;
+  overflow: hidden;
   padding: 0 9px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
