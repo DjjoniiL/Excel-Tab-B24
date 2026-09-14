@@ -3,6 +3,8 @@
 
   const PLACEMENT_CODE = "CRM_DEAL_DETAIL_TAB";
   const PLACEMENT_TITLE = "Excel таблицы";
+  const SHARED_STORAGE_ENTITY = "exctabb24";
+  const SHARED_STORAGE_PROPERTY = "DATA";
 
   function callMethod(method, params = {}) {
     return new Promise((resolve, reject) => {
@@ -56,6 +58,26 @@
     }
   }
 
+  async function ensureSharedStorage() {
+    await callMethod("entity.add", {
+      ENTITY: SHARED_STORAGE_ENTITY,
+      NAME: "Excel Tab B24 shared storage",
+      ACCESS: { AU: "W" },
+    }).catch(() => null);
+
+    await callMethod("entity.update", {
+      ENTITY: SHARED_STORAGE_ENTITY,
+      ACCESS: { AU: "W" },
+    }).catch(() => null);
+
+    await callMethod("entity.item.property.add", {
+      ENTITY: SHARED_STORAGE_ENTITY,
+      PROPERTY: SHARED_STORAGE_PROPERTY,
+      NAME: "Serialized data",
+      TYPE: "S",
+    }).catch(() => null);
+  }
+
   function finishInstall() {
     if (window.BX24 && typeof window.BX24.installFinish === "function") {
       window.BX24.installFinish();
@@ -77,6 +99,7 @@
     window.BX24.init(async () => {
       try {
         setStatus("Регистрируем вкладку в карточке сделки...");
+        await ensureSharedStorage();
         await bindPlacement();
         if (finishButton) finishButton.disabled = false;
         finishInstall();

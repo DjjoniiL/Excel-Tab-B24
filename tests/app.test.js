@@ -312,6 +312,22 @@ function testSheetStateStorage() {
     assert.deepEqual(saved.rowHeights, [64]);
     assert.deepEqual(Array.from(saved.wrappedCells), ["0:0"]);
   });
+
+  const serialized = app.serializeSheetState({
+    cellFormats: { "0:0": { fontWeight: "700" } },
+    columnWidths: [180],
+    fieldBindings: { "0:0": "TITLE" },
+    grid: [["shared"]],
+    rowHeights: [64],
+    wrappedCells: new Set(["0:0"]),
+  });
+  const parsed = app.parseSheetStateData(serialized);
+  assert.deepEqual(parsed.grid, [["shared"]]);
+  assert.deepEqual(parsed.cellFormats, { "0:0": { fontWeight: "700" } });
+  assert.deepEqual(Array.from(parsed.wrappedCells), ["0:0"]);
+
+  const sheetList = app.parseSheetListData(app.serializeSheetList([{ title: "Shared" }]));
+  assert.deepEqual(sheetList, [{ title: "Shared" }]);
 }
 
 function testSheetSnapshotHelpers() {
@@ -385,6 +401,7 @@ function testCellClipboard() {
     ["2", "3"],
   ]);
   assert.equal(app.getClipboardText(clipboard), "1\t=A1+1\n2\t3");
+  assert.deepEqual(app.getClipboardTargetCellKeys(clipboard, 1, 1), ["1:1", "1:2", "2:1", "2:2"]);
 
   const pasted = app.pasteCellClipboard(
     {
@@ -418,6 +435,7 @@ function testCellClipboard() {
     new Set(["0:0", "0:1", "1:0", "1:1"])
   );
   assert.equal(firstCellRange.values[0][0], "first");
+  assert.equal(app.getClipboardTargetCellKeys(firstCellRange, 4, 3)[0], "4:3");
 }
 
 function testCalculationsAndCellStyles() {

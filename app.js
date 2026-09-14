@@ -16,8 +16,10 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "v.35";
+  const DISPLAY_VERSION = "v.37";
   const DISPLAY_TITLE = "Excel таблица в сделке и экспорт";
+  const SHARED_STORAGE_ENTITY = "exctabb24";
+  const SHARED_STORAGE_PROPERTY = "DATA";
   const MAX_SHEETS_PER_GROUP = 8;
   const SHEET_LIST_STORAGE_KEY_SUFFIX = "sheet-list-v1";
   const DEFAULT_COLUMN_WIDTH = 132;
@@ -482,6 +484,17 @@
     return clipboard.values
       .map((row) => row.map((value) => String(value || "").replace(/\r?\n/g, " ")).join("\t"))
       .join("\n");
+  }
+
+  function getClipboardTargetCellKeys(clipboard, targetRowIndex, targetColumnIndex) {
+    if (!clipboard || !clipboard.rowCount || !clipboard.columnCount) return [];
+    return getRangeCellKeys(
+      { rowIndex: targetRowIndex, columnIndex: targetColumnIndex },
+      {
+        columnIndex: targetColumnIndex + clipboard.columnCount - 1,
+        rowIndex: targetRowIndex + clipboard.rowCount - 1,
+      }
+    );
   }
 
   function ensureGridSize(grid, minRows, minColumns) {
@@ -1204,6 +1217,74 @@
     }
   }
 
+  function getSharedItemPropertyValue(item, propertyName = SHARED_STORAGE_PROPERTY) {
+    const properties = (item && (item.PROPERTY_VALUES || item.propertyValues || item.properties)) || {};
+    const value = properties[propertyName] || properties[propertyName.toLowerCase()];
+    if (Array.isArray(value)) return value[0] || "";
+    if (value && typeof value === "object") return value.VALUE || value.value || "";
+    return typeof value === "undefined" || value === null ? "" : String(value);
+  }
+
+  async function ensureSharedStorageEntity() {
+    await callMethod("entity.add", {
+      ENTITY: SHARED_STORAGE_ENTITY,
+      NAME: "Excel Tab B24 shared storage",
+      ACCESS: { AU: "W" },
+    }).catch(() => null);
+
+    await callMethod("entity.update", {
+      ENTITY: SHARED_STORAGE_ENTITY,
+      ACCESS: { AU: "W" },
+    }).catch(() => null);
+
+    await callMethod("entity.item.property.add", {
+      ENTITY: SHARED_STORAGE_ENTITY,
+      PROPERTY: SHARED_STORAGE_PROPERTY,
+      NAME: "Serialized data",
+      TYPE: "S",
+    }).catch(() => null);
+
+    await callMethod("entity.item.get", {
+      ENTITY: SHARED_STORAGE_ENTITY,
+      FILTER: { NAME: "__healthcheck__" },
+    });
+  }
+
+  async function getSharedStorageItem(storageKey) {
+    const result = await callMethod("entity.item.get", {
+      ENTITY: SHARED_STORAGE_ENTITY,
+      FILTER: { NAME: storageKey },
+    });
+    const items = Array.isArray(result) ? result : result && Array.isArray(result.items) ? result.items : [];
+    return items[0] || null;
+  }
+
+  async function loadSharedStorageValue(storageKey) {
+    const item = await getSharedStorageItem(storageKey);
+    return item ? getSharedItemPropertyValue(item) : "";
+  }
+
+  async function saveSharedStorageValue(storageKey, serializedValue) {
+    const item = await getSharedStorageItem(storageKey);
+    const fields = {
+      ENTITY: SHARED_STORAGE_ENTITY,
+      NAME: storageKey,
+      PROPERTY_VALUES: {
+        [SHARED_STORAGE_PROPERTY]: String(serializedValue || ""),
+      },
+    };
+
+    if (item && (item.ID || item.id)) {
+      await callMethod("entity.item.update", {
+        ...fields,
+        ID: item.ID || item.id,
+      });
+      return;
+    }
+
+    await callMethod("entity.item.add", fields);
+  }
+
   function shouldResolveUserField(field) {
     return (
       field.id === "ASSIGNED_BY_ID" ||
@@ -1332,11 +1413,23 @@
     return normalized.length ? normalized : [{ title: getDefaultSheetTitle(0) }];
   }
 
+  function parseSheetListData(rawValue) {
+    try {
+      const parsed = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
+      return normalizeSheetList(parsed && Array.isArray(parsed.sheets) ? parsed.sheets : []);
+    } catch (error) {
+      return normalizeSheetList();
+    }
+  }
+
+  function serializeSheetList(sheetList) {
+    return JSON.stringify({ sheets: normalizeSheetList(sheetList) });
+  }
+
   function loadSheetList(storageKey) {
     try {
       const saved = window.localStorage.getItem(storageKey);
-      const parsed = saved ? JSON.parse(saved) : null;
-      return normalizeSheetList(parsed && Array.isArray(parsed.sheets) ? parsed.sheets : []);
+      return parseSheetListData(saved);
     } catch (error) {
       window.localStorage.removeItem(storageKey);
       return normalizeSheetList();
@@ -1344,7 +1437,7 @@
   }
 
   function saveSheetList(sheetList, storageKey) {
-    window.localStorage.setItem(storageKey, JSON.stringify({ sheets: normalizeSheetList(sheetList) }));
+    window.localStorage.setItem(storageKey, serializeSheetList(sheetList));
   }
 
   function loadGrid(storageKey = STORAGE_KEY) {
@@ -1365,10 +1458,9 @@
     window.localStorage.setItem(storageKey, JSON.stringify(grid));
   }
 
-  function loadSheetState(storageKey = STORAGE_KEY) {
+  function parseSheetStateData(rawValue) {
     try {
-      const saved = window.localStorage.getItem(storageKey);
-      const parsed = saved ? JSON.parse(saved) : null;
+      const parsed = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
       if (Array.isArray(parsed) && parsed.length && Array.isArray(parsed[0])) {
         return { cellFormats: {}, columnWidths: [], fieldBindings: {}, grid: parsed, rowHeights: [], wrappedCells: new Set() };
       }
@@ -1385,24 +1477,40 @@
         };
       }
     } catch (error) {
-      window.localStorage.removeItem(storageKey);
+      return null;
     }
 
+    return null;
+  }
+
+  function getEmptySheetState() {
     return { cellFormats: {}, columnWidths: [], fieldBindings: {}, grid: createGrid(), rowHeights: [], wrappedCells: new Set() };
   }
 
+  function loadSheetState(storageKey = STORAGE_KEY) {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      return parseSheetStateData(saved) || getEmptySheetState();
+    } catch (error) {
+      window.localStorage.removeItem(storageKey);
+    }
+
+    return getEmptySheetState();
+  }
+
+  function serializeSheetState(state) {
+    return JSON.stringify({
+      cellFormats: state.cellFormats || {},
+      columnWidths: state.columnWidths || [],
+      fieldBindings: state.fieldBindings || {},
+      grid: state.grid,
+      rowHeights: state.rowHeights || [],
+      wrappedCells: Array.from(state.wrappedCells || []),
+    });
+  }
+
   function saveSheetState(state, storageKey = STORAGE_KEY) {
-    window.localStorage.setItem(
-      storageKey,
-      JSON.stringify({
-        cellFormats: state.cellFormats || {},
-        columnWidths: state.columnWidths || [],
-        fieldBindings: state.fieldBindings || {},
-        grid: state.grid,
-        rowHeights: state.rowHeights || [],
-        wrappedCells: Array.from(state.wrappedCells || []),
-      })
-    );
+    window.localStorage.setItem(storageKey, serializeSheetState(state));
   }
 
   function cloneSheetSnapshot(state) {
@@ -1546,6 +1654,8 @@
     let dealSheets = normalizeSheetList();
     let funnelSheets = normalizeSheetList();
     const sheetHistories = {};
+    const sharedStorageWriteQueues = {};
+    let sharedStorageReady = false;
     let isRestoringHistory = false;
 
     function getCurrentSheetSnapshot() {
@@ -1573,6 +1683,26 @@
       if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
     }
 
+    function queueSharedStorageSave(key, serializedValue) {
+      if (!sharedStorageReady || !key) return;
+      sharedStorageWriteQueues[key] = (sharedStorageWriteQueues[key] || Promise.resolve())
+        .catch(() => null)
+        .then(() => saveSharedStorageValue(key, serializedValue))
+        .catch((error) => {
+          if (window.console && typeof window.console.warn === "function") {
+            window.console.warn("Failed to save shared sheet data", error);
+          }
+        });
+    }
+
+    function saveSharedSheetState(state, key) {
+      queueSharedStorageSave(key, serializeSheetState(state));
+    }
+
+    function saveSharedSheetList(sheetList, key) {
+      queueSharedStorageSave(key, serializeSheetList(sheetList));
+    }
+
     function persistSheetState(options = {}) {
       if (!isRestoringHistory && !options.skipHistory) {
         const previousSnapshot = cloneSheetSnapshot(loadSheetState(storageKey));
@@ -1582,7 +1712,9 @@
           redoStack = [];
         }
       }
-      saveSheetState({ cellFormats, columnWidths, fieldBindings, grid, rowHeights, wrappedCells }, storageKey);
+      const nextState = { cellFormats, columnWidths, fieldBindings, grid, rowHeights, wrappedCells };
+      saveSheetState(nextState, storageKey);
+      saveSharedSheetState(nextState, storageKey);
       updateHistoryButtons();
     }
 
@@ -1636,6 +1768,43 @@
 
       const title = dealTitle || `ID ${dealId}`;
       dealContext.textContent = `Таблица сделки "${title}"`;
+    }
+
+    function applyLoadedSheetState(nextState) {
+      grid = nextState.grid;
+      cellFormats = nextState.cellFormats;
+      wrappedCells = nextState.wrappedCells;
+      columnWidths = nextState.columnWidths;
+      rowHeights = nextState.rowHeights;
+      fieldBindings = nextState.fieldBindings;
+      currentCell = null;
+      selectedCells = new Set();
+      selectionAnchor = null;
+      formulaSourceCell = null;
+      formulaEditCell = null;
+      formulaEditInput = null;
+    }
+
+    async function loadSharedSheetStateIntoCurrentSheet(expectedStorageKey) {
+      if (!sharedStorageReady || !expectedStorageKey) return false;
+
+      try {
+        const serialized = await loadSharedStorageValue(expectedStorageKey);
+        if (!serialized) {
+          saveSharedSheetState({ cellFormats, columnWidths, fieldBindings, grid, rowHeights, wrappedCells }, expectedStorageKey);
+          return false;
+        }
+
+        const remoteState = parseSheetStateData(serialized);
+        if (!remoteState || storageKey !== expectedStorageKey) return false;
+
+        applyLoadedSheetState(remoteState);
+        saveSheetState(remoteState, expectedStorageKey);
+        renderGrid();
+        return true;
+      } catch (error) {
+        return false;
+      }
     }
 
     function getActiveSheetList(sheetType) {
@@ -1701,24 +1870,57 @@
       if (activeSheetIndex >= getActiveSheetList(activeSheetType).length) activeSheetIndex = 0;
     }
 
+    async function syncSheetListFromSharedStorage(sheetType) {
+      if (!sharedStorageReady || !isSheetGroupAvailable(sheetType)) return false;
+      const key = getSheetListStorageKey(sheetType, dealId, dealCategoryId);
+
+      try {
+        const serialized = await loadSharedStorageValue(key);
+        if (!serialized) {
+          saveSharedSheetList(getActiveSheetList(sheetType), key);
+          return false;
+        }
+
+        const nextSheets = parseSheetListData(serialized);
+        setActiveSheetList(sheetType, nextSheets);
+        saveSheetList(nextSheets, key);
+        if (activeSheetType === sheetType && activeSheetIndex >= nextSheets.length) activeSheetIndex = 0;
+        updateSheetModeControls();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    async function syncSheetListsFromSharedStorage() {
+      await Promise.all([
+        syncSheetListFromSharedStorage(SHEET_TYPE_DEAL),
+        syncSheetListFromSharedStorage(SHEET_TYPE_FUNNEL),
+      ]);
+    }
+
+    async function initializeSharedStorage() {
+      try {
+        await ensureSharedStorageEntity();
+        sharedStorageReady = true;
+        return true;
+      } catch (error) {
+        sharedStorageReady = false;
+        if (window.console && typeof window.console.warn === "function") {
+          window.console.warn("Shared Bitrix24 storage is unavailable", error);
+        }
+        return false;
+      }
+    }
+
     function loadActiveSheetState() {
       storageKey = getSheetStorageKey(activeSheetType, dealId, dealCategoryId, activeSheetIndex);
       bindHistoryToStorageKey();
       sheetState = loadSheetState(storageKey);
-      grid = sheetState.grid;
-      cellFormats = sheetState.cellFormats;
-      wrappedCells = sheetState.wrappedCells;
-      columnWidths = sheetState.columnWidths;
-      rowHeights = sheetState.rowHeights;
-      fieldBindings = sheetState.fieldBindings;
-      currentCell = null;
-      selectedCells = new Set();
-      selectionAnchor = null;
-      formulaSourceCell = null;
-      formulaEditCell = null;
-      formulaEditInput = null;
+      applyLoadedSheetState(sheetState);
       renderGrid();
       updateSheetModeControls();
+      loadSharedSheetStateIntoCurrentSheet(storageKey);
     }
 
     function refreshFieldBoundCells(options = {}) {
@@ -1783,7 +1985,9 @@
 
       persistSheetState();
       const nextSheets = setActiveSheetList(sheetType, [...sheets, { title: getDefaultSheetTitle(sheets.length) }]);
-      saveSheetList(nextSheets, getSheetListStorageKey(sheetType, dealId, dealCategoryId));
+      const sheetListKey = getSheetListStorageKey(sheetType, dealId, dealCategoryId);
+      saveSheetList(nextSheets, sheetListKey);
+      saveSharedSheetList(nextSheets, sheetListKey);
       activeSheetType = sheetType;
       activeSheetIndex = nextSheets.length - 1;
       closeFieldPopover();
@@ -1829,13 +2033,7 @@
       wrappedCells = result.state.wrappedCells;
       columnWidths = normalizeColumnWidths(columnWidths, grid[0] ? grid[0].length : DEFAULT_COLUMNS, true);
       rowHeights = normalizeRowHeights(rowHeights, grid.length, true);
-      selectedCells = getRangeCellKeys(
-        target,
-        {
-          columnIndex: target.columnIndex + cellClipboard.columnCount - 1,
-          rowIndex: target.rowIndex + cellClipboard.rowCount - 1,
-        }
-      );
+      selectedCells = new Set(getClipboardTargetCellKeys(cellClipboard, target.rowIndex, target.columnIndex));
       selectionAnchor = target;
       persistSheetState();
       renderGrid();
@@ -2590,14 +2788,20 @@
     }
 
     function renderFormulaSuggestions(input, rowIndex, columnIndex) {
-      if (!formulaSuggestions || !input || !isFormula(input.value) || !recentFormulas.length) {
+      if (!formulaSuggestions || !input || !isFormula(input.value)) {
+        closeFormulaSuggestions();
+        return;
+      }
+
+      const suggestionFormulas = normalizeSavedFormulas([...recentFormulas, ...savedFormulas]).slice(0, MAX_RECENT_FORMULAS);
+      if (!suggestionFormulas.length) {
         closeFormulaSuggestions();
         return;
       }
 
       formulaSuggestionInput = input;
       formulaSuggestions.innerHTML = "";
-      recentFormulas.slice(0, MAX_RECENT_FORMULAS).forEach((formula) => {
+      suggestionFormulas.forEach((formula) => {
         const button = document.createElement("button");
         button.className = "formula-suggestion-option";
         button.type = "button";
@@ -2655,6 +2859,8 @@
       if (!dealId) activeSheetType = SHEET_TYPE_DEAL;
       loadSheetLists();
       loadActiveSheetState();
+      await syncSheetListsFromSharedStorage();
+      loadActiveSheetState();
     }
 
     async function loadDealFields(options = {}) {
@@ -2678,10 +2884,8 @@
         if (previousFunnelStorageKey !== getSheetListStorageKey(SHEET_TYPE_FUNNEL, dealId, dealCategoryId)) {
           loadSheetLists();
         }
-        if (
-          activeSheetType === SHEET_TYPE_FUNNEL &&
-          storageKey !== getSheetStorageKey(activeSheetType, dealId, dealCategoryId, activeSheetIndex)
-        ) {
+        await syncSheetListsFromSharedStorage();
+        if (storageKey !== getSheetStorageKey(activeSheetType, dealId, dealCategoryId, activeSheetIndex)) {
           loadActiveSheetState();
         } else {
           updateSheetModeControls();
@@ -2973,6 +3177,7 @@
     }
 
     window.BX24.init(async () => {
+      await initializeSharedStorage();
       await resolveDealContext();
       await loadDealFields();
     });
@@ -3024,6 +3229,7 @@
     getCellDisplayValue,
     getCellRangeBounds,
     getClipboardText,
+    getClipboardTargetCellKeys,
     getDealStageEntityId,
     getExportCellContent,
     getExportCellType,
@@ -3048,6 +3254,8 @@
     loadRecentFormulas,
     loadSavedFormulas,
     loadSheetState,
+    parseSheetListData,
+    parseSheetStateData,
     measureRowHeight,
     measureColumnWidth,
     getAutoFitRowHeights,
@@ -3068,6 +3276,8 @@
     saveRecentFormulas,
     saveSavedFormulas,
     saveSheetState,
+    serializeSheetList,
+    serializeSheetState,
     sanitizeFormulaInput,
     shiftFormulaReferences,
   };

@@ -4,7 +4,7 @@
 
 ## Финальное состояние
 
-Проект `DjjoniiL/Excel-Tab-B24` доведен до `Excel таблица в сделке и экспорт MVP Final v.35`.
+Проект `DjjoniiL/Excel-Tab-B24` доведен до `Excel таблица в сделке и экспорт MVP Final v.37`.
 
 Текущий локальный путь:
 
@@ -21,7 +21,7 @@ https://github.com/DjjoniiL/Excel-Tab-B24
 Финальный Marketplace zip:
 
 ```text
-dist app B24 zip/excel-tab-b24-v35.zip
+dist app B24 zip/excel-tab-b24-v37.zip
 ```
 
 ## Что считать актуальным
@@ -29,7 +29,8 @@ dist app B24 zip/excel-tab-b24-v35.zip
 - Приложение остается serverless и browser-only.
 - Runtime-файлы: `install.html`, `install.js`, `install.css`, `index.html`, `app.js`, `style.css`.
 - Видимое название: `Excel таблица в сделке и экспорт`.
-- Номер версии: `v.35`, отображается мелким шрифтом в правом нижнем углу приложения.
+- Номер версии: `v.37`, отображается мелким шрифтом в правом нижнем углу приложения.
+- Данные листов хранятся в Bitrix24 entity storage `exctabb24`, `localStorage` используется как кэш.
 - Диапазоны ячеек копируются через `Ctrl+C` или кнопку `Копировать` в блоке `Буфер` и вставляются через `Ctrl+V` или кнопку `Вставить`.
 - Буфер работает между любыми листами: внутри одного листа, между листами сделки, между общими листами и между группами.
 - Формулы поддерживают `+`, `-`, `*`, `/`, `%`, скобки и степень `^`; степень имеет Excel-приоритет выше умножения и деления.
@@ -55,6 +56,7 @@ dist app B24 zip/excel-tab-b24-v35.zip
 
 - CRM (CRM)
 - Placement / Встраивание приложений
+- Entity / Хранилище данных приложения
 - `user_brief`
 
 Полный `user`, `user_basic` и `user.userfield` не нужны.
@@ -63,6 +65,12 @@ dist app B24 zip/excel-tab-b24-v35.zip
 
 - `placement.unbind`
 - `placement.bind`
+- `entity.add`
+- `entity.update`
+- `entity.item.property.add`
+- `entity.item.get`
+- `entity.item.add`
+- `entity.item.update`
 - `crm.deal.fields`
 - `crm.deal.get`
 - `crm.contact.get`
@@ -76,7 +84,7 @@ dist app B24 zip/excel-tab-b24-v35.zip
 - `npm run lint`
 - `npm test`
 - `npm run package`
-- Проверить, что zip создан с номером v.35.
+- Проверить, что zip создан с номером v.37.
 - Проверить `git status --short`, чтобы случайные локальные файлы не попали в коммит.
 
 После успешного `git push` прислать в чат краткий отчет: что сделано, какие проверки прошли, путь к zip и ссылка на commit.
