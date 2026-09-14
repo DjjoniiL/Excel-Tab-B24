@@ -469,6 +469,16 @@ function testCellClipboard() {
   );
   assert.equal(firstCellRange.values[0][0], "first");
   assert.equal(app.getClipboardTargetCellKeys(firstCellRange, 4, 3)[0], "4:3");
+
+  const wrappedTextRange = app.createCellClipboard(
+    {
+      grid: [["wrapped\ntext"]],
+      wrappedCells: new Set(["0:0"]),
+    },
+    new Set(["0:0"])
+  );
+  assert.deepEqual(wrappedTextRange.values, [["wrapped\ntext"]]);
+  assert.equal(app.getClipboardText(wrappedTextRange), "wrapped text");
 }
 
 function testCalculationsAndCellStyles() {

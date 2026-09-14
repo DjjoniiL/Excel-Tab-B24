@@ -16,7 +16,7 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "v.39";
+  const DISPLAY_VERSION = "v.41";
   const DISPLAY_TITLE = "Excel таблица в сделке и экспорт";
   const SHARED_STORAGE_ENTITY = "exctabb24";
   const SHARED_STORAGE_PROPERTY = "DATA";
@@ -1704,6 +1704,7 @@
     let funnelSheets = normalizeSheetList();
     const sheetHistories = {};
     const sharedStorageWriteQueues = {};
+    let suppressCellBlurCommit = false;
     let sharedStorageReady = false;
     let isRestoringHistory = false;
 
@@ -2169,7 +2170,9 @@
 
     function copySelectedCells() {
       if (!selectedCells.size) return;
-      cellClipboard = createCellClipboard({ cellFormats, fieldBindings, grid, wrappedCells }, selectedCells);
+      flushCurrentCellInput();
+      const clipboardKeys = getClipboardSelectionKeys();
+      cellClipboard = createCellClipboard({ cellFormats, fieldBindings, grid, wrappedCells }, clipboardKeys);
       if (window.getSelection) window.getSelection().removeAllRanges();
       updateSelectionActions();
       return cellClipboard;
@@ -2196,7 +2199,9 @@
       selectedCells = new Set(getClipboardTargetCellKeys(cellClipboard, target.rowIndex, target.columnIndex));
       selectionAnchor = target;
       persistSheetState();
+      suppressCellBlurCommit = true;
       renderGrid();
+      suppressCellBlurCommit = false;
       focusCell(target.rowIndex, target.columnIndex);
     }
 
@@ -2206,6 +2211,14 @@
       if (!target || typeof target.closest !== "function") return true;
       if (target.closest(".field-popover") || target.closest(".formula-suggestions")) return false;
       return true;
+    }
+
+    function getClipboardSelectionKeys() {
+      const keys = new Set(selectedCells);
+      table.querySelectorAll("td.is-selected[data-cell-key]").forEach((cell) => {
+        keys.add(cell.dataset.cellKey);
+      });
+      return keys;
     }
 
     function fitCellInputHeight(input) {
@@ -2450,12 +2463,10 @@
         selectionAnchor = { rowIndex, columnIndex };
         dragSelection = {
           anchor: { rowIndex, columnIndex },
+          fromInput: true,
           moved: false,
           pointerId: event.pointerId,
         };
-        if (event.currentTarget && typeof event.currentTarget.setPointerCapture === "function") {
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }
         return false;
       }
 
@@ -2465,6 +2476,7 @@
       selectionAnchor = { rowIndex, columnIndex };
       dragSelection = {
         anchor: { rowIndex, columnIndex },
+        fromInput: false,
         moved: false,
         pointerId: event.pointerId,
       };
@@ -2490,7 +2502,10 @@
     function updateDragSelection(rowIndex, columnIndex) {
       if (!dragSelection) return;
       const target = { rowIndex, columnIndex };
-      if (!isSameCell(dragSelection.anchor, target)) dragSelection.moved = true;
+      if (!isSameCell(dragSelection.anchor, target)) {
+        dragSelection.moved = true;
+        document.body.classList.add("is-drag-selecting-grid");
+      }
       setSelectedCells(getRangeCellKeys(dragSelection.anchor, target));
     }
 
@@ -2500,6 +2515,7 @@
       const cell = element && typeof element.closest === "function" ? element.closest("td[data-cell-key]") : null;
       if (!cell || !table.contains(cell)) return;
       const target = parseCellKey(cell.dataset.cellKey);
+      if (dragSelection.fromInput && isSameCell(dragSelection.anchor, target)) return;
       updateDragSelection(target.rowIndex, target.columnIndex);
       if (window.getSelection) window.getSelection().removeAllRanges();
       event.preventDefault();
@@ -2509,7 +2525,8 @@
       if (!dragSelection) return;
       if (event && event.pointerId !== dragSelection.pointerId) return;
       suppressSelectionClick = dragSelection.moved;
-      if (window.getSelection) window.getSelection().removeAllRanges();
+      document.body.classList.remove("is-drag-selecting-grid");
+      if (dragSelection.moved && window.getSelection) window.getSelection().removeAllRanges();
       dragSelection = null;
     }
 
@@ -2682,6 +2699,12 @@
       persistSheetState();
     }
 
+    function flushCurrentCellInput() {
+      if (!currentCell || !currentCell.input) return;
+      const { input, rowIndex, columnIndex } = currentCell;
+      if (document.body.contains(input)) commitCellInput(input, rowIndex, columnIndex);
+    }
+
     function updateCellFormulaSuggestions(input, rowIndex, columnIndex) {
       if (isFormula(input.value)) {
         renderFormulaSuggestions(input, rowIndex, columnIndex);
@@ -2852,6 +2875,12 @@
             updateCellFormulaSuggestions(input, rowIndex, columnIndex);
           });
           input.addEventListener("blur", () => {
+            if (suppressCellBlurCommit || !document.body.contains(input)) {
+              formulaEditCell = null;
+              formulaEditInput = null;
+              closeFormulaSuggestions();
+              return;
+            }
             finalizeCellInput(input, rowIndex, columnIndex);
             formulaEditCell = null;
             formulaEditInput = null;
@@ -3310,7 +3339,6 @@
         closeFormulaSuggestions();
       }
       if (isCopyShortcut(event) && selectedCells.size && shouldUseCellClipboardShortcut(event)) {
-        event.preventDefault();
         copySelectedCells();
       }
       if (isPasteShortcut(event) && cellClipboard && shouldUseCellClipboardShortcut(event)) {
