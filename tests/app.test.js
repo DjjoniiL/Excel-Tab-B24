@@ -51,13 +51,14 @@ function testExtractDealId() {
   assert.equal(app.extractDealId({ DEAL_ID: "42" }), 42);
   assert.equal(app.extractDealId({ URI: "/crm/deal/details/351/" }), 351);
   assert.equal(app.extractDealId({ url: "https://portal/crm/deal/show/19/" }), 19);
+  assert.equal(app.extractDealId({ DEAL_ID: "5", referrer: "https://portal/crm/deal/details/7/" }), 7);
   assert.equal(app.extractDealId({ options: { ENTITY_VALUE_ID: "77" } }), 77);
   assert.equal(app.extractDealId({ PLACEMENT_OPTIONS: "{\"ID\":\"88\"}" }), 88);
   assert.equal(app.extractDealId({}), null);
 }
 
 function testGridStorageKey() {
-  assert.equal(app.getGridStorageKey(null), "excel-tab-b24-grid-v1");
+  assert.equal(app.getGridStorageKey(null), "excel-tab-b24-grid-pending-deal-v1");
   assert.equal(app.getGridStorageKey("42"), "excel-tab-b24-grid-deal-v1-42");
   assert.equal(app.getGridStorageKey(351), "excel-tab-b24-grid-deal-v1-351");
   assert.equal(app.normalizeCategoryId("0"), 0);
@@ -154,6 +155,20 @@ function testFieldBindingsAndExport() {
   assert.equal(updated.changed, true);
   assert.deepEqual(updated.grid, [["fresh", ""], ["manual", ""]]);
   assert.equal(app.applyFieldBindings(grid, { "1:0": "MISSING" }, fields).changed, false);
+
+  const inferred = app.inferFieldBindingsFromGrid(
+    [["fresh", "manual", "same"], ["same", ""]],
+    {},
+    [
+      { id: "TITLE", value: "fresh" },
+      { id: "COMMENTS", value: "manual" },
+      { id: "DUPLICATE_A", value: "same" },
+      { id: "DUPLICATE_B", value: "same" },
+    ]
+  );
+  assert.equal(inferred.changed, true);
+  assert.deepEqual(inferred.fieldBindings, { "0:0": "TITLE", "0:1": "COMMENTS" });
+  assert.equal(app.countBoundFieldsOnSheet(inferred.fieldBindings, 2, 5), 2);
 
   const exportGrid = app.getExportGrid([["a", ""], ["", "b"], ["", ""]]);
   assert.deepEqual(exportGrid, [["a", ""], ["", "b"]]);

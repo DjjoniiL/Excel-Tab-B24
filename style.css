@@ -1171,7 +1171,6 @@ body {
     min-width: 0;
   }
 
-  #fieldStatus,
   #gridStatus,
   .version-status {
     font-size: 12px;

@@ -10,13 +10,14 @@
   const DEFAULT_ROWS = 9;
   const DEFAULT_COLUMNS = 7;
   const STORAGE_KEY = "excel-tab-b24-grid-v1";
+  const PENDING_DEAL_STORAGE_KEY = "excel-tab-b24-grid-pending-deal-v1";
   const FORMULA_STORAGE_KEY = "excel-tab-b24-saved-formulas-v1";
   const RECENT_FORMULA_STORAGE_KEY = "excel-tab-b24-recent-formulas-v1";
   const DEAL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-deal-v1";
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "v.45";
+  const DISPLAY_VERSION = "v.46";
   const DISPLAY_TITLE = "Excel таблица в сделке и экспорт";
   const SHARED_STORAGE_ENTITY = "exctabb24";
   const SHARED_STORAGE_PROPERTY = "DATA";
@@ -1306,26 +1307,34 @@
       "ID",
       "id",
     ];
-    const candidates = [
-      ...idKeys.map((key) => input[key]),
-      ...collectNestedValues(input, idKeys),
-    ];
+    const directUrlDealId = [input.currentUrl, input.referrer, input.url]
+      .map((value) => extractDealIdFromText(value))
+      .find((value) => Number.isInteger(value));
+
+    if (Number.isInteger(directUrlDealId)) return directUrlDealId;
+
+    const candidates = [...idKeys.map((key) => input[key]), ...collectNestedValues(input, idKeys)];
 
     for (const candidate of candidates) {
       const value = Number.parseInt(candidate, 10);
       if (Number.isInteger(value) && value > 0) return value;
     }
 
-    const textSources = [input.url, input.URI, input.PLACEMENT_OPTIONS, input.placement_options]
-      .map((value) => (typeof value === "string" ? value : ""))
-      .filter(Boolean);
+    const nestedTextDealId = [input.URI, input.PLACEMENT_OPTIONS, input.placement_options]
+      .map((value) => extractDealIdFromText(value))
+      .find((value) => Number.isInteger(value));
 
-    for (const text of textSources) {
-      const match = text.match(/\/crm\/deal\/(?:details|show)\/(\d+)\//i);
-      if (match) return Number.parseInt(match[1], 10);
-    }
+    if (Number.isInteger(nestedTextDealId)) return nestedTextDealId;
 
     return null;
+  }
+
+  function extractDealIdFromText(value) {
+    if (typeof value !== "string") return null;
+    const match = value.match(/\/crm\/deal\/(?:details|show)\/(\d+)\//i);
+    if (!match) return null;
+    const dealId = Number.parseInt(match[1], 10);
+    return Number.isInteger(dealId) && dealId > 0 ? dealId : null;
   }
 
   function getPlacementInfo() {
@@ -1451,6 +1460,38 @@
     );
 
     return { changed, grid: nextGrid };
+  }
+
+  function inferFieldBindingsFromGrid(grid, fieldBindings = {}, fields = []) {
+    const currentBindings = { ...(fieldBindings || {}) };
+    const valueToFieldIds = fields.reduce((map, field) => {
+      const value = formatDealFieldValue(field.value, field.type).trim();
+      if (!value) return map;
+      if (!map[value]) map[value] = [];
+      map[value].push(field.id);
+      return map;
+    }, {});
+    const usedFieldIds = new Set(Object.values(currentBindings).filter(Boolean).map(String));
+    let changed = false;
+
+    grid.forEach((row, rowIndex) => {
+      row.forEach((cellValue, columnIndex) => {
+        const key = cellKey(rowIndex, columnIndex);
+        if (currentBindings[key]) return;
+
+        const value = String(cellValue || "").trim();
+        const fieldIds = valueToFieldIds[value] || [];
+        if (fieldIds.length !== 1) return;
+
+        const [fieldId] = fieldIds;
+        if (usedFieldIds.has(String(fieldId))) return;
+        currentBindings[key] = fieldId;
+        usedFieldIds.add(String(fieldId));
+        changed = true;
+      });
+    });
+
+    return { changed, fieldBindings: currentBindings };
   }
 
   function padDatePart(value) {
@@ -1674,7 +1715,7 @@
       return `${DEAL_STORAGE_KEY_PREFIX}-${normalizedDealId}`;
     }
 
-    return STORAGE_KEY;
+    return PENDING_DEAL_STORAGE_KEY;
   }
 
   function getFunnelStorageKey(categoryId) {
@@ -1896,7 +1937,6 @@
     const fieldList = document.getElementById("fieldList");
     const fieldSearch = document.getElementById("fieldSearch");
     const formulaSuggestions = document.getElementById("formulaSuggestions");
-    const fieldStatus = document.getElementById("fieldStatus");
     const gridStatus = document.getElementById("gridStatus");
     const versionStatus = document.getElementById("versionStatus");
     const dealContext = document.getElementById("dealContext");
@@ -1960,13 +2000,12 @@
     }
     if (versionStatus) versionStatus.textContent = DISPLAY_VERSION;
 
-    if (gridFrame && sheetSwitcher && fieldStatus && gridStatus) {
+    if (gridFrame && sheetSwitcher && gridStatus) {
       const bottomPanel = document.createElement("div");
       const bottomStatusGroup = document.createElement("div");
       bottomPanel.className = "bottom-panel";
       bottomStatusGroup.className = "bottom-status-group";
       bottomPanel.appendChild(sheetSwitcher);
-      bottomStatusGroup.appendChild(fieldStatus);
       bottomStatusGroup.appendChild(gridStatus);
       if (versionStatus) bottomStatusGroup.appendChild(versionStatus);
       bottomPanel.appendChild(bottomStatusGroup);
@@ -2409,8 +2448,10 @@
     function refreshFieldBoundCells(options = {}) {
       if (!dealFields.length) return;
 
+      const inferredBindings = inferFieldBindingsFromGrid(grid, fieldBindings, dealFields);
+      if (inferredBindings.changed) fieldBindings = inferredBindings.fieldBindings;
       const updatedBindings = applyFieldBindings(grid, fieldBindings, dealFields);
-      if (!updatedBindings.changed) return;
+      if (!updatedBindings.changed && !inferredBindings.changed) return;
 
       grid = updatedBindings.grid;
       if (options.deferPersist) return;
@@ -3097,7 +3138,6 @@
         closeFormulaSuggestions();
       }
       persistSheetState();
-      updateFieldStatus();
     }
 
     function flushCurrentCellInput() {
@@ -3127,18 +3167,6 @@
       const groupLabel = activeSheetType === SHEET_TYPE_FUNNEL ? "Общие" : "Сделка";
       const activeSheet = getActiveSheetList(activeSheetType)[activeSheetIndex] || { title: getDefaultSheetTitle(activeSheetIndex) };
       gridStatus.textContent = `${groupLabel}, ${activeSheet.title}: ${rows} строк, ${columns} столбцов`;
-      updateFieldStatus();
-    }
-
-    function getSheetBoundFieldCount() {
-      const rowCount = grid.length;
-      const columnCount = grid[0] ? grid[0].length : DEFAULT_COLUMNS;
-      return countBoundFieldsOnSheet(fieldBindings, rowCount, columnCount);
-    }
-
-    function updateFieldStatus(message = null) {
-      if (!fieldStatus) return;
-      fieldStatus.textContent = message || `Поля на листе: ${getSheetBoundFieldCount()}`;
     }
 
     function renderGrid() {
@@ -3388,7 +3416,6 @@
           grid[currentCell.rowIndex][currentCell.columnIndex] = formatted;
           fieldBindings[cellKey(currentCell.rowIndex, currentCell.columnIndex)] = field.id;
           persistSheetState();
-          updateFieldStatus();
           closeFieldPopover();
           currentCell.input.focus();
         });
@@ -3486,6 +3513,8 @@
         ...urlParams,
         ...placementOptions,
         queryPlacementOptions,
+        currentUrl: window.location.href,
+        referrer: document.referrer,
         url: document.referrer || window.location.href,
       });
       dealTitle = "";
@@ -3506,11 +3535,9 @@
     async function loadDealFields(options = {}) {
       const compactAfterLoad = Boolean(options.compactAfterLoad);
       if (!dealId) {
-        updateFieldStatus("Поля сделки: карточка не определена");
         return;
       }
 
-      updateFieldStatus("Поля сделки: загрузка...");
       try {
         const fields = await callMethod("crm.deal.fields");
         const deal = await callMethod("crm.deal.get", { id: dealId });
@@ -3538,9 +3565,10 @@
           persistSheetState();
           renderGrid();
         }
-        updateFieldStatus();
       } catch (error) {
-        updateFieldStatus(`Поля сделки: ошибка (${error.message || error})`);
+        if (window.console && typeof window.console.warn === "function") {
+          window.console.warn("Deal fields loading failed", error);
+        }
       }
     }
 
@@ -3928,7 +3956,6 @@
 
     if (!window.BX24 || typeof window.BX24.init !== "function") {
       if (dealContext) dealContext.textContent = `${DISPLAY_VERSION}. Локальный режим без Bitrix24 SDK.`;
-      updateFieldStatus("Поля сделки: локальный режим");
       return;
     }
 
@@ -4019,6 +4046,7 @@
     getUsedGridBounds,
     isCopyShortcut,
     isPasteShortcut,
+    inferFieldBindingsFromGrid,
     insertColumnsInSheetState,
     insertRowsInSheetState,
     loadRecentFormulas,
