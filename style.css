@@ -620,22 +620,65 @@ body {
 
 .cell-input:focus {
   background: var(--accent-soft);
-  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .sheet td.is-selected {
   background: var(--accent-soft);
+}
+
+.sheet td.is-selected .cell-wrap::after {
+  bottom: 0;
+  box-shadow:
+    var(--selection-edge-top, 0 0 0 0 transparent),
+    var(--selection-edge-right, 0 0 0 0 transparent),
+    var(--selection-edge-bottom, 0 0 0 0 transparent),
+    var(--selection-edge-left, 0 0 0 0 transparent);
+  content: "";
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 2;
+}
+
+.sheet td.is-selected {
+  box-shadow:
+    var(--selection-edge-top, 0 0 0 0 transparent),
+    var(--selection-edge-right, 0 0 0 0 transparent),
+    var(--selection-edge-bottom, 0 0 0 0 transparent),
+    var(--selection-edge-left, 0 0 0 0 transparent);
+}
+
+.sheet td:focus-within:not(.is-selected) {
+  background: var(--accent-soft);
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-.sheet td.is-selected .cell-input {
+.sheet td.is-selected .cell-input,
+.sheet td:focus-within:not(.is-selected) .cell-input {
   background: var(--accent-soft);
 }
 
-.sheet td.is-wrapped,
+.sheet td.selection-edge-top {
+  --selection-edge-top: inset 0 2px 0 var(--accent);
+}
+
+.sheet td.selection-edge-right {
+  --selection-edge-right: inset -2px 0 0 var(--accent);
+}
+
+.sheet td.selection-edge-bottom {
+  --selection-edge-bottom: inset 0 -2px 0 var(--accent);
+}
+
+.sheet td.selection-edge-left {
+  --selection-edge-left: inset 2px 0 0 var(--accent);
+}
+
 .sheet td.is-wrapped .cell-input {
-  height: auto;
-  min-height: 56px;
+  height: 100%;
+  min-height: 0;
 }
 
 .sheet td.is-wrapped .cell-input {
@@ -643,6 +686,47 @@ body {
   padding-bottom: 6px;
   padding-top: 6px;
   white-space: pre-wrap;
+}
+
+.sheet th.is-drop-target {
+  background: #dbe8ff;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.is-dragging-header,
+.is-dragging-header * {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.grid-context-menu {
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  box-shadow: 0 12px 28px rgba(13, 31, 61, 0.18);
+  display: grid;
+  gap: 2px;
+  min-width: 174px;
+  padding: 6px;
+  position: fixed;
+  z-index: 20;
+}
+
+.grid-context-menu button {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.grid-context-menu button:hover,
+.grid-context-menu button:focus {
+  background: var(--accent-soft);
+  outline: none;
 }
 
 .sheet td.align-vertical-top .cell-wrap {
@@ -662,6 +746,12 @@ body {
 .sheet td.align-vertical-bottom .cell-input {
   height: auto;
   min-height: 0;
+}
+
+.sheet td.is-wrapped.align-vertical-top .cell-input,
+.sheet td.is-wrapped.align-vertical-middle .cell-input,
+.sheet td.is-wrapped.align-vertical-bottom .cell-input {
+  height: 100%;
 }
 
 .field-picker-button {

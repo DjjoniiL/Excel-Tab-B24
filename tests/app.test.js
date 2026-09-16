@@ -110,6 +110,12 @@ function testSelectionHelpers() {
     minColumnIndex: 1,
     minRowIndex: 0,
   });
+  const selectedRange = new Set(["1:1", "1:2", "2:1", "2:2"]);
+  assert.deepEqual(app.getSelectionEdgeClassNames(selectedRange, "1:1"), ["selection-edge-top", "selection-edge-left"]);
+  assert.deepEqual(app.getSelectionEdgeClassNames(selectedRange, "1:2"), ["selection-edge-top", "selection-edge-right"]);
+  assert.deepEqual(app.getSelectionEdgeClassNames(selectedRange, "2:1"), ["selection-edge-bottom", "selection-edge-left"]);
+  assert.deepEqual(app.getSelectionEdgeClassNames(selectedRange, "2:2"), ["selection-edge-right", "selection-edge-bottom"]);
+  assert.deepEqual(app.getSelectionEdgeClassNames(selectedRange, "3:3"), []);
   assert.ok(app.measureColumnWidth([["short"], ["long long text value"]], 0) > 132);
   assert.equal(app.measureColumnWidth([["x"]], 0), 90);
   assert.equal(app.measureColumnWidth([[Array.from({ length: 200 }, () => "x").join("")]], 0), 420);
@@ -138,6 +144,7 @@ function testSelectionHelpers() {
   assert.equal(typeof rowHeights[1], "undefined");
   assert.equal(app.measureRowHeight([["long long long long long long long long"]], 0, [90]), app.DEFAULT_ROW_HEIGHT);
   assert.ok(app.measureRowHeight([["long long long long long long long long"]], 0, [90], null, new Set(["0:0"])) > app.DEFAULT_ROW_HEIGHT);
+  assert.equal(app.countBoundFieldsOnSheet({ "0:0": "TITLE", "1:1": "TITLE", "9:0": "OUTSIDE", "0:9": "OUTSIDE", "2:2": "" }, 3, 3), 2);
 }
 
 function testFieldBindingsAndExport() {
@@ -188,6 +195,103 @@ function testFormulaCells() {
   assert.equal(app.shiftFormulaReferences("= E4 + B4", 0, 1), "= F4 + C4");
   assert.deepEqual(app.calculateSelectedCells(grid, new Set(["0:2", "1:2"]), "add"), { error: "", value: "25" });
   assert.match(app.buildExcelHtml([["2", "3", "=A1+B1"]]), /<td>=A1\+B1<\/td>/);
+}
+
+function testSheetStructureChanges() {
+  const topLeft = (grid, rows, columns) => grid.slice(0, rows).map((row) => row.slice(0, columns));
+  const state = {
+    cellFormats: { "0:1": { fontWeight: "700" }, "2:0": { fillColor: "#d9ead3" } },
+    columnWidths: [120, 140, 160],
+    fieldBindings: { "0:0": "TITLE", "2:1": "OPPORTUNITY" },
+    grid: [
+      ["2", "3", "=A1+B1"],
+      ["5", "7", "=A2+B2"],
+      ["11", "13", "=A3+B3"],
+    ],
+    rowHeights: [34, 44, 54],
+    wrappedCells: new Set(["0:1", "2:0"]),
+  };
+
+  assert.deepEqual(app.getMoveIndexMap(4, 0, 2), { 0: 2, 1: 0, 2: 1, 3: 3 });
+  assert.equal(app.remapFormulaReferences("=A1+B3", app.getMoveIndexMap(3, 0, 2), null), "=A3+B2");
+
+  const movedRow = app.moveRowInSheetState(state, 0, 2);
+  assert.deepEqual(topLeft(movedRow.grid, 3, 3), [
+    ["5", "7", "=A1+B1"],
+    ["11", "13", "=A2+B2"],
+    ["2", "3", "=A3+B3"],
+  ]);
+  assert.deepEqual(movedRow.rowHeights.slice(0, 3), [44, 54, 34]);
+  assert.deepEqual(movedRow.fieldBindings, { "2:0": "TITLE", "1:1": "OPPORTUNITY" });
+  assert.deepEqual(Array.from(movedRow.wrappedCells).sort(), ["1:0", "2:1"]);
+
+  const movedColumn = app.moveColumnInSheetState(state, 0, 2);
+  assert.deepEqual(topLeft(movedColumn.grid, 3, 3), [
+    ["3", "=C1+A1", "2"],
+    ["7", "=C2+A2", "5"],
+    ["13", "=C3+A3", "11"],
+  ]);
+  assert.deepEqual(movedColumn.columnWidths.slice(0, 3), [140, 160, 120]);
+  assert.deepEqual(movedColumn.fieldBindings, { "0:2": "TITLE", "2:0": "OPPORTUNITY" });
+
+  const insertedRow = app.insertRowsInSheetState(state, 0, 1);
+  assert.deepEqual(topLeft(insertedRow.grid, 4, 3), [
+    ["2", "3", "=A1+B1"],
+    ["", "", ""],
+    ["5", "7", "=A3+B3"],
+    ["11", "13", "=A4+B4"],
+  ]);
+  assert.equal(insertedRow.rowHeights[1], app.DEFAULT_ROW_HEIGHT);
+  assert.deepEqual(insertedRow.fieldBindings, { "0:0": "TITLE", "3:1": "OPPORTUNITY" });
+
+  const insertedColumn = app.insertColumnsInSheetState(state, 0, 1);
+  assert.deepEqual(topLeft(insertedColumn.grid, 3, 4), [
+    ["2", "", "3", "=A1+C1"],
+    ["5", "", "7", "=A2+C2"],
+    ["11", "", "13", "=A3+C3"],
+  ]);
+  assert.equal(insertedColumn.columnWidths[1], app.DEFAULT_COLUMN_WIDTH);
+  assert.deepEqual(insertedColumn.fieldBindings, { "0:0": "TITLE", "2:2": "OPPORTUNITY" });
+
+  const emptyEdgeRows = app.getNormalizedSheetState({
+    grid: Array.from({ length: 12 }, (item, rowIndex) => [rowIndex === 0 ? "filled" : ""]),
+  });
+  const withExtraEmptyRow = app.insertRowsInSheetState(emptyEdgeRows, 11, 1);
+  assert.equal(withExtraEmptyRow.grid.length, 13);
+
+  const emptyEdgeColumns = app.getNormalizedSheetState({
+    grid: [Array.from({ length: 10 }, (item, columnIndex) => (columnIndex === 0 ? "filled" : ""))],
+  });
+  const withExtraEmptyColumn = app.insertColumnsInSheetState(emptyEdgeColumns, 9, 1);
+  assert.equal(withExtraEmptyColumn.grid[0].length, 11);
+
+  const fullRows = app.getNormalizedSheetState({
+    grid: Array.from({ length: app.MAX_GRID_ROWS }, () => [""]),
+  });
+  assert.equal(app.insertRowsInSheetState(fullRows, app.MAX_GRID_ROWS - 1, 4).grid.length, app.MAX_GRID_ROWS);
+
+  assert.deepEqual(app.getDeleteIndexMap(4, 1), [0, null, 1, 2]);
+  assert.equal(app.remapFormulaReferences("=A2+B4", app.getDeleteIndexMap(4, 1), null), "=#REF!+B3");
+
+  const deletedRow = app.deleteRowInSheetState(state, 1);
+  assert.deepEqual(topLeft(deletedRow.grid, 3, 3), [
+    ["2", "3", "=A1+B1"],
+    ["11", "13", "=A2+B2"],
+    ["", "", ""],
+  ]);
+  assert.equal(deletedRow.rowHeights[deletedRow.rowHeights.length - 1], app.DEFAULT_ROW_HEIGHT);
+  assert.deepEqual(deletedRow.fieldBindings, { "0:0": "TITLE", "1:1": "OPPORTUNITY" });
+  assert.deepEqual(Array.from(deletedRow.wrappedCells).sort(), ["0:1", "1:0"]);
+
+  const deletedColumn = app.deleteColumnInSheetState(state, 1);
+  assert.deepEqual(topLeft(deletedColumn.grid, 3, 3), [
+    ["2", "=A1+#REF!", ""],
+    ["5", "=A2+#REF!", ""],
+    ["11", "=A3+#REF!", ""],
+  ]);
+  assert.equal(deletedColumn.columnWidths[deletedColumn.columnWidths.length - 1], app.DEFAULT_COLUMN_WIDTH);
+  assert.deepEqual(deletedColumn.fieldBindings, { "0:0": "TITLE" });
+  assert.deepEqual(Array.from(deletedColumn.wrappedCells), ["2:0"]);
 }
 
 function testSavedFormulas() {
@@ -538,6 +642,7 @@ testReferenceFormatting();
 testSelectionHelpers();
 testFieldBindingsAndExport();
 testFormulaCells();
+testSheetStructureChanges();
 testSavedFormulas();
 testRecentFormulas();
 testClearCellSelectionState();

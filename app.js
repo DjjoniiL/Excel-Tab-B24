@@ -16,7 +16,7 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "v.41";
+  const DISPLAY_VERSION = "v.45";
   const DISPLAY_TITLE = "Excel таблица в сделке и экспорт";
   const SHARED_STORAGE_ENTITY = "exctabb24";
   const SHARED_STORAGE_PROPERTY = "DATA";
@@ -28,6 +28,8 @@
   const DEFAULT_ROW_HEIGHT = 34;
   const MAX_ROW_HEIGHT = 180;
   const MIN_ROW_HEIGHT = 28;
+  const MAX_GRID_ROWS = 3000;
+  const MAX_GRID_COLUMNS = 3000;
   const HISTORY_LIMIT = 15;
   const DELETE_CONFIRM_CELL_THRESHOLD = 18;
   const MAX_RECENT_FORMULAS = 5;
@@ -37,6 +39,12 @@
   const FONT_SIZES = ["", "11pt", "13pt", "15pt", "18pt"];
   const HORIZONTAL_ALIGNMENTS = ["", "left", "center", "right"];
   const VERTICAL_ALIGNMENTS = ["", "top", "middle", "bottom"];
+  const SELECTION_EDGE_CLASSES = [
+    "selection-edge-top",
+    "selection-edge-right",
+    "selection-edge-bottom",
+    "selection-edge-left",
+  ];
 
   function createGrid(rows = DEFAULT_ROWS, columns = DEFAULT_COLUMNS) {
     return Array.from({ length: rows }, () => Array.from({ length: columns }, () => ""));
@@ -269,6 +277,27 @@
       const rowIndex = Number.parseInt(row, 10) - 1 + rowOffset;
       if (columnIndex < 0 || rowIndex < 0) return match;
       return `${columnName(columnIndex)}${rowIndex + 1}`;
+    });
+  }
+
+  function remapFormulaReferences(formula, rowIndexMap = null, columnIndexMap = null) {
+    if (!isFormula(formula)) return formula;
+
+    return String(formula || "").replace(/\b([A-Z]+)([1-9]\d*)\b/gi, (match, column, row) => {
+      const oldColumnIndex = columnIndexFromName(column);
+      const oldRowIndex = Number.parseInt(row, 10) - 1;
+      if (columnIndexMap && Object.prototype.hasOwnProperty.call(columnIndexMap, oldColumnIndex) && columnIndexMap[oldColumnIndex] === null) {
+        return "#REF!";
+      }
+      if (rowIndexMap && Object.prototype.hasOwnProperty.call(rowIndexMap, oldRowIndex) && rowIndexMap[oldRowIndex] === null) {
+        return "#REF!";
+      }
+      const nextColumnIndex =
+        columnIndexMap && typeof columnIndexMap[oldColumnIndex] === "number" ? columnIndexMap[oldColumnIndex] : oldColumnIndex;
+      const nextRowIndex =
+        rowIndexMap && typeof rowIndexMap[oldRowIndex] === "number" ? rowIndexMap[oldRowIndex] : oldRowIndex;
+      if (nextColumnIndex < 0 || nextRowIndex < 0) return match;
+      return `${columnName(nextColumnIndex)}${nextRowIndex + 1}`;
     });
   }
 
@@ -806,11 +835,288 @@
     return rowIndex >= 0 && rowIndex < rowCount && columnIndex >= 0 && columnIndex < columnCount;
   }
 
+  function countBoundFieldsOnSheet(fieldBindings = {}, rowCount = DEFAULT_ROWS, columnCount = DEFAULT_COLUMNS) {
+    return Object.entries(fieldBindings || {}).reduce((count, [key, fieldId]) => {
+      if (!fieldId || !isCellKeyInsideBounds(key, rowCount, columnCount)) return count;
+      return count + 1;
+    }, 0);
+  }
+
+  function getSelectionEdgeClassNames(selectedCells, key) {
+    const keys = selectedCells instanceof Set ? selectedCells : new Set(selectedCells || []);
+    if (!keys.has(key)) return [];
+
+    const { rowIndex, columnIndex } = parseCellKey(key);
+    return [
+      !keys.has(cellKey(rowIndex - 1, columnIndex)) ? "selection-edge-top" : "",
+      !keys.has(cellKey(rowIndex, columnIndex + 1)) ? "selection-edge-right" : "",
+      !keys.has(cellKey(rowIndex + 1, columnIndex)) ? "selection-edge-bottom" : "",
+      !keys.has(cellKey(rowIndex, columnIndex - 1)) ? "selection-edge-left" : "",
+    ].filter(Boolean);
+  }
+
   function filterCellKeyObjectByBounds(source, rowCount, columnCount) {
     return Object.entries(source || {}).reduce((filtered, [key, value]) => {
       if (isCellKeyInsideBounds(key, rowCount, columnCount)) filtered[key] = value;
       return filtered;
     }, {});
+  }
+
+  function getNormalizedSheetState(state, minRows = DEFAULT_ROWS, minColumns = DEFAULT_COLUMNS) {
+    const sourceGrid = Array.isArray(state.grid) && state.grid.length ? state.grid : createGrid();
+    const sourceColumnCount = Math.max(
+      minColumns,
+      ...sourceGrid.map((row) => (Array.isArray(row) ? row.length : 0))
+    );
+    const rowCount = Math.min(MAX_GRID_ROWS, Math.max(minRows, sourceGrid.length));
+    const columnCount = Math.min(MAX_GRID_COLUMNS, sourceColumnCount);
+    const grid = Array.from({ length: rowCount }, (item, rowIndex) => {
+      const sourceRow = Array.isArray(sourceGrid[rowIndex]) ? sourceGrid[rowIndex] : [];
+      return Array.from({ length: columnCount }, (cell, columnIndex) =>
+        typeof sourceRow[columnIndex] === "undefined" ? "" : sourceRow[columnIndex]
+      );
+    });
+    const wrappedCells = new Set(
+      Array.from(state.wrappedCells || []).filter((key) => isCellKeyInsideBounds(key, rowCount, columnCount))
+    );
+
+    return {
+      cellFormats: filterCellKeyObjectByBounds(state.cellFormats, rowCount, columnCount),
+      columnWidths: normalizeColumnWidths(state.columnWidths, columnCount, true),
+      fieldBindings: filterCellKeyObjectByBounds(state.fieldBindings, rowCount, columnCount),
+      grid,
+      rowHeights: normalizeRowHeights(state.rowHeights, rowCount, true),
+      wrappedCells,
+    };
+  }
+
+  function moveArrayItem(items = [], fromIndex, toIndex) {
+    const source = Array.isArray(items) ? [...items] : [];
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= source.length || toIndex >= source.length) {
+      return source;
+    }
+
+    const [item] = source.splice(fromIndex, 1);
+    source.splice(toIndex, 0, item);
+    return source;
+  }
+
+  function getMoveIndexMap(length, fromIndex, toIndex) {
+    const order = moveArrayItem(Array.from({ length }, (item, index) => index), fromIndex, toIndex);
+    return order.reduce((map, oldIndex, newIndex) => {
+      map[oldIndex] = newIndex;
+      return map;
+    }, {});
+  }
+
+  function getInsertIndexMap(length, afterIndex, count) {
+    return Array.from({ length }, (item, index) => (index > afterIndex ? index + count : index));
+  }
+
+  function getDeleteIndexMap(length, deleteIndex) {
+    return Array.from({ length }, (item, index) => {
+      if (index === deleteIndex) return null;
+      return index > deleteIndex ? index - 1 : index;
+    });
+  }
+
+  function remapCellKeyCollection(source, rowIndexMap, columnIndexMap) {
+    const keys = source instanceof Set ? Array.from(source) : Array.from(source || []);
+    return keys.reduce((next, key) => {
+        const { rowIndex, columnIndex } = parseCellKey(key);
+        if (rowIndexMap && Object.prototype.hasOwnProperty.call(rowIndexMap, rowIndex) && rowIndexMap[rowIndex] === null) return next;
+        if (
+          columnIndexMap &&
+          Object.prototype.hasOwnProperty.call(columnIndexMap, columnIndex) &&
+          columnIndexMap[columnIndex] === null
+        ) {
+          return next;
+        }
+        const nextRowIndex = rowIndexMap && typeof rowIndexMap[rowIndex] === "number" ? rowIndexMap[rowIndex] : rowIndex;
+        const nextColumnIndex =
+          columnIndexMap && typeof columnIndexMap[columnIndex] === "number" ? columnIndexMap[columnIndex] : columnIndex;
+        next.add(cellKey(nextRowIndex, nextColumnIndex));
+        return next;
+      }, new Set());
+  }
+
+  function remapCellKeyObject(source, rowIndexMap, columnIndexMap) {
+    return Object.entries(source || {}).reduce((next, [key, value]) => {
+      const { rowIndex, columnIndex } = parseCellKey(key);
+      if (rowIndexMap && Object.prototype.hasOwnProperty.call(rowIndexMap, rowIndex) && rowIndexMap[rowIndex] === null) return next;
+      if (
+        columnIndexMap &&
+        Object.prototype.hasOwnProperty.call(columnIndexMap, columnIndex) &&
+        columnIndexMap[columnIndex] === null
+      ) {
+        return next;
+      }
+      const nextRowIndex = rowIndexMap && typeof rowIndexMap[rowIndex] === "number" ? rowIndexMap[rowIndex] : rowIndex;
+      const nextColumnIndex =
+        columnIndexMap && typeof columnIndexMap[columnIndex] === "number" ? columnIndexMap[columnIndex] : columnIndex;
+      next[cellKey(nextRowIndex, nextColumnIndex)] = JSON.parse(JSON.stringify(value));
+      return next;
+    }, {});
+  }
+
+  function remapGridFormulas(grid, rowIndexMap = null, columnIndexMap = null) {
+    return grid.map((row) =>
+      row.map((value) => (isFormula(value) ? remapFormulaReferences(value, rowIndexMap, columnIndexMap) : value))
+    );
+  }
+
+  function normalizeInsertCount(count) {
+    const parsed = Number.parseInt(count, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+  }
+
+  function insertRowsInSheetState(state, afterRowIndex, count = 1) {
+    const source = getNormalizedSheetState(state, DEFAULT_ROWS, DEFAULT_COLUMNS);
+    const rowCount = source.grid.length;
+    const columnCount = source.grid[0] ? source.grid[0].length : DEFAULT_COLUMNS;
+    if (rowCount >= MAX_GRID_ROWS) return source;
+    const safeAfterIndex = Math.max(-1, Math.min(rowCount - 1, Number.parseInt(afterRowIndex, 10)));
+    const insertCount = Math.min(normalizeInsertCount(count), MAX_GRID_ROWS - rowCount);
+    const rowIndexMap = getInsertIndexMap(rowCount, safeAfterIndex, insertCount);
+    const blankRows = Array.from({ length: insertCount }, () => Array.from({ length: columnCount }, () => ""));
+    const grid = [
+      ...source.grid.slice(0, safeAfterIndex + 1),
+      ...blankRows,
+      ...source.grid.slice(safeAfterIndex + 1),
+    ];
+    const rowHeights = [
+      ...source.rowHeights.slice(0, safeAfterIndex + 1),
+      ...Array.from({ length: insertCount }, () => DEFAULT_ROW_HEIGHT),
+      ...source.rowHeights.slice(safeAfterIndex + 1),
+    ];
+
+    return {
+      cellFormats: remapCellKeyObject(source.cellFormats, rowIndexMap, null),
+      columnWidths: [...source.columnWidths],
+      fieldBindings: remapCellKeyObject(source.fieldBindings, rowIndexMap, null),
+      grid: remapGridFormulas(grid, rowIndexMap, null),
+      rowHeights,
+      wrappedCells: remapCellKeyCollection(source.wrappedCells, rowIndexMap, null),
+    };
+  }
+
+  function insertColumnsInSheetState(state, afterColumnIndex, count = 1) {
+    const source = getNormalizedSheetState(state, DEFAULT_ROWS, DEFAULT_COLUMNS);
+    const rowCount = source.grid.length;
+    const columnCount = source.grid[0] ? source.grid[0].length : DEFAULT_COLUMNS;
+    if (columnCount >= MAX_GRID_COLUMNS) return source;
+    const safeAfterIndex = Math.max(-1, Math.min(columnCount - 1, Number.parseInt(afterColumnIndex, 10)));
+    const insertCount = Math.min(normalizeInsertCount(count), MAX_GRID_COLUMNS - columnCount);
+    const columnIndexMap = getInsertIndexMap(columnCount, safeAfterIndex, insertCount);
+    const grid = source.grid.map((row) => [
+      ...row.slice(0, safeAfterIndex + 1),
+      ...Array.from({ length: insertCount }, () => ""),
+      ...row.slice(safeAfterIndex + 1),
+    ]);
+    const columnWidths = [
+      ...source.columnWidths.slice(0, safeAfterIndex + 1),
+      ...Array.from({ length: insertCount }, () => DEFAULT_COLUMN_WIDTH),
+      ...source.columnWidths.slice(safeAfterIndex + 1),
+    ];
+
+    return {
+      cellFormats: remapCellKeyObject(source.cellFormats, null, columnIndexMap),
+      columnWidths,
+      fieldBindings: remapCellKeyObject(source.fieldBindings, null, columnIndexMap),
+      grid: remapGridFormulas(grid, null, columnIndexMap),
+      rowHeights: [...source.rowHeights],
+      wrappedCells: remapCellKeyCollection(source.wrappedCells, null, columnIndexMap),
+    };
+  }
+
+  function moveRowInSheetState(state, fromRowIndex, toRowIndex) {
+    const source = getNormalizedSheetState(state, DEFAULT_ROWS, DEFAULT_COLUMNS);
+    const rowCount = source.grid.length;
+    if (fromRowIndex === toRowIndex || fromRowIndex < 0 || toRowIndex < 0 || fromRowIndex >= rowCount || toRowIndex >= rowCount) {
+      return source;
+    }
+
+    const rowIndexMap = getMoveIndexMap(rowCount, fromRowIndex, toRowIndex);
+    return {
+      cellFormats: remapCellKeyObject(source.cellFormats, rowIndexMap, null),
+      columnWidths: [...source.columnWidths],
+      fieldBindings: remapCellKeyObject(source.fieldBindings, rowIndexMap, null),
+      grid: remapGridFormulas(moveArrayItem(source.grid, fromRowIndex, toRowIndex), rowIndexMap, null),
+      rowHeights: moveArrayItem(source.rowHeights, fromRowIndex, toRowIndex),
+      wrappedCells: remapCellKeyCollection(source.wrappedCells, rowIndexMap, null),
+    };
+  }
+
+  function moveColumnInSheetState(state, fromColumnIndex, toColumnIndex) {
+    const source = getNormalizedSheetState(state, DEFAULT_ROWS, DEFAULT_COLUMNS);
+    const columnCount = source.grid[0] ? source.grid[0].length : DEFAULT_COLUMNS;
+    if (
+      fromColumnIndex === toColumnIndex ||
+      fromColumnIndex < 0 ||
+      toColumnIndex < 0 ||
+      fromColumnIndex >= columnCount ||
+      toColumnIndex >= columnCount
+    ) {
+      return source;
+    }
+
+    const columnIndexMap = getMoveIndexMap(columnCount, fromColumnIndex, toColumnIndex);
+    const grid = source.grid.map((row) => moveArrayItem(row, fromColumnIndex, toColumnIndex));
+    return {
+      cellFormats: remapCellKeyObject(source.cellFormats, null, columnIndexMap),
+      columnWidths: moveArrayItem(source.columnWidths, fromColumnIndex, toColumnIndex),
+      fieldBindings: remapCellKeyObject(source.fieldBindings, null, columnIndexMap),
+      grid: remapGridFormulas(grid, null, columnIndexMap),
+      rowHeights: [...source.rowHeights],
+      wrappedCells: remapCellKeyCollection(source.wrappedCells, null, columnIndexMap),
+    };
+  }
+
+  function deleteRowInSheetState(state, rowIndex) {
+    const source = getNormalizedSheetState(state, DEFAULT_ROWS, DEFAULT_COLUMNS);
+    const rowCount = source.grid.length;
+    const columnCount = source.grid[0] ? source.grid[0].length : DEFAULT_COLUMNS;
+    if (rowIndex < 0 || rowIndex >= rowCount) return source;
+
+    const rowIndexMap = getDeleteIndexMap(rowCount, rowIndex);
+    const grid = source.grid.filter((row, index) => index !== rowIndex);
+    const rowHeights = source.rowHeights.filter((height, index) => index !== rowIndex);
+    while (grid.length < DEFAULT_ROWS) {
+      grid.push(Array.from({ length: columnCount }, () => ""));
+      rowHeights.push(DEFAULT_ROW_HEIGHT);
+    }
+
+    return {
+      cellFormats: remapCellKeyObject(source.cellFormats, rowIndexMap, null),
+      columnWidths: [...source.columnWidths],
+      fieldBindings: remapCellKeyObject(source.fieldBindings, rowIndexMap, null),
+      grid: remapGridFormulas(grid, rowIndexMap, null),
+      rowHeights,
+      wrappedCells: remapCellKeyCollection(source.wrappedCells, rowIndexMap, null),
+    };
+  }
+
+  function deleteColumnInSheetState(state, columnIndex) {
+    const source = getNormalizedSheetState(state, DEFAULT_ROWS, DEFAULT_COLUMNS);
+    const columnCount = source.grid[0] ? source.grid[0].length : DEFAULT_COLUMNS;
+    if (columnIndex < 0 || columnIndex >= columnCount) return source;
+
+    const columnIndexMap = getDeleteIndexMap(columnCount, columnIndex);
+    const grid = source.grid.map((row) => row.filter((cell, index) => index !== columnIndex));
+    const columnWidths = source.columnWidths.filter((width, index) => index !== columnIndex);
+    while ((grid[0] ? grid[0].length : 0) < DEFAULT_COLUMNS) {
+      grid.forEach((row) => row.push(""));
+      columnWidths.push(DEFAULT_COLUMN_WIDTH);
+    }
+
+    return {
+      cellFormats: remapCellKeyObject(source.cellFormats, null, columnIndexMap),
+      columnWidths,
+      fieldBindings: remapCellKeyObject(source.fieldBindings, null, columnIndexMap),
+      grid: remapGridFormulas(grid, null, columnIndexMap),
+      rowHeights: [...source.rowHeights],
+      wrappedCells: remapCellKeyCollection(source.wrappedCells, null, columnIndexMap),
+    };
   }
 
   function getTrimmedSheetState(state, minRows = DEFAULT_ROWS, minColumns = DEFAULT_COLUMNS) {
@@ -1693,6 +1999,8 @@
     let selectedSavedFormula = savedFormulas[0] || "";
     let recentFormulas = loadRecentFormulas();
     let formulaSuggestionInput = null;
+    let gridContextMenu = null;
+    let headerDrag = null;
     let dragSelection = null;
     let suppressSelectionClick = false;
     let gridResize = null;
@@ -1710,6 +2018,20 @@
 
     function getCurrentSheetSnapshot() {
       return cloneSheetSnapshot({ cellFormats, columnWidths, fieldBindings, grid, rowHeights, wrappedCells });
+    }
+
+    function applySheetState(nextState) {
+      cellFormats = nextState.cellFormats || {};
+      columnWidths = nextState.columnWidths || [];
+      fieldBindings = nextState.fieldBindings || {};
+      grid = nextState.grid || createGrid();
+      rowHeights = nextState.rowHeights || [];
+      wrappedCells = nextState.wrappedCells instanceof Set ? nextState.wrappedCells : new Set(nextState.wrappedCells || []);
+      selectedCells = new Set(Array.from(selectedCells).filter((key) => isCellKeyInsideBounds(key, grid.length, grid[0].length)));
+      currentCell = null;
+      formulaSourceCell = null;
+      formulaEditCell = null;
+      formulaEditInput = null;
     }
 
     function updateHistoryButtons() {
@@ -2227,6 +2549,12 @@
       input.style.height = `${clampRowHeight(Math.max(input.scrollHeight, MIN_ROW_HEIGHT))}px`;
     }
 
+    function fitWrappedRowHeight(rowIndex) {
+      rowHeights[rowIndex] = measureRowHeight(grid, rowIndex, columnWidths, null, wrappedCells);
+      const row = table.querySelector(`tr[data-row="${rowIndex}"]`);
+      if (row) row.style.height = `${rowHeights[rowIndex]}px`;
+    }
+
     function setFormulaModalStatus(message) {
       if (formulaModalStatus) formulaModalStatus.textContent = message || "";
     }
@@ -2424,9 +2752,18 @@
 
     function paintSelection() {
       table.querySelectorAll("td[data-cell-key]").forEach((cell) => {
-        cell.classList.toggle("is-selected", selectedCells.has(cell.dataset.cellKey));
+        applySelectionCellClasses(cell, cell.dataset.cellKey);
       });
       updateSelectionActions();
+    }
+
+    function applySelectionCellClasses(cell, key) {
+      const isSelected = selectedCells.has(key);
+      cell.classList.toggle("is-selected", isSelected);
+      SELECTION_EDGE_CLASSES.forEach((className) => cell.classList.remove(className));
+      if (!isSelected) return;
+
+      getSelectionEdgeClassNames(selectedCells, key).forEach((className) => cell.classList.add(className));
     }
 
     function setSelectedCells(keys) {
@@ -2591,6 +2928,68 @@
       event.preventDefault();
     }
 
+    function clearHeaderDropTarget() {
+      table.querySelectorAll(".is-drop-target").forEach((element) => element.classList.remove("is-drop-target"));
+    }
+
+    function getHeaderDragTarget(event) {
+      const element = document.elementFromPoint(event.clientX, event.clientY);
+      if (!element || !headerDrag) return null;
+      const selector = headerDrag.type === "column" ? "th[data-column-heading]" : "th[data-row-heading]";
+      const header = typeof element.closest === "function" ? element.closest(selector) : null;
+      if (!header || !table.contains(header)) return null;
+      const value = headerDrag.type === "column" ? header.dataset.columnHeading : header.dataset.rowHeading;
+      const index = Number.parseInt(value, 10);
+      return Number.isFinite(index) ? { header, index } : null;
+    }
+
+    function beginHeaderDrag(event, type, index) {
+      if (event.button !== 0 || event.target.closest(".column-resize-handle, .row-resize-handle")) return;
+      closeGridContextMenu();
+      headerDrag = {
+        index,
+        moved: false,
+        pointerId: event.pointerId,
+        targetIndex: index,
+        type,
+      };
+      document.body.classList.add("is-dragging-header");
+      if (typeof event.currentTarget.setPointerCapture === "function") {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      event.preventDefault();
+    }
+
+    function updateHeaderDrag(event) {
+      if (!headerDrag || event.pointerId !== headerDrag.pointerId) return;
+      const target = getHeaderDragTarget(event);
+      if (!target) return;
+
+      headerDrag.targetIndex = target.index;
+      if (target.index !== headerDrag.index) {
+        headerDrag.moved = true;
+      }
+      clearHeaderDropTarget();
+      if (headerDrag.moved) target.header.classList.add("is-drop-target");
+      if (window.getSelection) window.getSelection().removeAllRanges();
+      event.preventDefault();
+    }
+
+    function endHeaderDrag(event) {
+      if (!headerDrag || event.pointerId !== headerDrag.pointerId) return;
+      const finishedDrag = headerDrag;
+      headerDrag = null;
+      clearHeaderDropTarget();
+      document.body.classList.remove("is-dragging-header");
+      if (!finishedDrag.moved || finishedDrag.index === finishedDrag.targetIndex) return;
+
+      suppressSelectionClick = true;
+      if (finishedDrag.type === "column") moveColumn(finishedDrag.index, finishedDrag.targetIndex);
+      else moveRow(finishedDrag.index, finishedDrag.targetIndex);
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
     function setCurrentCell(input, rowIndex, columnIndex) {
       currentCell = { input, rowIndex, columnIndex };
       if (isFormula(grid[rowIndex] && grid[rowIndex][columnIndex])) {
@@ -2677,6 +3076,7 @@
 
     function commitCellInput(input, rowIndex, columnIndex) {
       const key = cellKey(rowIndex, columnIndex);
+      const previousValue = grid[rowIndex] && grid[rowIndex][columnIndex];
       const nextValue = isFormula(input.value) ? formatFormulaInput(input.value) : input.value;
       if (input.value !== nextValue) {
         const selectionStart = input.selectionStart || nextValue.length;
@@ -2687,7 +3087,7 @@
       }
 
       grid[rowIndex][columnIndex] = nextValue;
-      delete fieldBindings[key];
+      if (previousValue !== nextValue) delete fieldBindings[key];
       if (isFormula(nextValue)) {
         formulaSourceCell = { columnIndex, rowIndex };
         formulaEditCell = { columnIndex, rowIndex };
@@ -2697,6 +3097,7 @@
         closeFormulaSuggestions();
       }
       persistSheetState();
+      updateFieldStatus();
     }
 
     function flushCurrentCellInput() {
@@ -2726,6 +3127,18 @@
       const groupLabel = activeSheetType === SHEET_TYPE_FUNNEL ? "Общие" : "Сделка";
       const activeSheet = getActiveSheetList(activeSheetType)[activeSheetIndex] || { title: getDefaultSheetTitle(activeSheetIndex) };
       gridStatus.textContent = `${groupLabel}, ${activeSheet.title}: ${rows} строк, ${columns} столбцов`;
+      updateFieldStatus();
+    }
+
+    function getSheetBoundFieldCount() {
+      const rowCount = grid.length;
+      const columnCount = grid[0] ? grid[0].length : DEFAULT_COLUMNS;
+      return countBoundFieldsOnSheet(fieldBindings, rowCount, columnCount);
+    }
+
+    function updateFieldStatus(message = null) {
+      if (!fieldStatus) return;
+      fieldStatus.textContent = message || `Поля на листе: ${getSheetBoundFieldCount()}`;
     }
 
     function renderGrid() {
@@ -2763,6 +3176,7 @@
         const th = document.createElement("th");
         const label = document.createElement("span");
         const resizeHandle = document.createElement("span");
+        th.dataset.columnHeading = String(column);
         label.textContent = columnName(column);
         resizeHandle.className = "column-resize-handle";
         resizeHandle.setAttribute("aria-hidden", "true");
@@ -2770,7 +3184,15 @@
         th.appendChild(resizeHandle);
         th.title = "Выделить столбец";
         resizeHandle.addEventListener("pointerdown", (event) => beginColumnResize(event, column));
+        th.addEventListener("pointerdown", (event) => beginHeaderDrag(event, "column", column));
+        th.addEventListener("contextmenu", (event) => showGridContextMenu(event, "column", column));
         th.addEventListener("click", (event) => {
+          if (suppressSelectionClick) {
+            suppressSelectionClick = false;
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
           const columnCells = grid.map((row, rowIndex) => cellKey(rowIndex, column));
           if (event.ctrlKey || event.metaKey) {
             const next = new Set(selectedCells);
@@ -2796,6 +3218,7 @@
         tr.style.height = `${clampRowHeight(rowHeights[rowIndex])}px`;
         const heading = document.createElement("th");
         heading.className = "row-heading";
+        heading.dataset.rowHeading = String(rowIndex);
         const headingLabel = document.createElement("span");
         const resizeHandle = document.createElement("span");
         headingLabel.textContent = String(rowIndex + 1);
@@ -2805,7 +3228,15 @@
         heading.appendChild(resizeHandle);
         heading.title = "Выделить строку";
         resizeHandle.addEventListener("pointerdown", (event) => beginRowResize(event, rowIndex));
+        heading.addEventListener("pointerdown", (event) => beginHeaderDrag(event, "row", rowIndex));
+        heading.addEventListener("contextmenu", (event) => showGridContextMenu(event, "row", rowIndex));
         heading.addEventListener("click", (event) => {
+          if (suppressSelectionClick) {
+            suppressSelectionClick = false;
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
           const rowCells = row.map((value, columnIndex) => cellKey(rowIndex, columnIndex));
           if (event.ctrlKey || event.metaKey) {
             const next = new Set(selectedCells);
@@ -2824,7 +3255,7 @@
           const td = document.createElement("td");
           const key = cellKey(rowIndex, columnIndex);
           td.dataset.cellKey = key;
-          td.classList.toggle("is-selected", selectedCells.has(key));
+          applySelectionCellClasses(td, key);
           td.classList.toggle("is-wrapped", wrappedCells.has(key));
           const format = normalizeCellFormat(cellFormats[key] || {});
           if (format.verticalAlign) td.classList.add(`align-vertical-${format.verticalAlign}`);
@@ -2889,7 +3320,12 @@
           });
           input.addEventListener("input", () => {
             commitCellInput(input, rowIndex, columnIndex);
-            if (td.classList.contains("is-wrapped") || format.verticalAlign) fitCellInputHeight(input);
+            if (td.classList.contains("is-wrapped")) {
+              fitWrappedRowHeight(rowIndex);
+              persistSheetState();
+            } else if (format.verticalAlign) {
+              fitCellInputHeight(input);
+            }
             updateCellFormulaSuggestions(input, rowIndex, columnIndex);
           });
           input.addEventListener("keydown", (event) => {
@@ -2916,7 +3352,7 @@
       });
 
       table.appendChild(tbody);
-      table.querySelectorAll("td.is-wrapped .cell-input, td[class*='align-vertical-'] .cell-input").forEach(fitCellInputHeight);
+      table.querySelectorAll("td[class*='align-vertical-']:not(.is-wrapped) .cell-input").forEach(fitCellInputHeight);
       updateGridStatus();
       updateSelectionActions();
       resizeBitrixFrameToContent();
@@ -2952,6 +3388,7 @@
           grid[currentCell.rowIndex][currentCell.columnIndex] = formatted;
           fieldBindings[cellKey(currentCell.rowIndex, currentCell.columnIndex)] = field.id;
           persistSheetState();
+          updateFieldStatus();
           closeFieldPopover();
           currentCell.input.focus();
         });
@@ -3069,11 +3506,11 @@
     async function loadDealFields(options = {}) {
       const compactAfterLoad = Boolean(options.compactAfterLoad);
       if (!dealId) {
-        fieldStatus.textContent = "Поля сделки: карточка не определена";
+        updateFieldStatus("Поля сделки: карточка не определена");
         return;
       }
 
-      fieldStatus.textContent = "Поля сделки: загрузка...";
+      updateFieldStatus("Поля сделки: загрузка...");
       try {
         const fields = await callMethod("crm.deal.fields");
         const deal = await callMethod("crm.deal.get", { id: dealId });
@@ -3101,9 +3538,9 @@
           persistSheetState();
           renderGrid();
         }
-        fieldStatus.textContent = `Поля сделки: ${dealFields.length}`;
+        updateFieldStatus();
       } catch (error) {
-        fieldStatus.textContent = `Поля сделки: ошибка (${error.message || error})`;
+        updateFieldStatus(`Поля сделки: ошибка (${error.message || error})`);
       }
     }
 
@@ -3132,6 +3569,118 @@
       focusFirstSelectedCell();
     }
 
+    function commitSheetStateChange(nextState, nextSelectionKeys = []) {
+      applySheetState(nextState);
+      selectedCells = new Set(nextSelectionKeys);
+      persistSheetState();
+      renderGrid();
+      if (selectedCells.size) focusFirstSelectedCell();
+    }
+
+    function insertRowsAfter(rowIndex, count = 1) {
+      const nextState = insertRowsInSheetState(getCurrentSheetSnapshot(), rowIndex, count);
+      const columnCount = nextState.grid[0] ? nextState.grid[0].length : DEFAULT_COLUMNS;
+      const firstInsertedRow = Math.min(rowIndex + 1, nextState.grid.length - 1);
+      commitSheetStateChange(
+        nextState,
+        getRangeCellKeys(
+          { rowIndex: firstInsertedRow, columnIndex: 0 },
+          { rowIndex: Math.min(firstInsertedRow + normalizeInsertCount(count) - 1, nextState.grid.length - 1), columnIndex: columnCount - 1 }
+        )
+      );
+    }
+
+    function insertColumnsAfter(columnIndex, count = 1) {
+      const nextState = insertColumnsInSheetState(getCurrentSheetSnapshot(), columnIndex, count);
+      const firstInsertedColumn = Math.min(columnIndex + 1, (nextState.grid[0] ? nextState.grid[0].length : DEFAULT_COLUMNS) - 1);
+      commitSheetStateChange(
+        nextState,
+        getRangeCellKeys(
+          { rowIndex: 0, columnIndex: firstInsertedColumn },
+          { rowIndex: nextState.grid.length - 1, columnIndex: Math.min(firstInsertedColumn + normalizeInsertCount(count) - 1, nextState.grid[0].length - 1) }
+        )
+      );
+    }
+
+    function moveRow(fromRowIndex, toRowIndex) {
+      const nextState = moveRowInSheetState(getCurrentSheetSnapshot(), fromRowIndex, toRowIndex);
+      const columnCount = nextState.grid[0] ? nextState.grid[0].length : DEFAULT_COLUMNS;
+      commitSheetStateChange(
+        nextState,
+        getRangeCellKeys({ rowIndex: toRowIndex, columnIndex: 0 }, { rowIndex: toRowIndex, columnIndex: columnCount - 1 })
+      );
+    }
+
+    function moveColumn(fromColumnIndex, toColumnIndex) {
+      const nextState = moveColumnInSheetState(getCurrentSheetSnapshot(), fromColumnIndex, toColumnIndex);
+      commitSheetStateChange(
+        nextState,
+        getRangeCellKeys({ rowIndex: 0, columnIndex: toColumnIndex }, { rowIndex: nextState.grid.length - 1, columnIndex: toColumnIndex })
+      );
+    }
+
+    function deleteRow(rowIndex) {
+      const nextState = deleteRowInSheetState(getCurrentSheetSnapshot(), rowIndex);
+      const columnCount = nextState.grid[0] ? nextState.grid[0].length : DEFAULT_COLUMNS;
+      const selectedRowIndex = Math.min(rowIndex, nextState.grid.length - 1);
+      commitSheetStateChange(
+        nextState,
+        getRangeCellKeys({ rowIndex: selectedRowIndex, columnIndex: 0 }, { rowIndex: selectedRowIndex, columnIndex: columnCount - 1 })
+      );
+    }
+
+    function deleteColumn(columnIndex) {
+      const nextState = deleteColumnInSheetState(getCurrentSheetSnapshot(), columnIndex);
+      const selectedColumnIndex = Math.min(columnIndex, (nextState.grid[0] ? nextState.grid[0].length : DEFAULT_COLUMNS) - 1);
+      commitSheetStateChange(
+        nextState,
+        getRangeCellKeys({ rowIndex: 0, columnIndex: selectedColumnIndex }, { rowIndex: nextState.grid.length - 1, columnIndex: selectedColumnIndex })
+      );
+    }
+
+    function closeGridContextMenu() {
+      if (!gridContextMenu) return;
+      gridContextMenu.remove();
+      gridContextMenu = null;
+    }
+
+    function showGridContextMenu(event, type, index) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeGridContextMenu();
+
+      gridContextMenu = document.createElement("div");
+      gridContextMenu.className = "grid-context-menu";
+      gridContextMenu.style.left = `${event.clientX}px`;
+      gridContextMenu.style.top = `${event.clientY}px`;
+
+      const actions =
+        type === "row"
+          ? [
+              { label: "Добавить строку", run: () => insertRowsAfter(index, 1) },
+              { label: "Добавить 4 строки", run: () => insertRowsAfter(index, 4) },
+              { label: "Удалить строку", run: () => deleteRow(index) },
+            ]
+          : [
+              { label: "Добавить столбец", run: () => insertColumnsAfter(index, 1) },
+              { label: "Добавить 4 столбца", run: () => insertColumnsAfter(index, 4) },
+              { label: "Удалить столбец", run: () => deleteColumn(index) },
+            ];
+
+      actions.forEach((action) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = action.label;
+        button.addEventListener("click", () => {
+          closeGridContextMenu();
+          action.run();
+        });
+        gridContextMenu.appendChild(button);
+      });
+
+      document.body.appendChild(gridContextMenu);
+    }
+
     function toggleWrapSelectedCells() {
       if (!selectedCells.size) return;
 
@@ -3141,6 +3690,7 @@
         if (shouldWrap) wrappedCells.add(key);
         else wrappedCells.delete(key);
       });
+      if (shouldWrap) autoFitSheetSize(new Set(keys));
 
       persistSheetState();
       renderGrid();
@@ -3262,16 +3812,11 @@
     }
 
     addRowButton.addEventListener("click", () => {
-      grid = addRow(grid);
-      persistSheetState();
-      renderGrid();
+      insertRowsAfter(grid.length - 1, 1);
     });
 
     addColumnButton.addEventListener("click", () => {
-      grid = addColumn(grid);
-      columnWidths[grid[0].length - 1] = DEFAULT_COLUMN_WIDTH;
-      persistSheetState();
-      renderGrid();
+      insertColumnsAfter((grid[0] ? grid[0].length : DEFAULT_COLUMNS) - 1, 1);
     });
 
     reloadFieldsButton.addEventListener("click", () => loadDealFields({ compactAfterLoad: true }));
@@ -3322,18 +3867,22 @@
     document.addEventListener("pointermove", (event) => {
       updateDragSelectionFromPointer(event);
       updateGridResize(event);
+      updateHeaderDrag(event);
     });
     document.addEventListener("pointerup", (event) => {
       endDragSelection(event);
       endGridResize(event);
+      endHeaderDrag(event);
     });
     document.addEventListener("pointercancel", (event) => {
       endDragSelection(event);
       endGridResize(event);
+      endHeaderDrag(event);
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         closeFieldPopover();
+        closeGridContextMenu();
         closeFormulaModal();
         closeDeleteConfirmModal();
         closeFormulaSuggestions();
@@ -3364,6 +3913,9 @@
       closeFieldPopover();
     });
     document.addEventListener("click", (event) => {
+      if (gridContextMenu && !gridContextMenu.contains(event.target)) closeGridContextMenu();
+    });
+    document.addEventListener("click", (event) => {
       if (!formulaSuggestions || formulaSuggestions.hidden) return;
       if (formulaSuggestions.contains(event.target) || event.target === formulaSuggestionInput) return;
       closeFormulaSuggestions();
@@ -3376,7 +3928,7 @@
 
     if (!window.BX24 || typeof window.BX24.init !== "function") {
       if (dealContext) dealContext.textContent = `${DISPLAY_VERSION}. Локальный режим без Bitrix24 SDK.`;
-      fieldStatus.textContent = "Поля сделки: локальный режим";
+      updateFieldStatus("Поля сделки: локальный режим");
       return;
     }
 
@@ -3401,6 +3953,8 @@
     DEFAULT_ROW_HEIGHT,
     DEFAULT_ROWS,
     MAX_SHEETS_PER_GROUP,
+    MAX_GRID_COLUMNS,
+    MAX_GRID_ROWS,
     addColumn,
     addRow,
     addRecentFormula,
@@ -3418,8 +3972,11 @@
     columnName,
     columnIndexFromName,
     cloneSheetSnapshot,
+    countBoundFieldsOnSheet,
     createCellClipboard,
     createGrid,
+    deleteColumnInSheetState,
+    deleteRowInSheetState,
     evaluateFormula,
     escapeHtml,
     extractDealId,
@@ -3443,11 +4000,16 @@
     getAutoFitColumnWidths,
     getFilledCellKeys,
     getFunnelStorageKey,
+    getDeleteIndexMap,
+    getInsertIndexMap,
+    getMoveIndexMap,
     getSortedCellKeys,
     getGridStorageKey,
+    getNormalizedSheetState,
     getRangeCellKeys,
     getSelectedColumns,
     getSelectedRows,
+    getSelectionEdgeClassNames,
     getSheetStorageKey,
     getSheetListStorageKey,
     isSheetStateEmpty,
@@ -3457,6 +4019,8 @@
     getUsedGridBounds,
     isCopyShortcut,
     isPasteShortcut,
+    insertColumnsInSheetState,
+    insertRowsInSheetState,
     loadRecentFormulas,
     loadSavedFormulas,
     loadSheetState,
@@ -3464,6 +4028,9 @@
     parseSheetStateData,
     measureRowHeight,
     measureColumnWidth,
+    moveArrayItem,
+    moveColumnInSheetState,
+    moveRowInSheetState,
     getAutoFitRowHeights,
     normalizeCategoryId,
     normalizeCellFormat,
@@ -3479,6 +4046,7 @@
     normalizeSavedFormula,
     normalizeSavedFormulas,
     removeSavedFormula,
+    remapFormulaReferences,
     saveRecentFormulas,
     saveSavedFormulas,
     saveSheetState,
