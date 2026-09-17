@@ -2,7 +2,7 @@
   "use strict";
 
   const PLACEMENT_CODE = "CRM_DEAL_DETAIL_TAB";
-  const PLACEMENT_TITLE = "Excel таблицы";
+  const PLACEMENT_TITLE = "Excel таблицы в CRM";
   const SHARED_STORAGE_ENTITY = "exctabb24";
   const SHARED_STORAGE_PROPERTY = "DATA";
 

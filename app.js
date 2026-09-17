@@ -18,7 +18,7 @@
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
   const DISPLAY_VERSION = "v.46";
-  const DISPLAY_TITLE = "Excel таблица в сделке и экспорт";
+  const DISPLAY_TITLE = "Excel таблицы в сделке и экспорт данных из CRM";
   const SHARED_STORAGE_ENTITY = "exctabb24";
   const SHARED_STORAGE_PROPERTY = "DATA";
   const MAX_SHEETS_PER_GROUP = 7;
@@ -1239,7 +1239,7 @@
     <x:ExcelWorkbook>
       <x:ExcelWorksheets>
         <x:ExcelWorksheet>
-          <x:Name>Excel таблица в сделке и экспорт</x:Name>
+          <x:Name>Excel таблицы в сделке и экспорт данных из CRM</x:Name>
           <x:WorksheetOptions>
             <x:DisplayGridlines/>
           </x:WorksheetOptions>
@@ -1262,7 +1262,7 @@
 
   function getExportFileName(dealId) {
     const suffix = dealId ? ` deal ${dealId}` : "";
-    return `Excel таблица в сделке и экспорт${suffix}.xls`;
+    return `Excel таблицы в сделке и экспорт данных из CRM${suffix}.xls`;
   }
 
   function parsePlacementOptions(raw) {
