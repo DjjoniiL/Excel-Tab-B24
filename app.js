@@ -17,7 +17,7 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "v.46";
+  const DISPLAY_VERSION = "v.47";
   const DISPLAY_TITLE = "Excel таблицы в сделке и экспорт данных из CRM";
   const SHARED_STORAGE_ENTITY = "exctabb24";
   const SHARED_STORAGE_PROPERTY = "DATA";
@@ -1982,6 +1982,10 @@
     const deleteConfirmClose = document.getElementById("deleteConfirmClose");
     const confirmDeleteButton = document.getElementById("confirmDeleteButton");
     const cancelDeleteButton = document.getElementById("cancelDeleteButton");
+    const helpButton = document.getElementById("helpButton");
+    const helpModal = document.getElementById("helpModal");
+    const helpModalClose = document.getElementById("helpModalClose");
+    let supportWidgetLoaded = false;
 
     if (appTitle) appTitle.textContent = DISPLAY_TITLE;
 
@@ -2709,6 +2713,34 @@
     function closeDeleteConfirmModal() {
       if (!deleteConfirmModal) return;
       deleteConfirmModal.hidden = true;
+    }
+
+    function loadSupportWidget() {
+      if (supportWidgetLoaded) return;
+      supportWidgetLoaded = true;
+
+      const script = document.createElement("script");
+      script.async = true;
+      script.src = `https://cdn-ru.bitrix24.ru/b31051/crm/site_button/loader_9_no7zeu.js?${(Date.now() / 60000) | 0}`;
+      const anchor = document.getElementsByTagName("script")[0];
+      anchor.parentNode.insertBefore(script, anchor);
+    }
+
+    function openHelpModal() {
+      if (!helpModal) return;
+      closeFieldPopover();
+      closeFormulaModal();
+      closeDeleteConfirmModal();
+      helpModal.hidden = false;
+      loadSupportWidget();
+      window.setTimeout(() => {
+        if (helpModalClose) helpModalClose.focus();
+      }, 0);
+    }
+
+    function closeHelpModal() {
+      if (!helpModal) return;
+      helpModal.hidden = true;
     }
 
     function saveFormulaFromModal() {
@@ -3888,6 +3920,13 @@
     if (deleteConfirmModal) {
       deleteConfirmModal.addEventListener("click", (event) => {
         if (event.target === deleteConfirmModal) closeDeleteConfirmModal();
+      });
+    }
+    if (helpButton) helpButton.addEventListener("click", openHelpModal);
+    if (helpModalClose) helpModalClose.addEventListener("click", closeHelpModal);
+    if (helpModal) {
+      helpModal.addEventListener("click", (event) => {
+        if (event.target === helpModal) closeHelpModal();
       });
     }
     if (fieldPopoverClose) fieldPopoverClose.addEventListener("click", closeFieldPopover);

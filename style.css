@@ -66,14 +66,18 @@ body {
 }
 
 .ghost-button {
+  align-items: center;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--text);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
+  justify-content: center;
   min-height: 30px;
   padding: 0 10px;
+  text-decoration: none;
 }
 
 .topbar .ghost-button,
@@ -1143,6 +1147,55 @@ body {
   padding: 16px 12px;
 }
 
+.help-modal {
+  background: #ffffff;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: 0 18px 46px rgba(23, 32, 51, 0.24);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
+  max-width: calc(100vw - 420px);
+  overflow: hidden;
+  width: min(1080px, calc(100vw - 420px));
+}
+
+.help-modal-body {
+  line-height: 1.5;
+  overflow: visible;
+  padding: 16px 18px 20px;
+}
+
+.help-modal-body p {
+  margin: 0 0 12px;
+}
+
+.help-modal-body ol {
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+
+.help-modal-body li {
+  margin-bottom: 8px;
+}
+
+.help-modal-body li p {
+  margin-bottom: 8px;
+}
+
+.help-modal-body code {
+  background: #eef2f7;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.help-support-note {
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+  padding-left: 10px;
+}
+
 @media (max-width: 720px) {
   .app-shell {
     padding: 6px 8px 10px;
@@ -1207,5 +1260,15 @@ body {
   .formula-modal-footer {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .help-modal {
+    max-height: calc(100vh - 20px);
+    max-width: calc(100vw - 16px);
+    width: calc(100vw - 16px);
+  }
+
+  .help-modal-body {
+    overflow: auto;
   }
 }

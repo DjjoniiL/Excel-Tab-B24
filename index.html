@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Excel таблицы в сделке и экспорт данных из CRM</title>
-    <link rel="stylesheet" href="style.css?v=excel-tab-v41">
+    <link rel="stylesheet" href="style.css?v=excel-tab-v47">
     <script src="//api.bitrix24.com/api/v1/"></script>
   </head>
   <body>
@@ -14,6 +14,7 @@
           <h1>Excel таблицы в сделке и экспорт данных из CRM</h1>
         </div>
         <button class="ghost-button" id="reloadFieldsButton" type="button">Обновить поля</button>
+        <button class="ghost-button help-button" id="helpButton" type="button">Помощь</button>
       </header>
 
       <section class="toolbar" aria-label="Панель таблицы">
@@ -82,7 +83,7 @@
         </div>
         <button class="toolbar-button toolbar-export" id="exportExcelButton" type="button">Экспорт в Excel</button>
         <div class="status-pill" id="gridStatus">9 строк, 7 столбцов</div>
-        <div class="version-status" id="versionStatus">v.41</div>
+        <div class="version-status" id="versionStatus">v.47</div>
       </section>
 
       <section class="grid-frame" aria-label="Таблица сделки">
@@ -171,6 +172,38 @@
       </section>
     </div>
 
-    <script src="app.js?v=excel-tab-v41"></script>
+    <div class="modal-backdrop" id="helpModal" hidden role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <section class="help-modal">
+        <header class="formula-modal-header">
+          <h2 id="helpModalTitle">Помощь по приложению</h2>
+          <button class="modal-close-button" id="helpModalClose" type="button" aria-label="Закрыть помощь">×</button>
+        </header>
+        <div class="help-modal-body">
+          <p>После установки приложение автоматически добавляет вкладку <strong>«Excel таблицы в CRM»</strong> в карточку сделки.</p>
+          <p>Интерфейс рассчитан на ежедневную работу: открыть сделку, внести или пересчитать данные, при необходимости выгрузить результат в Excel. Пользователю не нужны специальные знания: достаточно уметь работать с карточкой сделки и обычной таблицей. Отдельная настройка приложения не требуется. Интеграция с внешними сервисами не используется.</p>
+          <p>Экспорт выполняется в формате <code>.xls</code> и включает заполненную область таблицы.</p>
+
+          <p><strong>Чтобы начать работу:</strong></p>
+          <ol>
+            <li>Откройте любую сделку.</li>
+            <li>Перейдите во вкладку <strong>«Excel таблицы в CRM»</strong>.</li>
+            <li>
+              <p>На экране откроется уникальный лист этой сделки. Внизу доступны две группы листов: <strong>«Листы сделки»</strong> - только для текущей сделки, и <strong>«Общие листы»</strong> - для всей воронки продаж.</p>
+              <p>Добавляйте новые листы, строки и столбцы кнопками <strong>«+»</strong> или через меню ПКМ по заголовкам. Строки и столбцы можно перетаскивать без потери данных.</p>
+            </li>
+            <li>
+              <p>Используйте панель инструментов для форматирования текста, копирования и вставки данных. Диапазон можно выделить мышью, скопировать кнопкой или через <strong>Ctrl+C</strong>, а затем вставить на другой лист через <strong>Ctrl+V</strong>. Формулы добавляются через знак <strong>«=»</strong> или из сохраненных списков.</p>
+              <p>В блоке <strong>«Бекап»</strong> доступны отмена и возврат действий.</p>
+            </li>
+            <li>Если в CRM появились новые поля, нажмите <strong>«Обновить поля»</strong>, чтобы они стали доступны для выбора в таблице.</li>
+            <li>Нажмите <strong>«Экспорт в Excel»</strong>, чтобы скачать заполненную таблицу в формате <code>.xls</code>.</li>
+          </ol>
+
+          <p class="help-support-note">Если нужна помощь, напишите в чат поддержки в этом окне.</p>
+        </div>
+      </section>
+    </div>
+
+    <script src="app.js?v=excel-tab-v47"></script>
   </body>
 </html>
