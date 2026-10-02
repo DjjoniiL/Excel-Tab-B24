@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Excel таблицы в сделке и экспорт данных из CRM</title>
-    <link rel="stylesheet" href="style.css?v=excel-tab-v47">
+    <link rel="stylesheet" href="style.css?v=excel-tab-v49">
     <script src="//api.bitrix24.com/api/v1/"></script>
   </head>
   <body>
@@ -83,7 +83,7 @@
         </div>
         <button class="toolbar-button toolbar-export" id="exportExcelButton" type="button">Экспорт в Excel</button>
         <div class="status-pill" id="gridStatus">9 строк, 7 столбцов</div>
-        <div class="version-status" id="versionStatus">v.47</div>
+        <div class="version-status" id="versionStatus">v.49</div>
       </section>
 
       <section class="grid-frame" aria-label="Таблица сделки">
@@ -94,7 +94,7 @@
         <button class="add-row-button" id="addRowButton" type="button" aria-label="Добавить строку">+</button>
       </section>
       <nav class="sheet-switcher" aria-label="Листы таблицы">
-        <section class="sheet-group" aria-label="Индивидуальные листы сделки">
+        <section class="sheet-group" id="dealSheetGroup" aria-label="Индивидуальные листы сделки">
           <div class="sheet-group-header">
             <span>Листы сделки</span>
             <button class="sheet-add-button" id="addDealSheetButton" type="button" aria-label="Добавить лист сделки">+</button>
@@ -103,9 +103,10 @@
             <button class="sheet-switch-button is-active" id="dealSheetButton" type="button" aria-pressed="true">Лист 1</button>
           </div>
         </section>
-        <section class="sheet-group" aria-label="Общие листы воронки">
+        <section class="sheet-group" id="funnelSheetGroup" aria-label="Общие листы воронки">
           <div class="sheet-group-header">
             <span>Общие листы</span>
+            <button class="sheet-funnel-button" id="selectFunnelButton" type="button" hidden>Воронка</button>
             <button class="sheet-add-button" id="addFunnelSheetButton" type="button" aria-label="Добавить общий лист" disabled>+</button>
           </div>
           <div class="sheet-tab-list" id="funnelSheetTabs">
@@ -128,6 +129,14 @@
         <button class="field-popover-close" id="fieldPopoverClose" type="button" aria-label="Закрыть список полей">×</button>
       </div>
       <div class="field-list" id="fieldList"></div>
+    </div>
+
+    <div class="field-popover funnel-popover" id="funnelPopover" hidden>
+      <div class="field-popover-header">
+        <div class="funnel-popover-title">Выберите воронку</div>
+        <button class="field-popover-close" id="funnelPopoverClose" type="button" aria-label="Закрыть список воронок">×</button>
+      </div>
+      <div class="field-list" id="funnelList"></div>
     </div>
 
     <div class="formula-suggestions" id="formulaSuggestions" hidden></div>
@@ -204,6 +213,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=excel-tab-v47"></script>
+    <script src="app.js?v=excel-tab-v49"></script>
   </body>
 </html>

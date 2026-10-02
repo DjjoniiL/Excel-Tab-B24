@@ -142,6 +142,10 @@ body {
   text-transform: uppercase;
 }
 
+.sheet-group.is-disabled {
+  opacity: 0.55;
+}
+
 .sheet-tab-list {
   display: flex;
   gap: 2px;
@@ -184,6 +188,37 @@ body {
   line-height: 1;
   padding: 0;
   width: 22px;
+}
+
+.sheet-funnel-button {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  flex: 0 1 auto;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  height: 20px;
+  line-height: 1;
+  max-width: 160px;
+  min-width: 70px;
+  overflow: hidden;
+  padding: 0 6px;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.sheet-funnel-button[hidden] {
+  display: none;
+}
+
+.sheet-funnel-button:hover,
+.sheet-funnel-button:focus {
+  border-color: var(--accent);
+  outline: none;
 }
 
 .sheet-switch-button.is-active {
@@ -832,6 +867,19 @@ body {
   border-bottom: 1px solid var(--line);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 36px;
+}
+
+.funnel-popover {
+  min-width: 320px;
+}
+
+.funnel-popover-title {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 10px;
 }
 
 .field-search {

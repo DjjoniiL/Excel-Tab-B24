@@ -75,6 +75,13 @@ function testGridStorageKey() {
   assert.equal(app.getSheetListStorageKey("funnel", 42, 7), "excel-tab-b24-grid-funnel-v1-7-sheet-list-v1");
   assert.deepEqual(app.normalizeSheetList([]), [{ title: "Лист 1" }]);
   assert.equal(app.normalizeSheetList(Array.from({ length: 12 }, (_, index) => ({ title: `Лист ${index + 1}` }))).length, app.MAX_SHEETS_PER_GROUP);
+  assert.equal(app.detectAppMode({ mode: "crm-menu" }), app.APP_MODE_CRM_MENU);
+  assert.equal(app.detectAppMode({ PLACEMENT: "LEFT_MENU" }), app.APP_MODE_CRM_MENU);
+  assert.equal(app.detectAppMode({ PLACEMENT: "CRM_DEAL_DETAIL_TAB" }), app.APP_MODE_DEAL);
+  assert.deepEqual(app.normalizeDealCategories([{ ID: "3", NAME: "Продажи" }]), [
+    { id: 0, title: "Общая воронка" },
+    { id: 3, title: "Продажи" },
+  ]);
 }
 
 function testReferenceFormatting() {

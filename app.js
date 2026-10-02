@@ -17,7 +17,9 @@
   const FUNNEL_STORAGE_KEY_PREFIX = "excel-tab-b24-grid-funnel-v1";
   const SHEET_TYPE_DEAL = "deal";
   const SHEET_TYPE_FUNNEL = "funnel";
-  const DISPLAY_VERSION = "v.47";
+  const APP_MODE_DEAL = "deal";
+  const APP_MODE_CRM_MENU = "crm-menu";
+  const DISPLAY_VERSION = "v.49";
   const DISPLAY_TITLE = "Excel таблицы в сделке и экспорт данных из CRM";
   const SHARED_STORAGE_ENTITY = "exctabb24";
   const SHARED_STORAGE_PROPERTY = "DATA";
@@ -1435,6 +1437,38 @@
     return Number.isInteger(id) && id >= 0 ? id : null;
   }
 
+  function normalizeDealCategories(categories = []) {
+    const normalized = [{ id: 0, title: "Общая воронка" }];
+    const seen = new Set(["0"]);
+
+    (Array.isArray(categories) ? categories : []).forEach((category) => {
+      const id = normalizeCategoryId(category && (category.ID ?? category.id));
+      if (id === null || seen.has(String(id))) return;
+
+      normalized.push({
+        id,
+        title: category.NAME || category.name || category.TITLE || category.title || `Воронка ${id}`,
+      });
+      seen.add(String(id));
+    });
+
+    return normalized.sort((left, right) => {
+      if (left.id === 0) return -1;
+      if (right.id === 0) return 1;
+      return left.title.localeCompare(right.title, "ru");
+    });
+  }
+
+  function detectAppMode(input = {}) {
+    const explicitMode = String(input.mode || input.view || input.appMode || "").toLowerCase();
+    if (explicitMode === APP_MODE_CRM_MENU || explicitMode === "menu" || explicitMode === "left-menu") return APP_MODE_CRM_MENU;
+
+    const placement = String(input.PLACEMENT || input.placement || input.placementCode || input.PLACEMENT_CODE || "").toUpperCase();
+    if (placement.includes("MENU")) return APP_MODE_CRM_MENU;
+
+    return APP_MODE_DEAL;
+  }
+
   function applyDisplayValues(fields, displayValues = {}) {
     return fields.map((field) => ({
       ...field,
@@ -1940,12 +1974,18 @@
     const gridStatus = document.getElementById("gridStatus");
     const versionStatus = document.getElementById("versionStatus");
     const dealContext = document.getElementById("dealContext");
+    const dealSheetGroup = document.getElementById("dealSheetGroup");
+    const funnelSheetGroup = document.getElementById("funnelSheetGroup");
     const dealSheetButton = document.getElementById("dealSheetButton");
     const funnelSheetButton = document.getElementById("funnelSheetButton");
     const dealSheetTabs = document.getElementById("dealSheetTabs");
     const funnelSheetTabs = document.getElementById("funnelSheetTabs");
     const addDealSheetButton = document.getElementById("addDealSheetButton");
     const addFunnelSheetButton = document.getElementById("addFunnelSheetButton");
+    const selectFunnelButton = document.getElementById("selectFunnelButton");
+    const funnelPopover = document.getElementById("funnelPopover");
+    const funnelPopoverClose = document.getElementById("funnelPopoverClose");
+    const funnelList = document.getElementById("funnelList");
     const addRowButton = document.getElementById("addRowButton");
     const addColumnButton = document.getElementById("addColumnButton");
     const reloadFieldsButton = document.getElementById("reloadFieldsButton");
@@ -2016,9 +2056,11 @@
       gridFrame.insertAdjacentElement("afterend", bottomPanel);
     }
 
-    let activeSheetType = SHEET_TYPE_DEAL;
-    let dealCategoryId = null;
+    let appMode = detectAppMode(Object.fromEntries(new URLSearchParams(window.location.search).entries()));
+    let activeSheetType = appMode === APP_MODE_CRM_MENU ? SHEET_TYPE_FUNNEL : SHEET_TYPE_DEAL;
+    let dealCategoryId = appMode === APP_MODE_CRM_MENU ? 0 : null;
     let dealCategoryName = "";
+    let dealCategories = normalizeDealCategories();
     let dealTitle = "";
     let storageKey = getSheetStorageKey(activeSheetType, null, null);
     let sheetState = loadSheetState(storageKey);
@@ -2171,6 +2213,11 @@
     function updateDealContext() {
       if (!dealContext) return;
 
+      if (appMode === APP_MODE_CRM_MENU) {
+        dealContext.textContent = `Общие листы воронки "${dealCategoryName || findCategoryName(dealCategories, dealCategoryId) || "Общая воронка"}"`;
+        return;
+      }
+
       if (activeSheetType === SHEET_TYPE_FUNNEL) {
         dealContext.textContent = "Общая таблица сделок";
         return;
@@ -2258,12 +2305,14 @@
     function getSheetGroupContext(sheetType) {
       return {
         addButton: sheetType === SHEET_TYPE_FUNNEL ? addFunnelSheetButton : addDealSheetButton,
+        group: sheetType === SHEET_TYPE_FUNNEL ? funnelSheetGroup : dealSheetGroup,
         sheets: getActiveSheetList(sheetType),
         tabList: sheetType === SHEET_TYPE_FUNNEL ? funnelSheetTabs : dealSheetTabs,
       };
     }
 
     function isSheetGroupAvailable(sheetType) {
+      if (appMode === APP_MODE_CRM_MENU) return sheetType === SHEET_TYPE_FUNNEL && dealCategoryId !== null;
       return sheetType !== SHEET_TYPE_FUNNEL || (dealId && dealCategoryId !== null);
     }
 
@@ -2272,6 +2321,7 @@
       if (!context.tabList) return;
 
       const isAvailable = isSheetGroupAvailable(sheetType);
+      if (context.group) context.group.classList.toggle("is-disabled", !isAvailable);
       context.tabList.innerHTML = "";
       context.sheets.forEach((sheet, index) => {
         const button = document.createElement("button");
@@ -2292,6 +2342,11 @@
           context.sheets.length >= MAX_SHEETS_PER_GROUP
             ? `Можно добавить не больше ${MAX_SHEETS_PER_GROUP} листов`
             : "";
+      }
+
+      if (sheetType === SHEET_TYPE_FUNNEL && selectFunnelButton) {
+        selectFunnelButton.hidden = appMode !== APP_MODE_CRM_MENU;
+        selectFunnelButton.textContent = dealCategoryName || findCategoryName(dealCategories, dealCategoryId) || "Воронка";
       }
     }
 
@@ -2395,6 +2450,63 @@
       if (activeSheetIndex >= getActiveSheetList(activeSheetType).length) activeSheetIndex = 0;
     }
 
+    async function loadDealCategories() {
+      const categories = await callOptionalMethod("crm.dealcategory.list", {}, []);
+      dealCategories = normalizeDealCategories(categories);
+      if (dealCategoryId === null) dealCategoryId = 0;
+      dealCategoryName = findCategoryName(dealCategories, dealCategoryId) || "Общая воронка";
+      updateSheetModeControls();
+      return dealCategories;
+    }
+
+    function renderFunnelList() {
+      if (!funnelList) return;
+      funnelList.innerHTML = "";
+
+      dealCategories.forEach((category) => {
+        const button = document.createElement("button");
+        button.className = "field-option";
+        button.type = "button";
+        button.innerHTML = `<span></span><small></small>`;
+        button.querySelector("span").textContent = category.title;
+        button.querySelector("small").textContent = category.id === 0 ? "Общая воронка" : `ID ${category.id}`;
+        button.addEventListener("click", () => selectFunnelCategory(category.id));
+        funnelList.appendChild(button);
+      });
+    }
+
+    async function openFunnelPopover() {
+      if (!selectFunnelButton || !funnelPopover || appMode !== APP_MODE_CRM_MENU) return;
+      await loadDealCategories();
+      renderFunnelList();
+      const rect = selectFunnelButton.getBoundingClientRect();
+      funnelPopover.hidden = false;
+      funnelPopover.style.left = `${Math.min(rect.left, window.innerWidth - 340)}px`;
+      funnelPopover.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - 310)}px`;
+    }
+
+    function closeFunnelPopover() {
+      if (!funnelPopover) return;
+      funnelPopover.hidden = true;
+    }
+
+    async function selectFunnelCategory(categoryId) {
+      const nextCategoryId = normalizeCategoryId(categoryId);
+      if (nextCategoryId === null) return;
+
+      persistSheetState();
+      dealCategoryId = nextCategoryId;
+      dealCategoryName = findCategoryName(dealCategories, dealCategoryId) || "Общая воронка";
+      activeSheetType = SHEET_TYPE_FUNNEL;
+      activeSheetIndex = 0;
+      closeFieldPopover();
+      closeFunnelPopover();
+      closeFormulaSuggestions();
+      loadSheetLists();
+      await syncSheetListFromSharedStorage(SHEET_TYPE_FUNNEL);
+      loadActiveSheetState();
+    }
+
     async function syncSheetListFromSharedStorage(sheetType) {
       if (!sharedStorageReady || !isSheetGroupAvailable(sheetType)) return false;
       const key = getSheetListStorageKey(sheetType, dealId, dealCategoryId);
@@ -2495,7 +2607,7 @@
       if (!isSheetGroupAvailable(sheetType)) return;
       if (sheetType === activeSheetType && sheetIndex === activeSheetIndex) return;
       if (sheetIndex < 0 || sheetIndex >= getActiveSheetList(sheetType).length) return;
-      if (sheetType === SHEET_TYPE_FUNNEL && (!dealId || dealCategoryId === null)) return;
+      if (sheetType === SHEET_TYPE_FUNNEL && dealCategoryId === null) return;
 
       persistSheetState();
       activeSheetType = sheetType;
@@ -3456,6 +3568,7 @@
     }
 
     function openFieldPopover(anchor) {
+      closeFunnelPopover();
       popoverAnchor = anchor;
       renderFieldList(fieldSearch.value);
       const rect = anchor.getBoundingClientRect();
@@ -3541,6 +3654,12 @@
         ...(info.PLACEMENT_OPTIONS ? parsePlacementOptions(info.PLACEMENT_OPTIONS) : {}),
       };
 
+      appMode = detectAppMode({
+        ...urlParams,
+        ...placementOptions,
+        queryPlacementOptions,
+      });
+
       dealId = extractDealId({
         ...urlParams,
         ...placementOptions,
@@ -3551,13 +3670,23 @@
       });
       dealTitle = "";
 
+      if (!dealId) appMode = APP_MODE_CRM_MENU;
+
+      if (appMode === APP_MODE_CRM_MENU) {
+        dealId = null;
+        activeSheetType = SHEET_TYPE_FUNNEL;
+        await loadDealCategories();
+      }
+
       if (dealContext) {
-        dealContext.textContent = dealId
+        dealContext.textContent = appMode === APP_MODE_CRM_MENU
+          ? `Общие листы воронки "${dealCategoryName || "Общая воронка"}"`
+          : dealId
           ? `Таблица сделки "ID ${dealId}"`
           : "Таблица сделки не определена. Обновите вкладку после полного открытия карточки.";
       }
 
-      if (!dealId) activeSheetType = SHEET_TYPE_DEAL;
+      if (!dealId && appMode !== APP_MODE_CRM_MENU) activeSheetType = SHEET_TYPE_DEAL;
       loadSheetLists();
       loadActiveSheetState();
       await syncSheetListsFromSharedStorage();
@@ -3882,6 +4011,8 @@
     reloadFieldsButton.addEventListener("click", () => loadDealFields({ compactAfterLoad: true }));
     if (addDealSheetButton) addDealSheetButton.addEventListener("click", () => addSheetToGroup(SHEET_TYPE_DEAL));
     if (addFunnelSheetButton) addFunnelSheetButton.addEventListener("click", () => addSheetToGroup(SHEET_TYPE_FUNNEL));
+    if (selectFunnelButton) selectFunnelButton.addEventListener("click", openFunnelPopover);
+    if (funnelPopoverClose) funnelPopoverClose.addEventListener("click", closeFunnelPopover);
     window.addEventListener("pagehide", pruneEmptySheetsBeforeExit);
     window.addEventListener("beforeunload", pruneEmptySheetsBeforeExit);
     if (selectFilledButton) selectFilledButton.addEventListener("click", selectAllCells);
@@ -3949,6 +4080,7 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         closeFieldPopover();
+        closeFunnelPopover();
         closeGridContextMenu();
         closeFormulaModal();
         closeDeleteConfirmModal();
@@ -3978,6 +4110,11 @@
       if (popover.hidden) return;
       if (popover.contains(event.target) || event.target.classList.contains("field-picker-button")) return;
       closeFieldPopover();
+    });
+    document.addEventListener("click", (event) => {
+      if (!funnelPopover || funnelPopover.hidden) return;
+      if (funnelPopover.contains(event.target) || event.target === selectFunnelButton) return;
+      closeFunnelPopover();
     });
     document.addEventListener("click", (event) => {
       if (gridContextMenu && !gridContextMenu.contains(event.target)) closeGridContextMenu();
@@ -4018,6 +4155,8 @@
     DEFAULT_COLUMN_WIDTH,
     DEFAULT_ROW_HEIGHT,
     DEFAULT_ROWS,
+    APP_MODE_CRM_MENU,
+    APP_MODE_DEAL,
     MAX_SHEETS_PER_GROUP,
     MAX_GRID_COLUMNS,
     MAX_GRID_ROWS,
@@ -4043,6 +4182,7 @@
     createGrid,
     deleteColumnInSheetState,
     deleteRowInSheetState,
+    detectAppMode,
     evaluateFormula,
     escapeHtml,
     extractDealId,
@@ -4101,6 +4241,7 @@
     getAutoFitRowHeights,
     normalizeCategoryId,
     normalizeCellFormat,
+    normalizeDealCategories,
     normalizeFields,
     normalizeIdList,
     normalizeColumnWidths,

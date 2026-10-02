@@ -1,8 +1,19 @@
 (function () {
   "use strict";
 
-  const PLACEMENT_CODE = "CRM_DEAL_DETAIL_TAB";
-  const PLACEMENT_TITLE = "Excel таблицы в CRM";
+  const PLACEMENTS = [
+    {
+      code: "CRM_DEAL_DETAIL_TAB",
+      title: "Excel таблицы в CRM",
+      query: "",
+    },
+    {
+      code: "LEFT_MENU",
+      title: "Excel таблицы в CRM",
+      query: "?mode=crm-menu",
+      optional: true,
+    },
+  ];
   const SHARED_STORAGE_ENTITY = "exctabb24";
   const SHARED_STORAGE_PROPERTY = "DATA";
 
@@ -29,32 +40,39 @@
     if (node) node.textContent = message;
   }
 
-  async function bindPlacement() {
-    const handler = new URL("index.html", window.location.href).href;
+  async function bindPlacement(placement) {
+    const handler = new URL(`index.html${placement.query}`, window.location.href).href;
 
     await callMethod("placement.unbind", {
-      PLACEMENT: PLACEMENT_CODE,
+      PLACEMENT: placement.code,
     }).catch(() => null);
 
     await callMethod("placement.unbind", {
-      PLACEMENT: PLACEMENT_CODE,
+      PLACEMENT: placement.code,
       HANDLER: handler,
     }).catch(() => null);
 
     try {
       await callMethod("placement.bind", {
-        PLACEMENT: PLACEMENT_CODE,
+        PLACEMENT: placement.code,
         HANDLER: handler,
-        TITLE: PLACEMENT_TITLE,
+        TITLE: placement.title,
       });
-      setStatus("Вкладка сделки зарегистрирована.");
+      setStatus("Встраивание приложения зарегистрировано.");
     } catch (error) {
       const message = String(error.message || error);
       if (/already|exist|уже/i.test(message)) {
-        setStatus("Вкладка сделки уже зарегистрирована.");
+        setStatus("Встраивание приложения уже зарегистрировано.");
         return;
       }
+      if (placement.optional) return;
       throw error;
+    }
+  }
+
+  async function bindPlacements() {
+    for (const placement of PLACEMENTS) {
+      await bindPlacement(placement);
     }
   }
 
@@ -100,7 +118,7 @@
       try {
         setStatus("Регистрируем вкладку в карточке сделки...");
         await ensureSharedStorage();
-        await bindPlacement();
+        await bindPlacements();
         if (finishButton) finishButton.disabled = false;
         finishInstall();
       } catch (error) {
